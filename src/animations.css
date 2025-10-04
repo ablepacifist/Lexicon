@@ -1,0 +1,92 @@
+@keyframes brewAnimation {
+  0% { 
+    opacity: 0; 
+    transform: scale(0.8); 
+  }
+  50% { 
+    opacity: 1; 
+    transform: scale(5.1); /* Adjusted from 5.1 */
+  }
+  100% { 
+    opacity: 0; 
+    transform: scale(0.8); 
+  }
+}
+.brew-animation {
+  animation: brewAnimation 4s ease-out;
+}
+
+@keyframes forageAnimation {
+  0% { 
+    opacity: 0; 
+    transform: scale(1); 
+    transform: translateY(120px); 
+  }
+  50% { 
+    opacity: 1; 
+    transform: scale(5.1); /* Adjusted from 5.1 */
+    transform: translateY(0); 
+  }
+  100% { 
+    opacity: 0; 
+    transform: scale(1.1); /* Adjusted from 5.1 */
+    transform: translateY(-120px); 
+  }
+}
+.forage-animation {
+  animation: forageAnimation 6s ease-out;
+}
+
+/* Consume Potion Animation: A flash or scale-up effect */
+@keyframes consumePotionAnimation {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(5.2);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+.consume-potion-animation {
+  animation: consumePotionAnimation 7s ease-out;
+}
+
+/* Consume Ingredient Animation: A slide effect */
+@keyframes consumeIngredientAnimation {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+    transform: translateX(-20px);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(5.2);
+    transform: translateX(0);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.8);
+    transform: translateX(20px);
+  }
+}
+.consume-ingredient-animation {
+  animation: consumeIngredientAnimation 5s ease-out;
+}
+
+.animation-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
