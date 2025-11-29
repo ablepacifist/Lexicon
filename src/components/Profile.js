@@ -22,10 +22,10 @@ const Profile = () => {
 
     setLoading(true);
     try {
-const res = await fetch(
-  `${API_URL}/player/${user.id}`,
-  { credentials: 'include' }
-);
+      const res = await fetch(
+        `${API_URL}/api/player/${user.id}`,
+        { credentials: 'include' }
+      );
 
       if (!res.ok) {
         setError('Failed to fetch player details.');
@@ -52,7 +52,7 @@ const res = await fetch(
 
     try {
       const res = await fetch(
-        `${API_URL}/player/levelup`,
+        `${API_URL}/api/player/levelup`,
         {
           method: 'POST',
           credentials: 'include',
@@ -75,7 +75,7 @@ const res = await fetch(
 
   const handleLogout = async () => {
     try {
-      await fetch(`${API_URL}/auth/logout`, {
+      await fetch(`${API_URL}/api/auth/logout`, {
         method: 'POST',
         credentials: 'include',
       });
