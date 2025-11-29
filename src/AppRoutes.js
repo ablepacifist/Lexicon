@@ -13,10 +13,13 @@ import LexiconDashboard from './pages/LexiconDashboard';
 import MediaUploadDownload from './pages/MediaUploadDownload';
 import MediaPlayer from './pages/MediaPlayer';
 import MediaStream from './pages/MediaStream';
+import VideoPlayer from './pages/VideoPlayer';
+import AudioPlayer from './pages/AudioPlayer';
 import Dashboard from './pages/Dashboard';
 import About from './pages/About';
 import Profile from './components/Profile';
 import KnowledgeBook from './pages/KnowledgeBook';
+import PlaylistManager from './pages/PlaylistManager';
 
 const API_URL = process.env.REACT_APP_API_URL;
 
@@ -70,6 +73,15 @@ function AppRoutes() {
       } />
       <Route path="/media-stream" element={
         <PrivateRoute><MediaStream /></PrivateRoute>
+      } />
+      <Route path="/video-player" element={
+        <PrivateRoute><VideoPlayer /></PrivateRoute>
+      } />
+      <Route path="/audio-player" element={
+        <PrivateRoute><AudioPlayer /></PrivateRoute>
+      } />
+      <Route path="/playlist-manager" element={
+        <PrivateRoute><PlaylistManager /></PrivateRoute>
       } />
       <Route path="/dashboard" element={
         <PrivateRoute><Dashboard /></PrivateRoute>

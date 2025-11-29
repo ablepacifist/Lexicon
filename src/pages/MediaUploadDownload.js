@@ -26,6 +26,22 @@ const MediaUploadDownload = () => {
   const [downloadType, setDownloadType] = useState('AUDIO_ONLY');
   
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Edit state
+  const [editingFile, setEditingFile] = useState(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+
+  // Auto-set mediaType based on downloadType when in link mode
+  const handleDownloadTypeChange = (newDownloadType) => {
+    setDownloadType(newDownloadType);
+    // Auto-set media type based on download type
+    if (newDownloadType === 'AUDIO_ONLY') {
+      setMediaType('MUSIC');
+    } else if (newDownloadType === 'VIDEO') {
+      setMediaType('VIDEO');
+    }
+  };
 
   const containerStyle = {
     backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url(${background})`,
@@ -272,6 +288,52 @@ const MediaUploadDownload = () => {
     }
   };
 
+  const handleEdit = (file) => {
+    setEditingFile(file);
+    setEditTitle(file.title);
+    setEditDescription(file.description || '');
+  };
+
+  const handleCancelEdit = () => {
+    setEditingFile(null);
+    setEditTitle('');
+    setEditDescription('');
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editTitle.trim()) {
+      alert('Title is required');
+      return;
+    }
+
+    try {
+      const updatedMedia = {
+        ...editingFile,
+        title: editTitle,
+        description: editDescription
+      };
+
+      const response = await fetch(`${API_URL}/api/media/${editingFile.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(updatedMedia)
+      });
+
+      if (response.ok) {
+        alert('Media updated successfully!');
+        handleCancelEdit();
+        fetchMyMedia();
+      } else {
+        const error = await response.text();
+        alert(`Update failed: ${error}`);
+      }
+    } catch (error) {
+      console.error('Error updating:', error);
+      alert('Error updating media');
+    }
+  };
+
   // Download media file
   const handleDownload = async (mediaId, filename) => {
     try {
@@ -390,12 +452,12 @@ const MediaUploadDownload = () => {
                 <label style={{ display: 'block', marginBottom: '0.5rem', color: '#aaa' }}>
                   Download:
                 </label>
-                <label style={{ marginRight: '1rem', color: '#fff' }}>
+                <label style={{ color: '#fff' }}>
                   <input
                     type="radio"
                     value="AUDIO_ONLY"
                     checked={downloadType === 'AUDIO_ONLY'}
-                    onChange={(e) => setDownloadType(e.target.value)}
+                    onChange={(e) => handleDownloadTypeChange(e.target.value)}
                     style={{ marginRight: '0.5rem' }}
                   />
                   Audio Only
@@ -405,7 +467,7 @@ const MediaUploadDownload = () => {
                     type="radio"
                     value="VIDEO"
                     checked={downloadType === 'VIDEO'}
-                    onChange={(e) => setDownloadType(e.target.value)}
+                    onChange={(e) => handleDownloadTypeChange(e.target.value)}
                     style={{ marginRight: '0.5rem' }}
                   />
                   Video + Audio
@@ -487,28 +549,76 @@ const MediaUploadDownload = () => {
                   marginBottom: '1rem',
                 }}
               >
-                <h3 style={{ color: '#9b59b6' }}>{file.title}</h3>
-                <p>{file.description || 'No description'}</p>
-                <p style={{ fontSize: '0.9rem', color: '#aaa' }}>
-                  Type: {file.fileType} | Size: {(file.fileSize / 1024).toFixed(2)} KB | 
-                  {file.isPublic ? ' Public' : ' Private'}
-                </p>
-                <div style={{ marginTop: '0.5rem' }}>
-                  <button 
-                    onClick={() => handleDownload(file.id, file.originalFilename || file.title)}
-                    style={secondaryButtonStyle}
-                  >
-                    Download
-                  </button>
-                  {file.uploadedBy === user.id && (
-                    <button
-                      onClick={() => handleDelete(file.id)}
-                      style={{ ...buttonStyle, backgroundColor: '#e74c3c', color: '#fff' }}
-                    >
-                      Delete
-                    </button>
-                  )}
-                </div>
+                {editingFile && editingFile.id === file.id ? (
+                  /* Edit Mode */
+                  <div>
+                    <div style={{ marginBottom: '1rem' }}>
+                      <label style={{ display: 'block', marginBottom: '0.5rem', color: '#9b59b6', fontWeight: 'bold' }}>
+                        Title *
+                      </label>
+                      <input
+                        type="text"
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                        style={inputStyle}
+                        placeholder="Enter title"
+                      />
+                    </div>
+                    <div style={{ marginBottom: '1rem' }}>
+                      <label style={{ display: 'block', marginBottom: '0.5rem', color: '#9b59b6', fontWeight: 'bold' }}>
+                        Description
+                      </label>
+                      <textarea
+                        value={editDescription}
+                        onChange={(e) => setEditDescription(e.target.value)}
+                        style={{ ...inputStyle, minHeight: '100px', resize: 'vertical' }}
+                        placeholder="Enter description (optional)"
+                      />
+                    </div>
+                    <div style={{ marginTop: '1rem' }}>
+                      <button onClick={handleSaveEdit} style={primaryButtonStyle}>
+                        💾 Save Changes
+                      </button>
+                      <button onClick={handleCancelEdit} style={backButtonStyle}>
+                        ❌ Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  /* Display Mode */
+                  <div>
+                    <h3 style={{ color: '#9b59b6' }}>{file.title}</h3>
+                    <p>{file.description || 'No description'}</p>
+                    <p style={{ fontSize: '0.9rem', color: '#aaa' }}>
+                      Type: {file.fileType} | Size: {(file.fileSize / 1024).toFixed(2)} KB | 
+                      {file.isPublic ? ' Public' : ' Private'}
+                    </p>
+                    <div style={{ marginTop: '0.5rem' }}>
+                      <button 
+                        onClick={() => handleDownload(file.id, file.originalFilename || file.title)}
+                        style={secondaryButtonStyle}
+                      >
+                        📥 Download
+                      </button>
+                      {file.uploadedBy === user.id && (
+                        <>
+                          <button
+                            onClick={() => handleEdit(file)}
+                            style={{ ...buttonStyle, backgroundColor: '#3498db', color: '#fff' }}
+                          >
+                            ✏️ Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(file.id)}
+                            style={{ ...buttonStyle, backgroundColor: '#e74c3c', color: '#fff' }}
+                          >
+                            🗑️ Delete
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>

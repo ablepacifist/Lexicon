@@ -53,9 +53,19 @@ const LexiconDashboard = () => {
     backgroundColor: '#9b59b6',
   };
 
-  const playerButtonStyle = {
+  const videoPlayerButtonStyle = {
     ...buttonStyle,
     backgroundColor: '#3498db',
+  };
+
+  const audioPlayerButtonStyle = {
+    ...buttonStyle,
+    backgroundColor: '#2ecc71',
+  };
+
+  const playlistButtonStyle = {
+    ...buttonStyle,
+    backgroundColor: '#f39c12',
   };
 
   const streamButtonStyle = {
@@ -107,16 +117,42 @@ const LexiconDashboard = () => {
             </button>
           </Link>
           <br />
-          <Link to="/media-player">
+          <Link to="/video-player">
             <button
               style={{
-                ...playerButtonStyle,
-                ...(hover.player ? buttonHoverStyle : {}),
+                ...videoPlayerButtonStyle,
+                ...(hover.videoPlayer ? buttonHoverStyle : {}),
               }}
-              onMouseEnter={() => setHover({ ...hover, player: true })}
-              onMouseLeave={() => setHover({ ...hover, player: false })}
+              onMouseEnter={() => setHover({ ...hover, videoPlayer: true })}
+              onMouseLeave={() => setHover({ ...hover, videoPlayer: false })}
             >
-              Media Player
+              🎬 Video Player
+            </button>
+          </Link>
+          <br />
+          <Link to="/audio-player">
+            <button
+              style={{
+                ...audioPlayerButtonStyle,
+                ...(hover.audioPlayer ? buttonHoverStyle : {}),
+              }}
+              onMouseEnter={() => setHover({ ...hover, audioPlayer: true })}
+              onMouseLeave={() => setHover({ ...hover, audioPlayer: false })}
+            >
+              🎵 Audio Player
+            </button>
+          </Link>
+          <br />
+          <Link to="/playlist-manager">
+            <button
+              style={{
+                ...playlistButtonStyle,
+                ...(hover.playlist ? buttonHoverStyle : {}),
+              }}
+              onMouseEnter={() => setHover({ ...hover, playlist: true })}
+              onMouseLeave={() => setHover({ ...hover, playlist: false })}
+            >
+              📋 Playlist Manager
             </button>
           </Link>
           <br />
