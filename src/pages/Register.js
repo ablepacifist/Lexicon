@@ -17,13 +17,12 @@ const Register = () => {
     // No client-side validation checks—everything is sent to the API for validation.
     try {
       // send the JSON package to the server
-      // can replace the fetch call with '${API_URL}/api/auth/register' ?
-const response = await fetch(`${API_URL}/auth/register`, {
-  credentials: 'include',
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ username, password, confirmPassword })
-});
+      const response = await fetch(`${API_URL}/api/auth/register`, {
+        credentials: 'include',
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password, confirmPassword })
+      });
       if (!response.ok) { // failed to register
         throw new Error('Registration failed');
       }

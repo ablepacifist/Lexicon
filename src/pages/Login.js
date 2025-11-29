@@ -15,12 +15,12 @@ const Login = () => {
     e.preventDefault();
     setError('');
     try {
-const response = await fetch(`${API_URL}/auth/login`, {
-  credentials: "include",
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ username, password })
-});
+      const response = await fetch(`${API_URL}/api/auth/login`, {
+        credentials: "include",
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password })
+      });
 
 
       if (!response.ok) {
@@ -32,7 +32,7 @@ const response = await fetch(`${API_URL}/auth/login`, {
 
       // Update context with session-based info
       setUser({ id: data.playerId, username: data.username }); // <-- Add username from backend
-      navigate("/dashboard");
+      navigate("/app-selector");
     } catch (err) {
       console.error("Login error:", err);
       setError("Invalid username or password.");

@@ -12,9 +12,9 @@ import consumeIngredientIcon from '../assets/images/consume.png';
 const API_URL = process.env.REACT_APP_API_URL;
 
 
-const Dashboard = () => {
+const AlchemyDashboard = () => {
   const { user } = useContext(UserContext);
-  console.log('DASHBOARD mounted. User:', user);
+  console.log('ALCHEMY DASHBOARD mounted. User:', user);
   const playerId = user?.id; // Assumes the user object contains an 'id' field
   console.log('Player Id from context:', playerId);
 
@@ -242,8 +242,39 @@ const Dashboard = () => {
 return (
   <div style={containerStyle}>
     <h1 style={headerStyle}>
-      Welcome, {user && user.username ? user.username : 'User'}!
+      Alchemy Dashboard - Welcome, {user && user.username ? user.username : 'User'}!
     </h1>
+    <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
+      <Link to="/app-selector">
+        <button style={{
+          padding: '0.5rem 1.5rem',
+          fontSize: '1rem',
+          borderRadius: '5px',
+          border: 'none',
+          cursor: 'pointer',
+          backgroundColor: '#555',
+          color: '#fff',
+          fontWeight: 'bold',
+          marginRight: '0.5rem',
+        }}>
+          ← Back to App Selector
+        </button>
+      </Link>
+      <Link to="/">
+        <button style={{
+          padding: '0.5rem 1.5rem',
+          fontSize: '1rem',
+          borderRadius: '5px',
+          border: 'none',
+          cursor: 'pointer',
+          backgroundColor: '#777',
+          color: '#fff',
+          fontWeight: 'bold',
+        }}>
+          🏠 Home
+        </button>
+      </Link>
+    </div>
 
     <div style={columnsContainer}>
       {/* Ingredients List */}
@@ -420,4 +451,4 @@ return (
 );
 
 }
-export default Dashboard;
+export default AlchemyDashboard;
