@@ -1,0 +1,326 @@
+/* Mobile-Responsive Styles for Media Players */
+
+/* Base responsive styles */
+.media-player-container {
+    padding: 1rem;
+    min-height: 100vh;
+    box-sizing: border-box;
+    width: 100%;
+    overflow-x: hidden;
+}
+
+.media-player-layout {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Mobile: Stack vertically */
+@media (max-width: 768px) {
+    body, html {
+        overflow-x: hidden;
+        width: 100%;
+    }
+
+    * {
+        box-sizing: border-box;
+    }
+
+    .media-player-container {
+        padding: 0.5rem;
+        max-width: 100vw;
+        width: 100%;
+    }
+
+    .media-player-header {
+        flex-direction: column !important;
+        gap: 0.5rem;
+        padding: 0.5rem !important;
+        width: 100%;
+    }
+
+    .media-player-header h1 {
+        font-size: 1.5rem !important;
+        margin: 0.5rem 0 !important;
+    }
+
+    .back-button {
+        font-size: 0.9rem !important;
+        padding: 0.5rem 1rem !important;
+        width: 100%;
+    }
+
+    .media-player-layout {
+        flex-direction: column !important;
+        gap: 0.5rem;
+        height: auto !important;
+        grid-template-columns: 1fr !important;
+        display: flex !important;
+        width: 100%;
+    }
+
+    /* Audio/Video Player Section */
+    .audio-player-section,
+    .player-section {
+        width: 100% !important;
+        min-height: auto !important;
+        max-width: 100%;
+    }
+
+    .audio-player-controls,
+    .video-player-wrapper {
+        padding: 0.5rem;
+    }
+
+    .now-playing h2 {
+        font-size: 1.2rem;
+    }
+
+    .now-playing h3 {
+        font-size: 1rem;
+    }
+
+    /* Playlist Section */
+    .playlist-section {
+        width: 100% !important;
+        max-height: none !important;
+        height: auto !important;
+        max-width: 100%;
+    }
+
+    .playlists-panel {
+        width: 100% !important;
+    }
+
+    .playlist-items-panel {
+        width: 100% !important;
+    }
+
+    /* Tab Navigation */
+    .tab-navigation {
+        display: flex !important;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        width: 100%;
+        flex-wrap: nowrap;
+    }
+
+    .tab-button {
+        flex-shrink: 0;
+        font-size: 0.9rem !important;
+        padding: 0.5rem 1rem !important;
+        white-space: nowrap;
+    }
+
+    /* Filter Buttons */
+    .filter-buttons {
+        display: flex !important;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        justify-content: center;
+        width: 100%;
+    }
+
+    .filter-buttons button {
+        flex: 1;
+        min-width: 80px;
+        font-size: 0.9rem !important;
+        padding: 0.5rem !important;
+    }
+
+    /* Media Lists */
+    .audio-list,
+    .video-list {
+        max-height: 60vh !important;
+        height: auto !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        width: 100%;
+    }
+
+    .audio-item,
+    .video-item {
+        padding: 0.75rem !important;
+        margin: 0.5rem 0 !important;
+        width: 100% !important;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    .audio-item h4,
+    .video-item h4 {
+        font-size: 1rem !important;
+        word-break: break-word;
+    }
+
+    .audio-item p,
+    .video-item p {
+        font-size: 0.85rem !important;
+        word-break: break-word;
+    }
+
+    .audio-item-info,
+    .video-item-info {
+        width: 100%;
+        overflow: hidden;
+    }
+
+    /* Playback Controls */
+    .playback-controls,
+    .video-button-controls {
+        flex-wrap: wrap !important;
+        gap: 0.5rem;
+        justify-content: center;
+        width: 100%;
+    }
+
+    .control-button {
+        font-size: 0.85rem !important;
+        padding: 0.5rem 1rem !important;
+        min-width: 44px;
+        min-height: 44px;
+    }
+
+    /* Progress Bar */
+    .progress-container {
+        flex-direction: row !important;
+        gap: 0.5rem;
+        width: 100%;
+    }
+
+    .progress-bar {
+        width: 100% !important;
+        flex: 1;
+    }
+
+    /* Playlist Cards */
+    .playlists-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .playlist-card-mini {
+        padding: 0.75rem;
+    }
+
+    /* Modal for Mobile */
+    .modal-content {
+        width: 95% !important;
+        max-width: 95% !important;
+        margin: 1rem;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+
+    /* Form Groups */
+    .form-group {
+        margin-bottom: 0.75rem;
+    }
+
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+        font-size: 1rem;
+    }
+
+    /* Search Box */
+    .search-box input {
+        font-size: 1rem;
+        padding: 0.5rem;
+    }
+
+    /* Media Item Actions */
+    .media-item-actions,
+    .item-actions {
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .media-item-actions button,
+    .item-actions button {
+        width: 100%;
+        padding: 0.4rem;
+        font-size: 0.85rem;
+    }
+
+    /* Video Player Specific */
+    .video-player-wrapper video {
+        width: 100%;
+        max-height: 40vh;
+    }
+
+    .fullscreen-video {
+        height: 100vh !important;
+        max-height: 100vh !important;
+    }
+
+    /* Upload Page */
+    .media-upload-container {
+        padding: 0.5rem;
+    }
+
+    .media-upload-container form input,
+    .media-upload-container form textarea,
+    .media-upload-container form select {
+        font-size: 1rem;
+    }
+}
+
+/* Tablet: 2-column layout */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .media-player-layout {
+        flex-direction: row;
+    }
+
+    .audio-player-section,
+    .player-section {
+        width: 45%;
+    }
+
+    .playlist-section {
+        width: 50%;
+    }
+
+    .playlists-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* Desktop: Full layout */
+@media (min-width: 1025px) {
+    .audio-player-section,
+    .player-section {
+        width: 40%;
+    }
+
+    .playlist-section {
+        width: 55%;
+    }
+
+    .playlists-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* Touch-friendly buttons */
+@media (hover: none) and (pointer: coarse) {
+    button,
+    .control-button,
+    .tab-button {
+        min-height: 44px;
+        min-width: 44px;
+    }
+}
+
+/* Landscape orientation adjustments */
+@media (max-width: 768px) and (orientation: landscape) {
+    .audio-list,
+    .video-list {
+        max-height: 40vh;
+    }
+
+    .video-player-wrapper video {
+        max-height: 70vh;
+    }
+}

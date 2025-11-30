@@ -21,6 +21,10 @@ const MediaUploadDownload = () => {
   const [isPublic, setIsPublic] = useState(false);
   const [mediaType, setMediaType] = useState('OTHER');
   
+  // Upload progress state
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
+  
   // Link upload state
   const [linkUrl, setLinkUrl] = useState('');
   const [downloadType, setDownloadType] = useState('AUDIO_ONLY');
@@ -191,29 +195,57 @@ const MediaUploadDownload = () => {
       formData.append('userId', user.id);
       formData.append('mediaType', mediaType);
 
-      try {
-        const response = await fetch(`${API_URL}/api/media/upload`, {
-          method: 'POST',
-          credentials: 'include',
-          body: formData,
-        });
+      // Use XMLHttpRequest for progress tracking
+      setIsUploading(true);
+      setUploadProgress(0);
 
-        if (response.ok) {
+      const xhr = new XMLHttpRequest();
+
+      // Track upload progress
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) {
+          const percentComplete = Math.round((e.loaded / e.total) * 100);
+          setUploadProgress(percentComplete);
+        }
+      });
+
+      // Handle completion
+      xhr.addEventListener('load', () => {
+        setIsUploading(false);
+        if (xhr.status === 200) {
           alert('File uploaded successfully!');
           setUploadFile(null);
           setUploadTitle('');
           setUploadDescription('');
           setIsPublic(false);
           setMediaType('OTHER');
+          setUploadProgress(0);
           fetchMyMedia(); // Refresh the list
         } else {
-          const error = await response.text();
-          alert(`Upload failed: ${error}`);
+          alert(`Upload failed: ${xhr.responseText}`);
+          setUploadProgress(0);
         }
-      } catch (error) {
-        console.error('Error uploading:', error);
-        alert('Error uploading file');
-      }
+      });
+
+      // Handle errors
+      xhr.addEventListener('error', () => {
+        setIsUploading(false);
+        setUploadProgress(0);
+        alert('Error uploading file - connection failed');
+      });
+
+      // Handle timeout
+      xhr.addEventListener('timeout', () => {
+        setIsUploading(false);
+        setUploadProgress(0);
+        alert('Upload timed out - file may be too large');
+      });
+
+      // Configure and send request
+      xhr.open('POST', `${API_URL}/api/media/upload`);
+      xhr.timeout = 30 * 60 * 1000; // 30 minutes
+      xhr.withCredentials = true;
+      xhr.send(formData);
     } else {
       // Link upload
       if (!linkUrl.trim()) {
@@ -499,8 +531,38 @@ const MediaUploadDownload = () => {
             />
             Make Public
           </label>
-          <button type="submit" style={primaryButtonStyle} disabled={loading}>
-            {loading ? 'Processing...' : (uploadMode === 'file' ? 'Upload File' : 'Download & Upload')}
+          
+          {/* Upload Progress Bar */}
+          {isUploading && (
+            <div style={{ marginBottom: '1rem' }}>
+              <div style={{
+                backgroundColor: '#333',
+                borderRadius: '10px',
+                overflow: 'hidden',
+                marginBottom: '0.5rem'
+              }}>
+                <div style={{
+                  width: `${uploadProgress}%`,
+                  height: '30px',
+                  backgroundColor: '#9b59b6',
+                  transition: 'width 0.3s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#fff',
+                  fontWeight: 'bold'
+                }}>
+                  {uploadProgress}%
+                </div>
+              </div>
+              <div style={{ color: '#aaa', fontSize: '0.9rem', textAlign: 'center' }}>
+                Uploading... This may take several minutes for large files
+              </div>
+            </div>
+          )}
+          
+          <button type="submit" style={primaryButtonStyle} disabled={loading || isUploading}>
+            {isUploading ? `Uploading ${uploadProgress}%` : loading ? 'Processing...' : (uploadMode === 'file' ? 'Upload File' : 'Download & Upload')}
           </button>
         </form>
       </div>

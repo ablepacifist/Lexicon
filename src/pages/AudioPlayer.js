@@ -60,9 +60,9 @@ function AudioPlayer() {
             const userMedia = userResp.ok ? await userResp.json() : [];
             const publicMedia = publicResp.ok ? await publicResp.json() : [];
 
-            // mark personal items
-            userMedia.forEach(m => { m.isPersonal = true; });
-            publicMedia.forEach(m => { if (m.isPersonal === undefined) m.isPersonal = false; });
+            // mark personal items based on isPublic field (personal = NOT public)
+            userMedia.forEach(m => { m.isPersonal = !m.isPublic; });
+            publicMedia.forEach(m => { m.isPersonal = false; }); // public files are never personal
 
             const combined = [...userMedia, ...publicMedia];
             const map = new Map();
