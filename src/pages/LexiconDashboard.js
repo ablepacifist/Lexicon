@@ -1,7 +1,7 @@
 import React, { useContext, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
-import background from '../assets/images/dashboard_background.jpg';
+import background from '../assets/images/lexicon_room.jpg';
 
 const LexiconDashboard = () => {
   const { user } = useContext(UserContext);

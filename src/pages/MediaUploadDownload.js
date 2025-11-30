@@ -1,7 +1,7 @@
-import React, { useContext, useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
-import background from '../assets/images/dashboard_background.jpg';
+import background from '../assets/images/lexicon_room.jpg';
 
 // Use Lexicon server for media operations
 const API_URL = process.env.REACT_APP_LEXICON_API_URL || process.env.REACT_APP_API_URL;

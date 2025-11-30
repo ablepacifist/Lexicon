@@ -87,7 +87,7 @@ const Profile = () => {
   };
 
   const goBackToDashboard = () => {
-    navigate('/dashboard');
+    navigate('/alchemy-dashboard');
   };
 
   // 5. Redirect guard *after* all hooks
