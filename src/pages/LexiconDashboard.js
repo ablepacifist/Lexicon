@@ -73,6 +73,11 @@ const LexiconDashboard = () => {
     backgroundColor: '#e74c3c',
   };
 
+  const profileButtonStyle = {
+    ...buttonStyle,
+    backgroundColor: '#8e44ad',
+  };
+
   const backButtonStyle = {
     marginTop: '2rem',
     padding: '0.75rem 2rem',
@@ -143,6 +148,21 @@ const LexiconDashboard = () => {
             </button>
           </Link>
           <br />
+          <Link to="/audiobooks">
+            <button
+              style={{
+                ...buttonStyle,
+                backgroundColor: '#e67e22',
+                color: '#fff',
+                ...(hover.audiobooks ? buttonHoverStyle : {}),
+              }}
+              onMouseEnter={() => setHover({ ...hover, audiobooks: true })}
+              onMouseLeave={() => setHover({ ...hover, audiobooks: false })}
+            >
+              📚 Audiobooks
+            </button>
+          </Link>
+          <br />
           <Link to="/playlist-manager">
             <button
               style={{
@@ -166,6 +186,19 @@ const LexiconDashboard = () => {
               onMouseLeave={() => setHover({ ...hover, stream: false })}
             >
               Live Stream
+            </button>
+          </Link>
+          <br />
+          <Link to="/profile">
+            <button
+              style={{
+                ...profileButtonStyle,
+                ...(hover.profile ? buttonHoverStyle : {}),
+              }}
+              onMouseEnter={() => setHover({ ...hover, profile: true })}
+              onMouseLeave={() => setHover({ ...hover, profile: false })}
+            >
+              👤 Profile
             </button>
           </Link>
         </div>

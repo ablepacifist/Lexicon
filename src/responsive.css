@@ -35,37 +35,37 @@
     }
 
     .media-player-header {
-        flex-direction: column !important;
+        flex-direction: column;
         gap: 0.5rem;
-        padding: 0.5rem !important;
+        padding: 0.5rem;
         width: 100%;
     }
 
     .media-player-header h1 {
-        font-size: 1.5rem !important;
-        margin: 0.5rem 0 !important;
+        font-size: 1.5rem;
+        margin: 0.5rem 0;
     }
 
     .back-button {
-        font-size: 0.9rem !important;
-        padding: 0.5rem 1rem !important;
+        font-size: 0.9rem;
+        padding: 0.5rem 1rem;
         width: 100%;
     }
 
     .media-player-layout {
-        flex-direction: column !important;
+        flex-direction: column;
         gap: 0.5rem;
-        height: auto !important;
-        grid-template-columns: 1fr !important;
-        display: flex !important;
+        height: auto;
+        grid-template-columns: 1fr;
+        display: flex;
         width: 100%;
     }
 
     /* Audio/Video Player Section */
     .audio-player-section,
     .player-section {
-        width: 100% !important;
-        min-height: auto !important;
+        width: 100%;
+        min-height: auto;
         max-width: 100%;
     }
 
@@ -84,23 +84,25 @@
 
     /* Playlist Section */
     .playlist-section {
-        width: 100% !important;
-        max-height: none !important;
-        height: auto !important;
+        width: 100%;
+        max-height: none;
+        height: auto;
         max-width: 100%;
+        display: flex;
+        min-height: 500px;
     }
 
     .playlists-panel {
-        width: 100% !important;
+        width: 100%;
     }
 
     .playlist-items-panel {
-        width: 100% !important;
+        width: 100%;
     }
 
     /* Tab Navigation */
     .tab-navigation {
-        display: flex !important;
+        display: flex;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
         width: 100%;
@@ -109,14 +111,14 @@
 
     .tab-button {
         flex-shrink: 0;
-        font-size: 0.9rem !important;
-        padding: 0.5rem 1rem !important;
+        font-size: 0.9rem;
+        padding: 0.5rem 1rem;
         white-space: nowrap;
     }
 
     /* Filter Buttons */
     .filter-buttons {
-        display: flex !important;
+        display: flex;
         flex-wrap: wrap;
         gap: 0.5rem;
         justify-content: center;
@@ -126,39 +128,45 @@
     .filter-buttons button {
         flex: 1;
         min-width: 80px;
-        font-size: 0.9rem !important;
-        padding: 0.5rem !important;
+        font-size: 0.9rem;
+        padding: 0.5rem;
     }
 
     /* Media Lists */
     .audio-list,
     .video-list {
-        max-height: 60vh !important;
-        height: auto !important;
-        overflow-y: auto !important;
-        overflow-x: hidden !important;
+        max-height: none;
+        height: auto;
+        overflow-y: auto;
+        overflow-x: hidden;
         width: 100%;
+        padding-right: 5px;
     }
 
     .audio-item,
     .video-item {
-        padding: 0.75rem !important;
-        margin: 0.5rem 0 !important;
-        width: 100% !important;
+        padding: 15px;
+        margin: 8px 0;
+        width: 100%;
         max-width: 100%;
         box-sizing: border-box;
+        min-height: auto;
     }
 
     .audio-item h4,
     .video-item h4 {
-        font-size: 1rem !important;
+        font-size: 16px;
         word-break: break-word;
+        white-space: normal;
+        overflow: visible;
+        text-overflow: clip;
     }
 
     .audio-item p,
     .video-item p {
-        font-size: 0.85rem !important;
+        font-size: 14px;
         word-break: break-word;
+        white-space: normal;
     }
 
     .audio-item-info,
@@ -170,28 +178,28 @@
     /* Playback Controls */
     .playback-controls,
     .video-button-controls {
-        flex-wrap: wrap !important;
+        flex-wrap: wrap;
         gap: 0.5rem;
         justify-content: center;
         width: 100%;
     }
 
     .control-button {
-        font-size: 0.85rem !important;
-        padding: 0.5rem 1rem !important;
+        font-size: 0.85rem;
+        padding: 0.5rem 1rem;
         min-width: 44px;
         min-height: 44px;
     }
 
     /* Progress Bar */
     .progress-container {
-        flex-direction: row !important;
+        flex-direction: row;
         gap: 0.5rem;
         width: 100%;
     }
 
     .progress-bar {
-        width: 100% !important;
+        width: 100%;
         flex: 1;
     }
 
@@ -206,8 +214,8 @@
 
     /* Modal for Mobile */
     .modal-content {
-        width: 95% !important;
-        max-width: 95% !important;
+        width: 95%;
+        max-width: 95%;
         margin: 1rem;
         max-height: 90vh;
         overflow-y: auto;
@@ -251,8 +259,8 @@
     }
 
     .fullscreen-video {
-        height: 100vh !important;
-        max-height: 100vh !important;
+        height: 100vh;
+        max-height: 100vh;
     }
 
     /* Upload Page */

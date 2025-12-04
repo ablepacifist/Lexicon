@@ -18,7 +18,7 @@ function VideoPlayer() {
     const [playlistSearchQuery, setPlaylistSearchQuery] = useState('');
     const [activeTab, setActiveTab] = useState('library'); // 'library' or 'playlists'
     const [editingMedia, setEditingMedia] = useState(null);
-    const [editFormData, setEditFormData] = useState({ title: '', description: '' });
+    const [editFormData, setEditFormData] = useState({ title: '', description: '', isPublic: true });
     const [showEditModal, setShowEditModal] = useState(false);
     const videoRef = useRef(null);
     const containerRef = useRef(null);
@@ -140,7 +140,8 @@ function VideoPlayer() {
         setEditingMedia(media);
         setEditFormData({
             title: media.title,
-            description: media.description || ''
+            description: media.description || '',
+            isPublic: media.isPublic !== undefined ? media.isPublic : true
         });
         setShowEditModal(true);
     };
@@ -148,7 +149,7 @@ function VideoPlayer() {
     const closeEditModal = () => {
         setShowEditModal(false);
         setEditingMedia(null);
-        setEditFormData({ title: '', description: '' });
+        setEditFormData({ title: '', description: '', isPublic: true });
     };
 
     const handleEditSubmit = async (e) => {
@@ -158,7 +159,8 @@ function VideoPlayer() {
             const updatedMedia = {
                 ...editingMedia,
                 title: editFormData.title,
-                description: editFormData.description
+                description: editFormData.description,
+                isPublic: editFormData.isPublic
             };
 
             const resp = await fetch(`${lexiconApiUrl}/api/media/${editingMedia.id}`, {
@@ -477,6 +479,16 @@ function VideoPlayer() {
                                     placeholder="Enter media description (optional)"
                                     rows="4"
                                 />
+                            </div>
+                            <div className="form-group">
+                                <label>
+                                    <input
+                                        type="checkbox"
+                                        checked={editFormData.isPublic}
+                                        onChange={(e) => setEditFormData({ ...editFormData, isPublic: e.target.checked })}
+                                    />
+                                    {' '}Public (visible to all users)
+                                </label>
                             </div>
                             <div className="modal-actions">
                                 <button type="submit" className="save-btn">Save Changes</button>

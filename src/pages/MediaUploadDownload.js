@@ -35,6 +35,7 @@ const MediaUploadDownload = () => {
   const [editingFile, setEditingFile] = useState(null);
   const [editTitle, setEditTitle] = useState('');
   const [editDescription, setEditDescription] = useState('');
+  const [editIsPublic, setEditIsPublic] = useState(true);
 
   // Auto-set mediaType based on downloadType when in link mode
   const handleDownloadTypeChange = (newDownloadType) => {
@@ -324,12 +325,14 @@ const MediaUploadDownload = () => {
     setEditingFile(file);
     setEditTitle(file.title);
     setEditDescription(file.description || '');
+    setEditIsPublic(file.isPublic !== undefined ? file.isPublic : true);
   };
 
   const handleCancelEdit = () => {
     setEditingFile(null);
     setEditTitle('');
     setEditDescription('');
+    setEditIsPublic(true);
   };
 
   const handleSaveEdit = async () => {
@@ -342,7 +345,8 @@ const MediaUploadDownload = () => {
       const updatedMedia = {
         ...editingFile,
         title: editTitle,
-        description: editDescription
+        description: editDescription,
+        isPublic: editIsPublic
       };
 
       const response = await fetch(`${API_URL}/api/media/${editingFile.id}`, {
@@ -636,6 +640,17 @@ const MediaUploadDownload = () => {
                         style={{ ...inputStyle, minHeight: '100px', resize: 'vertical' }}
                         placeholder="Enter description (optional)"
                       />
+                    </div>
+                    <div style={{ marginBottom: '1rem' }}>
+                      <label style={{ color: '#9b59b6', fontWeight: 'bold' }}>
+                        <input
+                          type="checkbox"
+                          checked={editIsPublic}
+                          onChange={(e) => setEditIsPublic(e.target.checked)}
+                          style={{ marginRight: '0.5rem' }}
+                        />
+                        Public (visible to all users)
+                      </label>
                     </div>
                     <div style={{ marginTop: '1rem' }}>
                       <button onClick={handleSaveEdit} style={primaryButtonStyle}>

@@ -124,6 +124,22 @@ const AppSelector = () => {
           </Link>
         </div>
 
+        <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <Link to="/profile">
+            <button
+              style={{
+                ...backButtonStyle,
+                backgroundColor: '#8e44ad',
+                ...(hover.profile ? buttonHoverStyle : {}),
+              }}
+              onMouseEnter={() => setHover({ ...hover, profile: true })}
+              onMouseLeave={() => setHover({ ...hover, profile: false })}
+            >
+              👤 Profile
+            </button>
+          </Link>
+        </div>
+
         <Link to="/">
           <button
             style={backButtonStyle}
