@@ -79,7 +79,6 @@ function AudioPlayer() {
                 const mediaTypeValue = media.mediaType || media.type || '';
                 return mediaTypeValue === 'AUDIO' || 
                        mediaTypeValue === 'MUSIC' ||
-                       mediaTypeValue === 'AUDIOBOOK' ||
                        media.filePath?.match(/\.(mp3|wav|ogg|flac|m4a|aac)$/i);
             });
             console.log('AudioPlayer: Filtered audio files:', audioOnly.length);
@@ -103,7 +102,7 @@ function AudioPlayer() {
                 
                 // Filter for music/audio playlists only
                 const audioPlaylists = [...userPlaylists, ...publicPlaylists].filter(
-                    p => p.mediaType === 'MUSIC' || p.mediaType === 'AUDIO' || p.mediaType === 'AUDIOBOOK'
+                    p => p.mediaType === 'MUSIC' || p.mediaType === 'AUDIO'
                 );
                 setPlaylists(audioPlaylists);
             }

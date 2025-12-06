@@ -15,6 +15,11 @@ function Audiobooks() {
     const [playbackSpeed, setPlaybackSpeed] = useState(1);
     const [error, setError] = useState('');
     const [filterType, setFilterType] = useState('all');
+    const [playlists, setPlaylists] = useState([]);
+    const [selectedPlaylist, setSelectedPlaylist] = useState(null);
+    const [playlistMode, setPlaylistMode] = useState(false);
+    const [playlistSearchQuery, setPlaylistSearchQuery] = useState('');
+    const [activeTab, setActiveTab] = useState('library');
     const [editingMedia, setEditingMedia] = useState(null);
     const [editFormData, setEditFormData] = useState({ title: '', description: '', isPublic: true });
     const [showEditModal, setShowEditModal] = useState(false);
@@ -30,6 +35,7 @@ function Audiobooks() {
             return;
         }
         fetchAudiobooks();
+        fetchPlaylists();
     }, [user]);
 
     const fetchAudiobooks = async () => {
@@ -68,6 +74,57 @@ function Audiobooks() {
         }
     };
 
+    const fetchPlaylists = async () => {
+        try {
+            const [userResp, publicResp] = await Promise.all([
+                fetch(`${lexiconApiUrl}/api/playlists/user/${user.id}`, { credentials: 'include' }),
+                fetch(`${lexiconApiUrl}/api/playlists/public`, { credentials: 'include' })
+            ]);
+
+            if (userResp.ok || publicResp.ok) {
+                const userPlaylists = userResp.ok ? await userResp.json() : [];
+                const publicPlaylists = publicResp.ok ? await publicResp.json() : [];
+                
+                const audiobookPlaylists = [...userPlaylists, ...publicPlaylists].filter(
+                    p => p.mediaType === 'AUDIOBOOK'
+                );
+                setPlaylists(audiobookPlaylists);
+            }
+        } catch (err) {
+            console.log('Could not fetch playlists:', err.message);
+        }
+    };
+
+    const loadPlaylist = async (playlistId) => {
+        try {
+            const resp = await fetch(`${lexiconApiUrl}/api/playlists/${playlistId}`, {
+                credentials: 'include'
+            });
+
+            if (resp.ok) {
+                const playlist = await resp.json();
+                const playlistBooks = playlist.items.map(item => item.mediaFile);
+                setAudiobooks(playlistBooks);
+                setSelectedPlaylist(playlist);
+                setPlaylistMode(true);
+                setFilterType('all');
+                setActiveTab('library');
+                
+                if (playlistBooks.length > 0) {
+                    playBook(playlistBooks[0], 0);
+                }
+            }
+        } catch (err) {
+            setError('Failed to load playlist: ' + err.message);
+        }
+    };
+
+    const exitPlaylistMode = () => {
+        setPlaylistMode(false);
+        setSelectedPlaylist(null);
+        fetchAudiobooks();
+    };
+
     const getFilteredAudiobooks = () => {
         if (filterType === 'all') return audiobooks;
         return audiobooks.filter(book => 
@@ -95,6 +152,80 @@ function Audiobooks() {
             });
         }
     };
+
+    // Load saved playback position for audiobook
+    const loadPlaybackPosition = async (mediaFileId) => {
+        try {
+            const resp = await fetch(
+                `${lexiconApiUrl}/api/playback/position/${user.id}/${mediaFileId}`,
+                { credentials: 'include' }
+            );
+            
+            if (resp.ok) {
+                const data = await resp.json();
+                if (data.found && data.position > 0) {
+                    // Wait for audio element to be ready
+                    setTimeout(() => {
+                        if (audioRef.current) {
+                            audioRef.current.currentTime = data.position;
+                            setCurrentTime(data.position);
+                            console.log(`Resumed audiobook at ${Math.floor(data.position)}s (${Math.floor(data.progressPercentage)}%)`);
+                        }
+                    }, 100);
+                }
+            }
+        } catch (err) {
+            console.log('Could not load playback position:', err.message);
+        }
+    };
+
+    // Save playback position
+    const savePlaybackPosition = async (position, duration, completed = false) => {
+        if (!currentBook || !user) return;
+        
+        try {
+            await fetch(`${lexiconApiUrl}/api/playback/position`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({
+                    userId: user.id,
+                    mediaFileId: currentBook.id,
+                    position: Math.floor(position),
+                    duration: Math.floor(duration),
+                    completed: completed
+                })
+            });
+        } catch (err) {
+            console.log('Could not save playback position:', err.message);
+        }
+    };
+
+    // Auto-save position every 10 seconds
+    useEffect(() => {
+        if (!currentBook || !isPlaying) return;
+        
+        const interval = setInterval(() => {
+            if (audioRef.current && duration > 0) {
+                const position = audioRef.current.currentTime;
+                const isCompleted = (duration - position) < 30; // Within 30 seconds of end
+                savePlaybackPosition(position, duration, isCompleted);
+            }
+        }, 10000); // Save every 10 seconds
+        
+        return () => clearInterval(interval);
+    }, [currentBook, isPlaying, duration]);
+
+    // Save position when pausing or changing books
+    useEffect(() => {
+        return () => {
+            if (currentBook && audioRef.current && duration > 0) {
+                const position = audioRef.current.currentTime;
+                const isCompleted = (duration - position) < 30;
+                savePlaybackPosition(position, duration, isCompleted);
+            }
+        };
+    }, [currentBook]);
 
     useEffect(() => {
         if ('mediaSession' in navigator && currentBook) {
@@ -157,9 +288,13 @@ function Audiobooks() {
         }
     };
 
-    const handleLoadedMetadata = () => {
+    const handleLoadedMetadata = async () => {
         if (audioRef.current) {
             setDuration(audioRef.current.duration);
+            // Load saved playback position once audio is ready
+            if (currentBook) {
+                await loadPlaybackPosition(currentBook.id);
+            }
         }
     };
 
@@ -370,29 +505,52 @@ function Audiobooks() {
                 {/* Audiobook Library */}
                 <div className="playlist-section">
                     <div className="playlist-header">
-                        <h2>My Audiobooks</h2>
+                        <h2>{playlistMode ? `📚 ${selectedPlaylist?.name}` : 'My Audiobooks'}</h2>
+                        {playlistMode && (
+                            <button onClick={exitPlaylistMode} className="exit-playlist-btn">
+                                ← Back to Library
+                            </button>
+                        )}
                     </div>
 
-                    <div className="filter-buttons">
+                    {/* Tab Navigation */}
+                    <div className="tab-navigation">
                         <button
-                            className={filterType === 'all' ? 'active' : ''}
-                            onClick={() => setFilterType('all')}
+                            className={`tab-button ${activeTab === 'library' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('library')}
                         >
-                            All
+                            📚 Library
                         </button>
                         <button
-                            className={filterType === 'personal' ? 'active' : ''}
-                            onClick={() => setFilterType('personal')}
+                            className={`tab-button ${activeTab === 'playlists' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('playlists')}
                         >
-                            Personal
-                        </button>
-                        <button
-                            className={filterType === 'public' ? 'active' : ''}
-                            onClick={() => setFilterType('public')}
-                        >
-                            Public
+                            📋 Playlists
                         </button>
                     </div>
+
+                    {activeTab === 'library' ? (
+                        <>
+                            <div className="filter-buttons">
+                                <button
+                                    className={filterType === 'all' ? 'active' : ''}
+                                    onClick={() => setFilterType('all')}
+                                >
+                                    All
+                                </button>
+                                <button
+                                    className={filterType === 'personal' ? 'active' : ''}
+                                    onClick={() => setFilterType('personal')}
+                                >
+                                    Personal
+                                </button>
+                                <button
+                                    className={filterType === 'public' ? 'active' : ''}
+                                    onClick={() => setFilterType('public')}
+                                >
+                                    Public
+                                </button>
+                            </div>
 
                     <div className="audio-list">
                         {getFilteredAudiobooks().length === 0 ? (
@@ -432,6 +590,53 @@ function Audiobooks() {
                             ))
                         )}
                     </div>
+                        </>
+                    ) : (
+                        <>
+                            {/* Playlists Tab */}
+                            <div className="playlist-selector-container">
+                                <input
+                                    type="text"
+                                    placeholder="🔍 Search playlists..."
+                                    value={playlistSearchQuery}
+                                    onChange={(e) => setPlaylistSearchQuery(e.target.value)}
+                                    className="playlist-search-input"
+                                />
+                                
+                                <div className="playlists-grid">
+                                    {playlists
+                                        .filter(pl => 
+                                            !playlistSearchQuery || 
+                                            pl.name.toLowerCase().includes(playlistSearchQuery.toLowerCase()) ||
+                                            pl.description?.toLowerCase().includes(playlistSearchQuery.toLowerCase())
+                                        )
+                                        .map(pl => (
+                                            <div
+                                                key={pl.id}
+                                                className="playlist-card"
+                                                onClick={() => loadPlaylist(pl.id)}
+                                            >
+                                                <div className="playlist-icon">📚</div>
+                                                <div className="playlist-info">
+                                                    <h3>{pl.name}</h3>
+                                                    <p>{pl.description || 'No description'}</p>
+                                                    <span className="playlist-count">{pl.items?.length || 0} books</span>
+                                                    <span className="playlist-type-badge">{pl.mediaType}</span>
+                                                </div>
+                                            </div>
+                                        ))
+                                    }
+                                    {playlists.filter(pl => 
+                                        !playlistSearchQuery || 
+                                        pl.name.toLowerCase().includes(playlistSearchQuery.toLowerCase()) ||
+                                        pl.description?.toLowerCase().includes(playlistSearchQuery.toLowerCase())
+                                    ).length === 0 && (
+                                        <p className="no-playlists">No audiobook playlists found</p>
+                                    )}
+                                </div>
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
 

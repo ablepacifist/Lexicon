@@ -1,18 +1,13 @@
 import React, { useState, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
-import background from '../assets/images/lexicon_room.jpg';
+import '../styles/MediaUploadDownload.css';
 
-// Use Lexicon server for media operations
 const API_URL = process.env.REACT_APP_LEXICON_API_URL || process.env.REACT_APP_API_URL;
 
 const MediaUploadDownload = () => {
   const { user } = useContext(UserContext);
-  const [mediaFiles, setMediaFiles] = useState([]);
-  const [loading, setLoading] = useState(false);
-  
-  // Upload mode: 'file' or 'link'
-  const [uploadMode, setUploadMode] = useState('file');
+  const [activeMode, setActiveMode] = useState('file'); // 'file', 'link', 'playlist'
   
   // File upload state
   const [uploadFile, setUploadFile] = useState(null);
@@ -21,26 +16,199 @@ const MediaUploadDownload = () => {
   const [isPublic, setIsPublic] = useState(false);
   const [mediaType, setMediaType] = useState('OTHER');
   
-  // Upload progress state
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [isUploading, setIsUploading] = useState(false);
-  
   // Link upload state
   const [linkUrl, setLinkUrl] = useState('');
   const [downloadType, setDownloadType] = useState('AUDIO_ONLY');
   
-  const [searchQuery, setSearchQuery] = useState('');
+  // Playlist import state
+  const [playlistUrl, setPlaylistUrl] = useState('');
+  const [playlistName, setPlaylistName] = useState('');
+  const [playlistIsPublic, setPlaylistIsPublic] = useState(true);
+  const [mediaIsPublic, setMediaIsPublic] = useState(false);
   
-  // Edit state
+  // Upload progress state
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+  
+  // Browse/Download state
+  const [mediaFiles, setMediaFiles] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterMediaType, setFilterMediaType] = useState('ALL');
   const [editingFile, setEditingFile] = useState(null);
   const [editTitle, setEditTitle] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editIsPublic, setEditIsPublic] = useState(true);
 
-  // Auto-set mediaType based on downloadType when in link mode
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    setUploadFile(file);
+    if (file && !uploadTitle) {
+      // Auto-set title from filename
+      setUploadTitle(file.name.replace(/\.[^/.]+$/, ""));
+    }
+  };
+
+  const handleFileUpload = async (e) => {
+    e.preventDefault();
+    
+    if (!uploadFile) {
+      setMessage('Please select a file');
+      return;
+    }
+    
+    if (!uploadTitle.trim()) {
+      setMessage('Please provide a title');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', uploadFile);
+    formData.append('userId', user.id);
+    formData.append('title', uploadTitle);
+    formData.append('description', uploadDescription);
+    formData.append('isPublic', isPublic);
+    formData.append('mediaType', mediaType);
+
+    setIsUploading(true);
+    setUploadProgress(0);
+    setMessage('');
+
+    const xhr = new XMLHttpRequest();
+
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable) {
+        const percentComplete = Math.round((e.loaded / e.total) * 100);
+        setUploadProgress(percentComplete);
+      }
+    });
+
+    xhr.addEventListener('load', () => {
+      setIsUploading(false);
+      if (xhr.status === 200) {
+        setMessage('✅ File uploaded successfully!');
+        setUploadFile(null);
+        setUploadTitle('');
+        setUploadDescription('');
+        setUploadProgress(0);
+      } else {
+        setMessage(`❌ Upload failed: ${xhr.responseText}`);
+        setUploadProgress(0);
+      }
+    });
+
+    xhr.addEventListener('error', () => {
+      setIsUploading(false);
+      setUploadProgress(0);
+      setMessage('❌ Error uploading file - connection failed');
+    });
+
+    xhr.addEventListener('timeout', () => {
+      setIsUploading(false);
+      setUploadProgress(0);
+      setMessage('❌ Upload timed out - file may be too large');
+    });
+
+    xhr.open('POST', `${API_URL}/api/media/upload`);
+    xhr.timeout = 30 * 60 * 1000; // 30 minutes
+    xhr.withCredentials = true;
+    xhr.send(formData);
+  };
+
+  const handleLinkUpload = async (e) => {
+    e.preventDefault();
+    
+    if (!linkUrl.trim()) {
+      setMessage('Please provide a URL');
+      return;
+    }
+    
+    if (!uploadTitle.trim()) {
+      setMessage('Please provide a title');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('url', linkUrl);
+    formData.append('userId', user.id);
+    formData.append('title', uploadTitle);
+    formData.append('description', uploadDescription);
+    formData.append('isPublic', isPublic);
+    formData.append('mediaType', mediaType);
+    formData.append('downloadType', downloadType);
+
+    try {
+      setLoading(true);
+      setMessage('');
+      const response = await fetch(`${API_URL}/api/media/upload-from-url`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      });
+
+      if (response.ok) {
+        setMessage('✅ Media downloaded and uploaded successfully!');
+        setLinkUrl('');
+        setUploadTitle('');
+        setUploadDescription('');
+      } else {
+        const error = await response.text();
+        setMessage(`❌ Download failed: ${error}`);
+      }
+    } catch (error) {
+      setMessage('❌ Error downloading from URL');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePlaylistImport = async (e) => {
+    e.preventDefault();
+    
+    if (!playlistUrl.trim()) {
+      setMessage('Please provide a playlist URL');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setMessage('🔄 Starting playlist import... This may take several minutes.');
+      
+      const params = new URLSearchParams({
+        url: playlistUrl,
+        userId: user.id,
+        isPublic: playlistIsPublic,
+        mediaIsPublic: mediaIsPublic
+      });
+      
+      if (playlistName.trim()) {
+        params.append('playlistName', playlistName);
+      }
+
+      const response = await fetch(`${API_URL}/api/playlists/import-youtube?${params}`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setMessage('✅ Playlist import started! Check your playlists in a few minutes.');
+        setPlaylistUrl('');
+        setPlaylistName('');
+      } else {
+        const error = await response.text();
+        setMessage(`❌ Import failed: ${error}`);
+      }
+    } catch (error) {
+      setMessage('❌ Error importing playlist');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleDownloadTypeChange = (newDownloadType) => {
     setDownloadType(newDownloadType);
-    // Auto-set media type based on download type
     if (newDownloadType === 'AUDIO_ONLY') {
       setMediaType('MUSIC');
     } else if (newDownloadType === 'VIDEO') {
@@ -48,276 +216,79 @@ const MediaUploadDownload = () => {
     }
   };
 
-  const containerStyle = {
-    backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url(${background})`,
-    backgroundSize: 'cover',
-    backgroundPosition: 'center',
-    minHeight: '100vh',
-    padding: '2rem',
-    color: '#fff',
-  };
-
-  const headerStyle = {
-    textAlign: 'center',
-    marginBottom: '2rem',
-  };
-
-  const cardStyle = {
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    padding: '2rem',
-    borderRadius: '10px',
-    marginBottom: '2rem',
-    boxShadow: '0 0 20px rgba(0, 0, 0, 0.7)',
-  };
-
-  const buttonStyle = {
-    padding: '0.75rem 2rem',
-    margin: '0.5rem',
-    fontSize: '1rem',
-    borderRadius: '8px',
-    border: 'none',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-    transition: 'transform 0.2s',
-  };
-
-  const primaryButtonStyle = {
-    ...buttonStyle,
-    backgroundColor: '#9b59b6',
-    color: '#fff',
-  };
-
-  const secondaryButtonStyle = {
-    ...buttonStyle,
-    backgroundColor: '#3498db',
-    color: '#fff',
-  };
-
-  const backButtonStyle = {
-    ...buttonStyle,
-    backgroundColor: '#555',
-    color: '#fff',
-  };
-
-  const inputStyle = {
-    width: '100%',
-    padding: '0.75rem',
-    marginBottom: '1rem',
-    borderRadius: '5px',
-    border: '1px solid #555',
-    backgroundColor: '#222',
-    color: '#fff',
-    fontSize: '1rem',
-  };
-
-  const fileInputStyle = {
-    marginBottom: '1rem',
-    color: '#fff',
-  };
-
-  // Fetch user's media files
   const fetchMyMedia = async () => {
-    if (!user?.id) return;
-    setLoading(true);
     try {
+      setLoading(true);
       const response = await fetch(`${API_URL}/api/media/user/${user.id}`, {
-        credentials: 'include',
+        credentials: 'include'
       });
       if (response.ok) {
         const data = await response.json();
         setMediaFiles(data);
-      } else {
-        console.error('Failed to fetch media files');
       }
     } catch (error) {
-      console.error('Error fetching media:', error);
+      setMessage('❌ Error fetching media');
     } finally {
       setLoading(false);
     }
   };
 
-  // Fetch public media files
   const fetchPublicMedia = async () => {
-    setLoading(true);
     try {
+      setLoading(true);
       const response = await fetch(`${API_URL}/api/media/public`, {
-        credentials: 'include',
+        credentials: 'include'
       });
       if (response.ok) {
         const data = await response.json();
         setMediaFiles(data);
-      } else {
-        console.error('Failed to fetch public media');
       }
     } catch (error) {
-      console.error('Error fetching public media:', error);
+      setMessage('❌ Error fetching public media');
     } finally {
       setLoading(false);
     }
   };
 
-  // Search media files
   const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
-    setLoading(true);
+    if (!searchQuery.trim()) {
+      setMessage('Please enter a search term');
+      return;
+    }
     try {
-      const response = await fetch(`${API_URL}/api/media/search?q=${encodeURIComponent(searchQuery)}`, {
-        credentials: 'include',
+      setLoading(true);
+      const response = await fetch(`${API_URL}/api/media/search?query=${encodeURIComponent(searchQuery)}`, {
+        credentials: 'include'
       });
       if (response.ok) {
         const data = await response.json();
         setMediaFiles(data);
-      } else {
-        console.error('Search failed');
       }
     } catch (error) {
-      console.error('Error searching:', error);
+      setMessage('❌ Error searching media');
     } finally {
       setLoading(false);
     }
   };
 
-  // Upload media file
-  const handleUpload = async (e) => {
-    e.preventDefault();
-    
-    if (uploadMode === 'file') {
-      // File upload
-      if (!uploadFile || !uploadTitle.trim()) {
-        alert('Please provide a file and title');
-        return;
-      }
-
-      const formData = new FormData();
-      formData.append('file', uploadFile);
-      formData.append('title', uploadTitle);
-      formData.append('description', uploadDescription);
-      formData.append('isPublic', isPublic);
-      formData.append('userId', user.id);
-      formData.append('mediaType', mediaType);
-
-      // Use XMLHttpRequest for progress tracking
-      setIsUploading(true);
-      setUploadProgress(0);
-
-      const xhr = new XMLHttpRequest();
-
-      // Track upload progress
-      xhr.upload.addEventListener('progress', (e) => {
-        if (e.lengthComputable) {
-          const percentComplete = Math.round((e.loaded / e.total) * 100);
-          setUploadProgress(percentComplete);
-        }
-      });
-
-      // Handle completion
-      xhr.addEventListener('load', () => {
-        setIsUploading(false);
-        if (xhr.status === 200) {
-          alert('File uploaded successfully!');
-          setUploadFile(null);
-          setUploadTitle('');
-          setUploadDescription('');
-          setIsPublic(false);
-          setMediaType('OTHER');
-          setUploadProgress(0);
-          fetchMyMedia(); // Refresh the list
-        } else {
-          alert(`Upload failed: ${xhr.responseText}`);
-          setUploadProgress(0);
-        }
-      });
-
-      // Handle errors
-      xhr.addEventListener('error', () => {
-        setIsUploading(false);
-        setUploadProgress(0);
-        alert('Error uploading file - connection failed');
-      });
-
-      // Handle timeout
-      xhr.addEventListener('timeout', () => {
-        setIsUploading(false);
-        setUploadProgress(0);
-        alert('Upload timed out - file may be too large');
-      });
-
-      // Configure and send request
-      xhr.open('POST', `${API_URL}/api/media/upload`);
-      xhr.timeout = 30 * 60 * 1000; // 30 minutes
-      xhr.withCredentials = true;
-      xhr.send(formData);
-    } else {
-      // Link upload
-      if (!linkUrl.trim()) {
-        alert('Please provide a URL');
-        return;
-      }
-      
-      if (!uploadTitle.trim()) {
-        alert('Please provide a title');
-        return;
-      }
-
-      const formData = new FormData();
-      formData.append('url', linkUrl);
-      formData.append('userId', user.id);
-      formData.append('title', uploadTitle);
-      formData.append('description', uploadDescription);
-      formData.append('isPublic', isPublic);
-      formData.append('mediaType', mediaType);
-      formData.append('downloadType', downloadType);
-
-      try {
-        setLoading(true);
-        const response = await fetch(`${API_URL}/api/media/upload-from-url`, {
-          method: 'POST',
-          credentials: 'include',
-          body: formData,
-        });
-
-        if (response.ok) {
-          alert('Media downloaded and uploaded successfully!');
-          setLinkUrl('');
-          setUploadTitle('');
-          setUploadDescription('');
-          setIsPublic(false);
-          setMediaType('OTHER');
-          setDownloadType('AUDIO_ONLY');
-          fetchMyMedia(); // Refresh the list
-        } else {
-          const error = await response.text();
-          alert(`Download failed: ${error}`);
-        }
-      } catch (error) {
-        console.error('Error downloading from URL:', error);
-        alert('Error downloading from URL');
-      } finally {
-        setLoading(false);
-      }
-    }
-  };
-
-  // Delete media file
-  const handleDelete = async (mediaId) => {
-    if (!window.confirm('Are you sure you want to delete this file?')) return;
-
+  const handleDownload = async (mediaId, filename) => {
     try {
-      const response = await fetch(`${API_URL}/api/media/${mediaId}?userId=${user.id}`, {
-        method: 'DELETE',
-        credentials: 'include',
+      const response = await fetch(`${API_URL}/api/media/${mediaId}/download`, {
+        credentials: 'include'
       });
-
       if (response.ok) {
-        alert('File deleted successfully');
-        fetchMyMedia();
-      } else {
-        const error = await response.text();
-        alert(`Delete failed: ${error}`);
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
       }
     } catch (error) {
-      console.error('Error deleting:', error);
-      alert('Error deleting file');
+      setMessage('❌ Error downloading file');
     }
   };
 
@@ -325,7 +296,35 @@ const MediaUploadDownload = () => {
     setEditingFile(file);
     setEditTitle(file.title);
     setEditDescription(file.description || '');
-    setEditIsPublic(file.isPublic !== undefined ? file.isPublic : true);
+    setEditIsPublic(file.isPublic);
+  };
+
+  const handleSaveEdit = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/media/${editingFile.id}?userId=${user.id}`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: editTitle,
+          description: editDescription,
+          isPublic: editIsPublic
+        })
+      });
+      if (response.ok) {
+        setMessage('✅ File updated successfully!');
+        setEditingFile(null);
+        // Refresh the list
+        if (mediaFiles.length > 0) {
+          fetchMyMedia();
+        }
+      } else {
+        const errorText = await response.text();
+        setMessage('❌ Failed to update file: ' + (errorText || 'Permission denied'));
+      }
+    } catch (error) {
+      setMessage('❌ Error updating file: ' + error.message);
+    }
   };
 
   const handleCancelEdit = () => {
@@ -335,369 +334,504 @@ const MediaUploadDownload = () => {
     setEditIsPublic(true);
   };
 
-  const handleSaveEdit = async () => {
-    if (!editTitle.trim()) {
-      alert('Title is required');
+  const handleDelete = async (mediaId) => {
+    if (!window.confirm('Are you sure you want to delete this file?')) {
       return;
     }
-
     try {
-      const updatedMedia = {
-        ...editingFile,
-        title: editTitle,
-        description: editDescription,
-        isPublic: editIsPublic
-      };
-
-      const response = await fetch(`${API_URL}/api/media/${editingFile.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(updatedMedia)
+      const response = await fetch(`${API_URL}/api/media/${mediaId}?userId=${user.id}`, {
+        method: 'DELETE',
+        credentials: 'include'
       });
-
       if (response.ok) {
-        alert('Media updated successfully!');
-        handleCancelEdit();
-        fetchMyMedia();
+        setMessage('✅ File deleted successfully!');
+        // Refresh the list
+        const updatedFiles = mediaFiles.filter(f => f.id !== mediaId);
+        setMediaFiles(updatedFiles);
       } else {
-        const error = await response.text();
-        alert(`Update failed: ${error}`);
+        setMessage('❌ Failed to delete file');
       }
     } catch (error) {
-      console.error('Error updating:', error);
-      alert('Error updating media');
+      setMessage('❌ Error deleting file');
     }
   };
 
-  // Download media file
-  const handleDownload = async (mediaId, filename) => {
-    try {
-      const response = await fetch(`${API_URL}/api/media/${mediaId}/download`, {
-        credentials: 'include',
-      });
-
-      // If server returned 204 (no content) or 404, inform the user
-      if (response.status === 204) {
-        alert('This file has no data stored on the server. Try re-uploading it.');
-        return;
-      }
-
-      if (!response.ok) {
-        alert('Failed to download file (status ' + response.status + ')');
-        return;
-      }
-
-      const blob = await response.blob();
-      // If blob size is zero, alert the user rather than creating an empty file
-      if (!blob || blob.size === 0) {
-        alert('Downloaded file was empty. The server returned no file data.');
-        return;
-      }
-
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (error) {
-      console.error('Error downloading:', error);
-      alert('Error downloading file');
-    }
+  const getFilteredFiles = () => {
+    if (filterMediaType === 'ALL') return mediaFiles;
+    return mediaFiles.filter(f => (f.mediaType || f.fileType) === filterMediaType);
   };
 
   return (
-    <div style={containerStyle}>
-      <div style={headerStyle}>
-        <h1 style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>Upload & Download Media</h1>
-        <p style={{ fontSize: '1.2rem', color: '#9b59b6' }}>Manage your media files</p>
-        <Link to="/lexicon-dashboard">
-          <button style={backButtonStyle}>← Back to Dashboard</button>
+    <div className="upload-download-container">
+      <div className="upload-header">
+        <h1>Upload & Download Media</h1>
+        <p>Manage your media files and import from YouTube</p>
+        <Link to="/lexicon-dashboard" className="back-button">
+          ← Back to Dashboard
         </Link>
       </div>
 
-      {/* Upload Section */}
-      <div style={cardStyle}>
-        <h2 style={{ marginBottom: '1rem' }}>Upload Media</h2>
-        
-        {/* Upload Mode Toggle */}
-        <div style={{ marginBottom: '1.5rem' }}>
-          <label style={{ marginRight: '1rem', color: '#fff' }}>
-            <input
-              type="radio"
-              value="file"
-              checked={uploadMode === 'file'}
-              onChange={(e) => setUploadMode(e.target.value)}
-              style={{ marginRight: '0.5rem' }}
-            />
-            Upload File
-          </label>
-          <label style={{ color: '#fff' }}>
-            <input
-              type="radio"
-              value="link"
-              checked={uploadMode === 'link'}
-              onChange={(e) => setUploadMode(e.target.value)}
-              style={{ marginRight: '0.5rem' }}
-            />
-            Download from Link (yt-dlp)
-          </label>
-        </div>
-        
-        <form onSubmit={handleUpload}>
-          {/* Media Type Selector */}
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', color: '#aaa' }}>
-              Media Type:
-            </label>
-            <select
-              value={mediaType}
-              onChange={(e) => setMediaType(e.target.value)}
-              style={inputStyle}
-            >
-              <option value="OTHER">Other</option>
-              <option value="MUSIC">Music</option>
-              <option value="VIDEO">Video</option>
-              <option value="AUDIOBOOK">Audiobook</option>
-            </select>
+      <div className="upload-content">
+        {/* Mode Tabs */}
+        <div className="upload-tabs">
+          <div 
+            className={`upload-tab ${activeMode === 'file' ? 'active' : ''}`}
+            onClick={() => setActiveMode('file')}
+          >
+            📁 Upload File
           </div>
-          
-          {uploadMode === 'file' ? (
-            // File Upload Mode
-            <input
-              type="file"
-              onChange={(e) => setUploadFile(e.target.files[0])}
-              style={fileInputStyle}
-              required
-            />
-          ) : (
-            // Link Upload Mode
-            <>
-              <input
-                type="url"
-                placeholder="YouTube or media URL"
-                value={linkUrl}
-                onChange={(e) => setLinkUrl(e.target.value)}
-                style={inputStyle}
-                required
-              />
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', marginBottom: '0.5rem', color: '#aaa' }}>
-                  Download:
-                </label>
-                <label style={{ color: '#fff' }}>
-                  <input
-                    type="radio"
-                    value="AUDIO_ONLY"
-                    checked={downloadType === 'AUDIO_ONLY'}
-                    onChange={(e) => handleDownloadTypeChange(e.target.value)}
-                    style={{ marginRight: '0.5rem' }}
-                  />
-                  Audio Only
-                </label>
-                <label style={{ color: '#fff' }}>
-                  <input
-                    type="radio"
-                    value="VIDEO"
-                    checked={downloadType === 'VIDEO'}
-                    onChange={(e) => handleDownloadTypeChange(e.target.value)}
-                    style={{ marginRight: '0.5rem' }}
-                  />
-                  Video + Audio
-                </label>
-              </div>
-            </>
-          )}
-          
-          <input
-            type="text"
-            placeholder="Title"
-            value={uploadTitle}
-            onChange={(e) => setUploadTitle(e.target.value)}
-            style={inputStyle}
-            required
-          />
-          <textarea
-            placeholder="Description (optional)"
-            value={uploadDescription}
-            onChange={(e) => setUploadDescription(e.target.value)}
-            style={{ ...inputStyle, minHeight: '100px' }}
-          />
-          <label style={{ display: 'block', marginBottom: '1rem', color: '#fff' }}>
-            <input
-              type="checkbox"
-              checked={isPublic}
-              onChange={(e) => setIsPublic(e.target.checked)}
-              style={{ marginRight: '0.5rem' }}
-            />
-            Make Public
-          </label>
-          
-          {/* Upload Progress Bar */}
-          {isUploading && (
-            <div style={{ marginBottom: '1rem' }}>
-              <div style={{
-                backgroundColor: '#333',
-                borderRadius: '10px',
-                overflow: 'hidden',
-                marginBottom: '0.5rem'
-              }}>
-                <div style={{
-                  width: `${uploadProgress}%`,
-                  height: '30px',
-                  backgroundColor: '#9b59b6',
-                  transition: 'width 0.3s ease',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#fff',
-                  fontWeight: 'bold'
-                }}>
-                  {uploadProgress}%
-                </div>
-              </div>
-              <div style={{ color: '#aaa', fontSize: '0.9rem', textAlign: 'center' }}>
-                Uploading... This may take several minutes for large files
-              </div>
-            </div>
-          )}
-          
-          <button type="submit" style={primaryButtonStyle} disabled={loading || isUploading}>
-            {isUploading ? `Uploading ${uploadProgress}%` : loading ? 'Processing...' : (uploadMode === 'file' ? 'Upload File' : 'Download & Upload')}
-          </button>
-        </form>
-      </div>
-
-      {/* Browse Section */}
-      <div style={cardStyle}>
-        <h2 style={{ marginBottom: '1rem' }}>Browse Media</h2>
-        <div style={{ marginBottom: '1rem' }}>
-          <button onClick={fetchMyMedia} style={secondaryButtonStyle}>
-            My Files
-          </button>
-          <button onClick={fetchPublicMedia} style={secondaryButtonStyle}>
-            Public Files
-          </button>
-        </div>
-        
-        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
-          <input
-            type="text"
-            placeholder="Search by title or description..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-            style={{ ...inputStyle, marginBottom: 0 }}
-          />
-          <button onClick={handleSearch} style={secondaryButtonStyle}>
-            Search
-          </button>
+          <div 
+            className={`upload-tab ${activeMode === 'link' ? 'active' : ''}`}
+            onClick={() => setActiveMode('link')}
+          >
+            🔗 Download from Link
+          </div>
+          <div 
+            className={`upload-tab ${activeMode === 'playlist' ? 'active' : ''}`}
+            onClick={() => setActiveMode('playlist')}
+          >
+            📋 Import YouTube Playlist
+          </div>
+          <div 
+            className={`upload-tab ${activeMode === 'browse' ? 'active' : ''}`}
+            onClick={() => setActiveMode('browse')}
+          >
+            🔍 Browse & Download
+          </div>
         </div>
 
-        {loading && <p>Loading...</p>}
-        
-        {!loading && mediaFiles.length === 0 && (
-          <p style={{ color: '#aaa' }}>No files to display. Click a button above to browse.</p>
+        {/* Message Display */}
+        {message && (
+          <div className="upload-card" style={{ 
+            background: message.includes('✅') ? 'linear-gradient(135deg, #d4edda 0%, #c8e6c9 100%)' : 
+                       message.includes('🔄') ? 'linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%)' :
+                       'linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%)',
+            color: message.includes('✅') ? '#155724' : 
+                   message.includes('🔄') ? '#0c5460' : '#721c24',
+            fontWeight: '600',
+            fontSize: '1.1rem',
+            padding: '20px'
+          }}>
+            {message}
+          </div>
         )}
 
-        {!loading && mediaFiles.length > 0 && (
-          <div>
-            {mediaFiles.map((file) => (
-              <div
-                key={file.id}
-                style={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                  padding: '1rem',
-                  borderRadius: '8px',
-                  marginBottom: '1rem',
-                }}
+        {/* File Upload Mode */}
+        {activeMode === 'file' && (
+          <div className="upload-card">
+            <h2 style={{ marginBottom: '30px', color: '#333' }}>📁 Upload File</h2>
+            <form className="upload-form" onSubmit={handleFileUpload}>
+              {/* File Selector */}
+              <div 
+                className={`file-upload-area ${uploadFile ? 'has-file' : ''}`}
+                onClick={() => document.getElementById('fileInput').click()}
               >
-                {editingFile && editingFile.id === file.id ? (
-                  /* Edit Mode */
-                  <div>
-                    <div style={{ marginBottom: '1rem' }}>
-                      <label style={{ display: 'block', marginBottom: '0.5rem', color: '#9b59b6', fontWeight: 'bold' }}>
-                        Title *
-                      </label>
-                      <input
-                        type="text"
-                        value={editTitle}
-                        onChange={(e) => setEditTitle(e.target.value)}
-                        style={inputStyle}
-                        placeholder="Enter title"
-                      />
-                    </div>
-                    <div style={{ marginBottom: '1rem' }}>
-                      <label style={{ display: 'block', marginBottom: '0.5rem', color: '#9b59b6', fontWeight: 'bold' }}>
-                        Description
-                      </label>
-                      <textarea
-                        value={editDescription}
-                        onChange={(e) => setEditDescription(e.target.value)}
-                        style={{ ...inputStyle, minHeight: '100px', resize: 'vertical' }}
-                        placeholder="Enter description (optional)"
-                      />
-                    </div>
-                    <div style={{ marginBottom: '1rem' }}>
-                      <label style={{ color: '#9b59b6', fontWeight: 'bold' }}>
-                        <input
-                          type="checkbox"
-                          checked={editIsPublic}
-                          onChange={(e) => setEditIsPublic(e.target.checked)}
-                          style={{ marginRight: '0.5rem' }}
-                        />
-                        Public (visible to all users)
-                      </label>
-                    </div>
-                    <div style={{ marginTop: '1rem' }}>
-                      <button onClick={handleSaveEdit} style={primaryButtonStyle}>
-                        💾 Save Changes
-                      </button>
-                      <button onClick={handleCancelEdit} style={backButtonStyle}>
-                        ❌ Cancel
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  /* Display Mode */
-                  <div>
-                    <h3 style={{ color: '#9b59b6' }}>{file.title}</h3>
-                    <p>{file.description || 'No description'}</p>
-                    <p style={{ fontSize: '0.9rem', color: '#aaa' }}>
-                      Type: {file.fileType} | Size: {(file.fileSize / 1024).toFixed(2)} KB | 
-                      {file.isPublic ? ' Public' : ' Private'}
-                    </p>
-                    <div style={{ marginTop: '0.5rem' }}>
-                      <button 
-                        onClick={() => handleDownload(file.id, file.originalFilename || file.title)}
-                        style={secondaryButtonStyle}
-                      >
-                        📥 Download
-                      </button>
-                      {file.uploadedBy === user.id && (
-                        <>
-                          <button
-                            onClick={() => handleEdit(file)}
-                            style={{ ...buttonStyle, backgroundColor: '#3498db', color: '#fff' }}
-                          >
-                            ✏️ Edit
-                          </button>
-                          <button
-                            onClick={() => handleDelete(file.id)}
-                            style={{ ...buttonStyle, backgroundColor: '#e74c3c', color: '#fff' }}
-                          >
-                            🗑️ Delete
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                )}
+                <div className="file-upload-icon">
+                  {uploadFile ? '✅' : '📤'}
+                </div>
+                <div className="file-upload-text">
+                  {uploadFile ? `Selected: ${uploadFile.name}` : 'Click to select a file'}
+                </div>
+                <div className="file-upload-hint">
+                  {uploadFile ? `Size: ${(uploadFile.size / 1024 / 1024).toFixed(2)} MB` : 'Supports audio, video, and other media files'}
+                </div>
+                <input
+                  id="fileInput"
+                  type="file"
+                  onChange={handleFileSelect}
+                  style={{ display: 'none' }}
+                />
               </div>
-            ))}
+
+              <div className="form-group">
+                <label>Title *</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Enter a title for your media"
+                  value={uploadTitle}
+                  onChange={(e) => setUploadTitle(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Description</label>
+                <textarea
+                  className="form-textarea"
+                  placeholder="Add a description (optional)"
+                  value={uploadDescription}
+                  onChange={(e) => setUploadDescription(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Media Type</label>
+                <select
+                  className="form-select"
+                  value={mediaType}
+                  onChange={(e) => setMediaType(e.target.value)}
+                >
+                  <option value="OTHER">Other</option>
+                  <option value="MUSIC">Music</option>
+                  <option value="VIDEO">Video</option>
+                  <option value="AUDIOBOOK">Audiobook</option>
+                </select>
+              </div>
+
+              <div className="checkbox-group">
+                <input
+                  type="checkbox"
+                  id="filePublic"
+                  checked={isPublic}
+                  onChange={(e) => setIsPublic(e.target.checked)}
+                />
+                <label htmlFor="filePublic">Make this file public (visible to all users)</label>
+              </div>
+
+              {isUploading && (
+                <div className="progress-bar-container">
+                  <div className="progress-bar" style={{ width: `${uploadProgress}%` }}>
+                    {uploadProgress}%
+                  </div>
+                </div>
+              )}
+
+              <button 
+                type="submit" 
+                className="upload-button"
+                disabled={!uploadFile || isUploading}
+              >
+                {isUploading ? `Uploading ${uploadProgress}%` : '📤 Upload File'}
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* Link Upload Mode */}
+        {activeMode === 'link' && (
+          <div className="upload-card">
+            <h2 style={{ marginBottom: '30px', color: '#333' }}>🔗 Download from Link</h2>
+            <form className="upload-form" onSubmit={handleLinkUpload}>
+              <div className="form-group">
+                <label>URL *</label>
+                <input
+                  type="url"
+                  className="form-input"
+                  placeholder="https://youtube.com/watch?v=... or other media URL"
+                  value={linkUrl}
+                  onChange={(e) => setLinkUrl(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Download Type</label>
+                <div className="upload-mode-selector">
+                  <div 
+                    className={`mode-button ${downloadType === 'AUDIO_ONLY' ? 'active' : ''}`}
+                    onClick={() => handleDownloadTypeChange('AUDIO_ONLY')}
+                  >
+                    <div className="mode-icon">🎵</div>
+                    Audio Only
+                  </div>
+                  <div 
+                    className={`mode-button ${downloadType === 'VIDEO' ? 'active' : ''}`}
+                    onClick={() => handleDownloadTypeChange('VIDEO')}
+                  >
+                    <div className="mode-icon">🎬</div>
+                    Video + Audio
+                  </div>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Title *</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Enter a title for your media"
+                  value={uploadTitle}
+                  onChange={(e) => setUploadTitle(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Description</label>
+                <textarea
+                  className="form-textarea"
+                  placeholder="Add a description (optional)"
+                  value={uploadDescription}
+                  onChange={(e) => setUploadDescription(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Media Type</label>
+                <select
+                  className="form-select"
+                  value={mediaType}
+                  onChange={(e) => setMediaType(e.target.value)}
+                >
+                  <option value="OTHER">Other</option>
+                  <option value="MUSIC">Music</option>
+                  <option value="VIDEO">Video</option>
+                  <option value="AUDIOBOOK">Audiobook</option>
+                </select>
+              </div>
+
+              <div className="checkbox-group">
+                <input
+                  type="checkbox"
+                  id="linkPublic"
+                  checked={isPublic}
+                  onChange={(e) => setIsPublic(e.target.checked)}
+                />
+                <label htmlFor="linkPublic">Make this file public (visible to all users)</label>
+              </div>
+
+              <button 
+                type="submit" 
+                className="upload-button"
+                disabled={loading}
+              >
+                {loading ? '⏳ Downloading...' : '🔽 Download & Upload'}
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* Browse & Download Mode */}
+        {activeMode === 'browse' && (
+          <div className="upload-card">
+            <h2 style={{ marginBottom: '30px', color: '#333' }}>🔍 Browse & Download Media</h2>
+            
+            <div style={{ display: 'flex', gap: '15px', marginBottom: '30px', flexWrap: 'wrap' }}>
+              <button onClick={fetchMyMedia} className="upload-button" disabled={loading}>
+                My Files
+              </button>
+              <button onClick={fetchPublicMedia} className="upload-button" disabled={loading}>
+                Public Files
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="Search by title or description..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                style={{ flex: 1 }}
+              />
+              <button onClick={handleSearch} className="upload-button" disabled={loading}>
+                🔍 Search
+              </button>
+            </div>
+
+            <div style={{ marginBottom: '30px' }}>
+              <label style={{ display: 'block', marginBottom: '10px', fontWeight: '600', color: '#333' }}>Filter by Type:</label>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                {['ALL', 'MUSIC', 'VIDEO', 'AUDIOBOOK', 'OTHER'].map(type => (
+                  <button
+                    key={type}
+                    onClick={() => setFilterMediaType(type)}
+                    style={{
+                      padding: '10px 20px',
+                      border: filterMediaType === type ? '3px solid #667eea' : '2px solid #e0e0e0',
+                      borderRadius: '8px',
+                      background: filterMediaType === type ? '#667eea' : 'white',
+                      color: filterMediaType === type ? 'white' : '#333',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease'
+                    }}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {loading && <div style={{ textAlign: 'center', padding: '40px', color: '#667eea', fontSize: '1.2rem' }}>Loading...</div>}
+            
+            {!loading && mediaFiles.length === 0 && (
+              <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
+                No files to display. Click a button above to browse.
+              </div>
+            )}
+
+            {!loading && getFilteredFiles().length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                {getFilteredFiles().map((file) => (
+                  <div
+                    key={file.id}
+                    style={{
+                      background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+                      padding: '20px',
+                      borderRadius: '12px',
+                      border: '2px solid #e0e0e0'
+                    }}
+                  >
+                    {editingFile && editingFile.id === file.id ? (
+                      /* Edit Mode */
+                      <div>
+                        <div style={{ marginBottom: '15px' }}>
+                          <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600', color: '#333' }}>Title *</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            value={editTitle}
+                            onChange={(e) => setEditTitle(e.target.value)}
+                          />
+                        </div>
+                        <div style={{ marginBottom: '15px' }}>
+                          <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600', color: '#333' }}>Description</label>
+                          <textarea
+                            className="form-textarea"
+                            value={editDescription}
+                            onChange={(e) => setEditDescription(e.target.value)}
+                            style={{ minHeight: '100px' }}
+                          />
+                        </div>
+                        <div className="checkbox-group" style={{ marginBottom: '15px' }}>
+                          <input
+                            type="checkbox"
+                            id={`edit-public-${file.id}`}
+                            checked={editIsPublic}
+                            onChange={(e) => setEditIsPublic(e.target.checked)}
+                          />
+                          <label htmlFor={`edit-public-${file.id}`}>Make this file public (visible to all users)</label>
+                        </div>
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                          <button onClick={handleSaveEdit} className="upload-button" style={{ padding: '10px 20px' }}>
+                            💾 Save Changes
+                          </button>
+                          <button 
+                            onClick={handleCancelEdit} 
+                            className="upload-button" 
+                            style={{ padding: '10px 20px', background: '#6c757d' }}
+                          >
+                            ❌ Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Display Mode */
+                      <div>
+                        <h3 style={{ color: '#667eea', marginBottom: '10px' }}>{file.title}</h3>
+                        <p style={{ color: '#666', marginBottom: '10px' }}>{file.description || 'No description'}</p>
+                        <p style={{ fontSize: '0.9rem', color: '#999', marginBottom: '15px' }}>
+                          Type: {file.mediaType || file.fileType} | Size: {(file.fileSize / 1024 / 1024).toFixed(2)} MB | 
+                          {file.isPublic ? ' Public' : ' Private'}
+                        </p>
+                        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                          <button 
+                            onClick={() => handleDownload(file.id, file.originalFilename || file.title)}
+                            className="upload-button"
+                            style={{ padding: '10px 20px', fontSize: '1rem' }}
+                          >
+                            📥 Download
+                          </button>
+                          {file.uploadedBy === user.id && (
+                            <>
+                              <button
+                                onClick={() => handleEdit(file)}
+                                className="upload-button"
+                                style={{ padding: '10px 20px', fontSize: '1rem', background: '#3498db' }}
+                              >
+                                ✏️ Edit
+                              </button>
+                              <button
+                                onClick={() => handleDelete(file.id)}
+                                className="upload-button"
+                                style={{ padding: '10px 20px', fontSize: '1rem', background: '#e74c3c' }}
+                              >
+                                🗑️ Delete
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Playlist Import Mode */}
+        {activeMode === 'playlist' && (
+          <div className="upload-card">
+            <h2 style={{ marginBottom: '30px', color: '#333' }}>📋 Import YouTube Playlist</h2>
+            <form className="upload-form" onSubmit={handlePlaylistImport}>
+              <div className="form-group">
+                <label>Playlist URL *</label>
+                <input
+                  type="url"
+                  className="form-input"
+                  placeholder="https://music.youtube.com/playlist?list=..."
+                  value={playlistUrl}
+                  onChange={(e) => setPlaylistUrl(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Playlist Name (optional)</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Leave empty to use original playlist name"
+                  value={playlistName}
+                  onChange={(e) => setPlaylistName(e.target.value)}
+                />
+              </div>
+
+              <div className="checkbox-group">
+                <input
+                  type="checkbox"
+                  id="playlistPublic"
+                  checked={playlistIsPublic}
+                  onChange={(e) => setPlaylistIsPublic(e.target.checked)}
+                />
+                <label htmlFor="playlistPublic">Make playlist public (others can see and play it)</label>
+              </div>
+
+              <div className="checkbox-group">
+                <input
+                  type="checkbox"
+                  id="mediaPublic"
+                  checked={mediaIsPublic}
+                  onChange={(e) => setMediaIsPublic(e.target.checked)}
+                />
+                <label htmlFor="mediaPublic">Make individual songs public (others can see them in library)</label>
+              </div>
+
+              <div className="playlist-import-note">
+                <div className="note-title">
+                  💡 How Playlist Import Works
+                </div>
+                <ul>
+                  <li><strong>Playlist visibility:</strong> Controls who can see and play the playlist</li>
+                  <li><strong>Song visibility:</strong> Controls who can see individual songs in the media library</li>
+                  <li><strong>Recommended:</strong> Playlist Public ✓, Songs Private ✗</li>
+                  <li><strong>Processing time:</strong> Large playlists may take 10-30 minutes to import</li>
+                  <li><strong>All songs:</strong> Will be downloaded as audio files (music format)</li>
+                </ul>
+              </div>
+
+              <button 
+                type="submit" 
+                className="upload-button"
+                disabled={loading}
+              >
+                {loading ? '⏳ Starting Import...' : '📥 Import Playlist'}
+              </button>
+            </form>
           </div>
         )}
       </div>
@@ -706,3 +840,4 @@ const MediaUploadDownload = () => {
 };
 
 export default MediaUploadDownload;
+

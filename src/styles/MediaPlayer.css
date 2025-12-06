@@ -742,6 +742,28 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 20px;
+    max-height: calc(100vh - 300px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 8px;
+}
+
+.playlists-grid::-webkit-scrollbar {
+    width: 8px;
+}
+
+.playlists-grid::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.playlists-grid::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+.playlists-grid::-webkit-scrollbar-thumb:hover {
+    background: #555;
 }
 
 .playlist-card-mini {
