@@ -152,6 +152,19 @@ const Landing = () => {
                 Go to Apps
               </button>
             </Link>
+            <Link to="/profile">
+              <button
+                style={{ 
+                  ...authButtonStyle,
+                  backgroundColor: '#8e44ad',
+                  ...(hover.profile ? buttonHoverStyle : {}) 
+                }}
+                onMouseEnter={() => setHover({ ...hover, profile: true })}
+                onMouseLeave={() => setHover({ ...hover, profile: false })}
+              >
+                👤 Profile
+              </button>
+            </Link>
           </div>
         ) : (
           <div>

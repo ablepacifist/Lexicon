@@ -39,9 +39,7 @@ const AlchemyDashboard = () => {
     setLoading(true);
     console.log(`Sending fetch request to inventory API for player: ${playerId}`);
     try {
-      const response = await fetch(`${API_URL}/api/player/inventory/${playerId}`,{
-        credentials: 'include'
-      });
+      const response = await fetch(`${API_URL}/api/player/inventory/${playerId}`);
       console.log("HTTP status:", response.status);
       if (response.ok) {
         const data = await response.json();
@@ -79,7 +77,6 @@ const AlchemyDashboard = () => {
       setTimeout(() => setAnimationType(null), 2000);
 
       const response = await fetch(`${API_URL}/api/potion/brew`, {
-        credentials: 'include',
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -111,7 +108,6 @@ const AlchemyDashboard = () => {
       setTimeout(() => setAnimationType(null), 2000);
       
       const response = await fetch(`${API_URL}/api/player/forage/${playerId}`, {
-        credentials: 'include',
         method: 'GET',
       });
       if (response.ok) {
@@ -134,7 +130,6 @@ const AlchemyDashboard = () => {
     if (selectedType === 'ingredient') {
       try {
         const response = await fetch(`${API_URL}/api/player/ingredient/consume`, {
-          credentials: 'include',
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ playerId, ingredientId: selectedItem.id })
@@ -156,7 +151,6 @@ const AlchemyDashboard = () => {
     } else if (selectedType === 'potion') {
       try {
         const response = await fetch(`${API_URL}/api/player/potion/consume`, {
-          credentials: 'include',
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ playerId, potionId: selectedItem.id })
@@ -374,20 +368,58 @@ return (
           </label>
         </div>
       </div>
-      {/* Replace the buttons with clickable images */}
+      {/* Replace the buttons with clickable images - wrapped in buttons for better mobile compatibility */}
       <div>
-        <img
-          src={brewIcon}
-          alt="Brew Potion"
-          style={{ cursor: 'pointer', border: '2px solid black', width: '150px', height: '150px', margin: '0.5rem' }}
+        <button
+          style={{ 
+            background: 'none', 
+            border: 'none', 
+            padding: 0, 
+            cursor: 'pointer',
+            touchAction: 'manipulation',
+            WebkitTapHighlightColor: 'transparent'
+          }}
           onClick={handleBrewPotion}
-        />
-        <img
-          src={forageIcon}
-          alt="Forage"
-          style={{ cursor: 'pointer', border: '2px solid black', width: '150px', height: '150px', margin: '0.5rem' }}
+          aria-label="Brew Potion"
+        >
+          <img
+            src={brewIcon}
+            alt="Brew Potion"
+            style={{ 
+              border: '2px solid black', 
+              width: '150px', 
+              height: '150px', 
+              margin: '0.5rem',
+              display: 'block',
+              pointerEvents: 'none'
+            }}
+          />
+        </button>
+        <button
+          style={{ 
+            background: 'none', 
+            border: 'none', 
+            padding: 0, 
+            cursor: 'pointer',
+            touchAction: 'manipulation',
+            WebkitTapHighlightColor: 'transparent'
+          }}
           onClick={handleForage}
-        />
+          aria-label="Forage"
+        >
+          <img
+            src={forageIcon}
+            alt="Forage"
+            style={{ 
+              border: '2px solid black', 
+              width: '150px', 
+              height: '150px', 
+              margin: '0.5rem',
+              display: 'block',
+              pointerEvents: 'none'
+            }}
+          />
+        </button>
       </div>
     </div>
 

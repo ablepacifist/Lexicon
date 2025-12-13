@@ -1,198 +1,224 @@
-import React, { useContext, useState, useEffect, useCallback } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
-import { useNavigate, Navigate } from 'react-router-dom';
-import background from '../assets/images/dashboard_background.jpg';
-
-const API_URL = process.env.REACT_APP_API_URL;
+import background from '../assets/images/lexicon_room.jpg';
 
 const Profile = () => {
-  // 1. Hooks always run in the same order
   const { user, setUser } = useContext(UserContext);
   const navigate = useNavigate();
+  const [playerStats, setPlayerStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [hover, setHover] = useState({});
 
-  const [player, setPlayer] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [secretPassword, setSecretPassword] = useState('');
-  const [error, setError] = useState('');
+  const lexiconApiUrl = process.env.REACT_APP_LEXICON_API_URL || 'http://localhost:8081';
 
-  // 2. Memoize the fetch so useEffect deps are satisfied
-  const fetchPlayerDetails = useCallback(async () => {
-    // guard inside the function
-    if (user == null || (user.id == null && user.id !== 0)) return;
-
-    setLoading(true);
-    try {
-      const res = await fetch(
-        `${API_URL}/api/player/${user.id}`,
-        { credentials: 'include' }
-      );
-
-      if (!res.ok) {
-        setError('Failed to fetch player details.');
-      } else {
-        const data = await res.json();
-        setPlayer(data);
-      }
-    } catch (err) {
-      console.error('Error fetching player details:', err);
-      setError('Error fetching player details.');
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
-
-  // 3. Unconditional useEffect, with fetchPlayerDetails as dep
   useEffect(() => {
-    fetchPlayerDetails();
-  }, [fetchPlayerDetails]);
-
-  // 4. Handlers
-  const handleLevelUp = async () => {
-    if (user == null || (user.id == null && user.id !== 0)) return;
-
-    try {
-      const res = await fetch(
-        `${API_URL}/api/player/levelup`,
-        {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ playerId: user.id, secretPassword }),
-        }
-      );
-      if (!res.ok) {
-        const msg = await res.text();
-        alert(`Failed to level up: ${msg}`);
-      } else {
-        alert('Leveled up successfully!');
-        fetchPlayerDetails();
-      }
-    } catch (err) {
-      console.error('Error leveling up:', err);
-      alert('Error leveling up.');
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      await fetch(`${API_URL}/api/auth/logout`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-      setUser(null);
+    if (!user) {
       navigate('/login');
-    } catch (err) {
-      console.error('Logout failed', err);
+      return;
     }
+
+    // Fetch player statistics
+    const fetchPlayerStats = async () => {
+      try {
+        const response = await fetch(`${lexiconApiUrl}/api/players/${user.id}`, {
+          credentials: 'include',
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setPlayerStats(data);
+        }
+      } catch (err) {
+        console.error('Error fetching player stats:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPlayerStats();
+  }, [user, navigate, lexiconApiUrl]);
+
+  const handleLogout = () => {
+    // Clear user context
+    setUser(null);
+    
+    // Clear any stored session data
+    localStorage.removeItem('user');
+    sessionStorage.removeItem('user');
+    
+    // Navigate to home
+    navigate('/');
   };
 
-  const goBackToDashboard = () => {
-    navigate('/dashboard');
-  };
-
-  // 5. Redirect guard *after* all hooks
-  if (!user) {
-    return <Navigate to="/login" />;
-  }
-
-  // 6. Styles
   const containerStyle = {
-    backgroundImage:
-      `linear-gradient(rgba(0,0,0,0.65), rgba(0,0,0,0.65)), url(${background})`,
+    backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.75)), url(${background})`,
     backgroundSize: 'cover',
     backgroundPosition: 'center',
     minHeight: '100vh',
     display: 'flex',
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
     padding: '2rem',
+    color: '#fff',
   };
+
   const cardStyle = {
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    borderRadius: '8px',
-    padding: '2rem 3rem',
-    textAlign: 'center',
-    maxWidth: '500px',
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    padding: '3rem 4rem',
+    borderRadius: '12px',
+    boxShadow: '0 0 30px rgba(0, 0, 0, 0.8)',
+    maxWidth: '600px',
     width: '100%',
-    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
   };
-  const headingStyle = {
-    fontSize: '2.5rem',
-    marginBottom: '1rem',
-    color: '#333',
-    fontFamily: `'Segoe UI', Tahoma, Geneva, Verdana, sans-serif`,
+
+  const headerStyle = {
+    textAlign: 'center',
+    marginBottom: '2rem',
+    borderBottom: '2px solid #9b59b6',
+    paddingBottom: '1rem',
   };
-  const textStyle = {
-    fontSize: '1.2rem',
-    color: '#333',
+
+  const infoRowStyle = {
+    display: 'flex',
+    justifyContent: 'space-between',
+    padding: '1rem',
+    borderBottom: '1px solid rgba(155, 89, 182, 0.3)',
+    fontSize: '1.1rem',
   };
-  const inputStyle = {
-    padding: '0.5rem',
-    marginRight: '1rem',
-    fontSize: '1rem',
-    borderRadius: '5px',
-    border: '1px solid #ccc',
+
+  const labelStyle = {
+    color: '#9b59b6',
+    fontWeight: 'bold',
   };
+
+  const valueStyle = {
+    color: '#fff',
+  };
+
   const buttonStyle = {
     margin: '0.5rem',
-    padding: '0.5rem 1rem',
-    fontSize: '1rem',
-    borderRadius: '5px',
+    padding: '1rem 2rem',
+    fontSize: '1.1rem',
+    borderRadius: '8px',
     border: 'none',
     cursor: 'pointer',
-    backgroundColor: '#61dafb',
-    color: '#333',
     fontWeight: 'bold',
+    boxShadow: '3px 3px 10px rgba(0, 0, 0, 0.6)',
     transition: 'transform 0.2s, box-shadow 0.2s',
   };
 
-  // 7. Render
+  const logoutButtonStyle = {
+    ...buttonStyle,
+    backgroundColor: '#e74c3c',
+    color: '#fff',
+    width: '100%',
+    marginTop: '2rem',
+  };
+
+  const backButtonStyle = {
+    ...buttonStyle,
+    backgroundColor: '#555',
+    color: '#fff',
+    width: '100%',
+  };
+
+  const buttonHoverStyle = {
+    transform: 'scale(1.05)',
+    boxShadow: '5px 5px 15px rgba(0, 0, 0, 0.8)',
+  };
+
+  if (!user) {
+    return null;
+  }
+
   return (
     <div style={containerStyle}>
       <div style={cardStyle}>
-        <h1 style={headingStyle}>Profile</h1>
+        <div style={headerStyle}>
+          <h1 style={{ fontSize: '2.5rem', marginBottom: '0.5rem', color: '#9b59b6' }}>
+            Profile
+          </h1>
+          <p style={{ fontSize: '1rem', color: '#aaa' }}>Account Information</p>
+        </div>
 
         {loading ? (
-          <p style={textStyle}>Loading...</p>
-        ) : player ? (
-          <div style={{ marginBottom: '1rem' }}>
-            <p style={textStyle}>
-              <strong>Username:</strong> {player.username}
-            </p>
-            <p style={textStyle}>
-              <strong>Level:</strong> {player.level}
-            </p>
+          <div style={{ textAlign: 'center', padding: '2rem' }}>
+            <p>Loading profile...</p>
           </div>
         ) : (
-          <p style={textStyle}>No player details available.</p>
+          <div>
+            <div style={infoRowStyle}>
+              <span style={labelStyle}>Username:</span>
+              <span style={valueStyle}>{user.username}</span>
+            </div>
+
+            <div style={infoRowStyle}>
+              <span style={labelStyle}>User ID:</span>
+              <span style={valueStyle}>{user.id}</span>
+            </div>
+
+            {playerStats?.email && (
+              <div style={infoRowStyle}>
+                <span style={labelStyle}>Email:</span>
+                <span style={valueStyle}>{playerStats.email}</span>
+              </div>
+            )}
+
+            {playerStats?.displayName && (
+              <div style={infoRowStyle}>
+                <span style={labelStyle}>Display Name:</span>
+                <span style={valueStyle}>{playerStats.displayName}</span>
+              </div>
+            )}
+
+            {playerStats?.createdAt && (
+              <div style={infoRowStyle}>
+                <span style={labelStyle}>Account Created:</span>
+                <span style={valueStyle}>
+                  {new Date(playerStats.createdAt).toLocaleDateString()}
+                </span>
+              </div>
+            )}
+
+            {playerStats?.lastLogin && (
+              <div style={infoRowStyle}>
+                <span style={labelStyle}>Last Login:</span>
+                <span style={valueStyle}>
+                  {new Date(playerStats.lastLogin).toLocaleString()}
+                </span>
+              </div>
+            )}
+
+            <div style={{ marginTop: '2rem' }}>
+              <button
+                style={{
+                  ...logoutButtonStyle,
+                  ...(hover.logout ? buttonHoverStyle : {}),
+                }}
+                onMouseEnter={() => setHover({ ...hover, logout: true })}
+                onMouseLeave={() => setHover({ ...hover, logout: false })}
+                onClick={handleLogout}
+              >
+                🚪 Logout
+              </button>
+
+              <Link to="/lexicon-dashboard">
+                <button
+                  style={{
+                    ...backButtonStyle,
+                    ...(hover.back ? buttonHoverStyle : {}),
+                  }}
+                  onMouseEnter={() => setHover({ ...hover, back: true })}
+                  onMouseLeave={() => setHover({ ...hover, back: false })}
+                >
+                  ← Back to Dashboard
+                </button>
+              </Link>
+            </div>
+          </div>
         )}
-
-        <div style={{ marginBottom: '1rem' }}>
-          <h3 style={{ ...headingStyle, fontSize: '1.8rem', marginBottom: '0.5rem' }}>
-            Level Up
-          </h3>
-          <input
-            type="password"
-            placeholder="Enter secret password"
-            value={secretPassword}
-            onChange={e => setSecretPassword(e.target.value)}
-            style={inputStyle}
-          />
-          <button onClick={handleLevelUp} style={buttonStyle}>
-            Level Up
-          </button>
-        </div>
-
-        <div style={{ marginTop: '1rem' }}>
-          <button onClick={goBackToDashboard} style={buttonStyle}>
-            Back to Dashboard
-          </button>
-          <button onClick={handleLogout} style={buttonStyle}>
-            Logout
-          </button>
-        </div>
-
-        {error && <p style={{ color: 'red' }}>{error}</p>}
       </div>
     </div>
   );

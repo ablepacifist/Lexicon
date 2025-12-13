@@ -15,7 +15,7 @@ import MediaPlayer from './pages/MediaPlayer';
 import MediaStream from './pages/MediaStream';
 import VideoPlayer from './pages/VideoPlayer';
 import AudioPlayer from './pages/AudioPlayer';
-import Dashboard from './pages/Dashboard';
+import Audiobooks from './pages/Audiobooks';
 import About from './pages/About';
 import Profile from './components/Profile';
 import KnowledgeBook from './pages/KnowledgeBook';
@@ -80,11 +80,11 @@ function AppRoutes() {
       <Route path="/audio-player" element={
         <PrivateRoute><AudioPlayer /></PrivateRoute>
       } />
+      <Route path="/audiobooks" element={
+        <PrivateRoute><Audiobooks /></PrivateRoute>
+      } />
       <Route path="/playlist-manager" element={
         <PrivateRoute><PlaylistManager /></PrivateRoute>
-      } />
-      <Route path="/dashboard" element={
-        <PrivateRoute><Dashboard /></PrivateRoute>
       } />
       <Route path="/profile" element={
         <PrivateRoute><Profile /></PrivateRoute>

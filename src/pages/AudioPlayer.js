@@ -10,6 +10,7 @@ function AudioPlayer() {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isPlaying, setIsPlaying] = useState(false);
     const [autoPlay, setAutoPlay] = useState(false);
+    const [shuffle, setShuffle] = useState(false);
     const [filterType, setFilterType] = useState('all'); // all, personal, public
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
@@ -21,8 +22,9 @@ function AudioPlayer() {
     const [playlistSearchQuery, setPlaylistSearchQuery] = useState('');
     const [activeTab, setActiveTab] = useState('library'); // 'library' or 'playlists'
     const [editingMedia, setEditingMedia] = useState(null);
-    const [editFormData, setEditFormData] = useState({ title: '', description: '' });
+    const [editFormData, setEditFormData] = useState({ title: '', description: '', isPublic: true });
     const [showEditModal, setShowEditModal] = useState(false);
+    const [shuffledIndices, setShuffledIndices] = useState([]);
     const audioRef = useRef(null);
     const navigate = useNavigate();
 
@@ -60,9 +62,9 @@ function AudioPlayer() {
             const userMedia = userResp.ok ? await userResp.json() : [];
             const publicMedia = publicResp.ok ? await publicResp.json() : [];
 
-            // mark personal items
-            userMedia.forEach(m => { m.isPersonal = true; });
-            publicMedia.forEach(m => { if (m.isPersonal === undefined) m.isPersonal = false; });
+            // mark personal items based on isPublic field (personal = NOT public)
+            userMedia.forEach(m => { m.isPersonal = !m.isPublic; });
+            publicMedia.forEach(m => { m.isPersonal = false; }); // public files are never personal
 
             const combined = [...userMedia, ...publicMedia];
             const map = new Map();
@@ -77,7 +79,6 @@ function AudioPlayer() {
                 const mediaTypeValue = media.mediaType || media.type || '';
                 return mediaTypeValue === 'AUDIO' || 
                        mediaTypeValue === 'MUSIC' ||
-                       mediaTypeValue === 'AUDIOBOOK' ||
                        media.filePath?.match(/\.(mp3|wav|ogg|flac|m4a|aac)$/i);
             });
             console.log('AudioPlayer: Filtered audio files:', audioOnly.length);
@@ -101,7 +102,7 @@ function AudioPlayer() {
                 
                 // Filter for music/audio playlists only
                 const audioPlaylists = [...userPlaylists, ...publicPlaylists].filter(
-                    p => p.mediaType === 'MUSIC' || p.mediaType === 'AUDIO' || p.mediaType === 'AUDIOBOOK'
+                    p => p.mediaType === 'MUSIC' || p.mediaType === 'AUDIO'
                 );
                 setPlaylists(audioPlaylists);
             }
@@ -123,6 +124,7 @@ function AudioPlayer() {
                 setSelectedPlaylist(playlist);
                 setPlaylistMode(true);
                 setAutoPlay(true); // Enable autoplay for playlists
+                setShuffle(false); // Reset shuffle when loading new playlist
                 setFilterType('all');
                 setActiveTab('library'); // Switch to library tab to show the loaded tracks
                 
@@ -140,7 +142,51 @@ function AudioPlayer() {
         setPlaylistMode(false);
         setSelectedPlaylist(null);
         setAutoPlay(false);
+        setShuffle(false);
+        setShuffledIndices([]);
         fetchAudioFiles();
+    };
+
+    // Shuffle function
+    const toggleShuffle = () => {
+        const newShuffleState = !shuffle;
+        setShuffle(newShuffleState);
+        
+        if (newShuffleState && playlistMode) {
+            // Create shuffled indices
+            const indices = audioFiles.map((_, idx) => idx);
+            const shuffled = [...indices].sort(() => Math.random() - 0.5);
+            setShuffledIndices(shuffled);
+        } else {
+            setShuffledIndices([]);
+        }
+    };
+
+    // Get next/previous index considering shuffle
+    const getNextIndex = () => {
+        const filtered = getFilteredAudio();
+        if (filtered.length === 0) return 0;
+        
+        if (shuffle && shuffledIndices.length > 0) {
+            const currentShufflePos = shuffledIndices.indexOf(currentIndex);
+            const nextShufflePos = (currentShufflePos + 1) % shuffledIndices.length;
+            return shuffledIndices[nextShufflePos];
+        }
+        
+        return (currentIndex + 1) % filtered.length;
+    };
+
+    const getPreviousIndex = () => {
+        const filtered = getFilteredAudio();
+        if (filtered.length === 0) return 0;
+        
+        if (shuffle && shuffledIndices.length > 0) {
+            const currentShufflePos = shuffledIndices.indexOf(currentIndex);
+            const prevShufflePos = currentShufflePos === 0 ? shuffledIndices.length - 1 : currentShufflePos - 1;
+            return shuffledIndices[prevShufflePos];
+        }
+        
+        return currentIndex === 0 ? filtered.length - 1 : currentIndex - 1;
     };
 
     const openEditModal = (media, e) => {
@@ -148,7 +194,8 @@ function AudioPlayer() {
         setEditingMedia(media);
         setEditFormData({
             title: media.title,
-            description: media.description || ''
+            description: media.description || '',
+            isPublic: media.isPublic !== undefined ? media.isPublic : true
         });
         setShowEditModal(true);
     };
@@ -156,7 +203,7 @@ function AudioPlayer() {
     const closeEditModal = () => {
         setShowEditModal(false);
         setEditingMedia(null);
-        setEditFormData({ title: '', description: '' });
+        setEditFormData({ title: '', description: '', isPublic: true });
     };
 
     const handleEditSubmit = async (e) => {
@@ -166,7 +213,8 @@ function AudioPlayer() {
             const updatedMedia = {
                 ...editingMedia,
                 title: editFormData.title,
-                description: editFormData.description
+                description: editFormData.description,
+                isPublic: editFormData.isPublic
             };
 
             const resp = await fetch(`${lexiconApiUrl}/api/media/${editingMedia.id}`, {
@@ -204,7 +252,59 @@ function AudioPlayer() {
         setCurrentIndex(index);
         setError('');
         setIsPlaying(true);
+        
+        // Update Media Session API for lock screen controls (iOS, Android)
+        if ('mediaSession' in navigator) {
+            navigator.mediaSession.metadata = new MediaMetadata({
+                title: audio.title || 'Unknown Track',
+                artist: audio.description || 'Lexicon Audio',
+                album: playlistMode && selectedPlaylist ? selectedPlaylist.name : 'Library',
+                artwork: [
+                    { src: '/manifest.json', sizes: '96x96', type: 'image/png' },
+                    { src: '/manifest.json', sizes: '192x192', type: 'image/png' },
+                    { src: '/manifest.json', sizes: '512x512', type: 'image/png' }
+                ]
+            });
+        }
     };
+    
+    // Setup Media Session handlers (needs to be outside playTrack to avoid re-binding)
+    useEffect(() => {
+        if ('mediaSession' in navigator && currentTrack) {
+            // Set up action handlers for lock screen controls
+            navigator.mediaSession.setActionHandler('play', () => {
+                if (audioRef.current) {
+                    audioRef.current.play();
+                    setIsPlaying(true);
+                }
+            });
+
+            navigator.mediaSession.setActionHandler('pause', () => {
+                if (audioRef.current) {
+                    audioRef.current.pause();
+                    setIsPlaying(false);
+                }
+            });
+
+            navigator.mediaSession.setActionHandler('previoustrack', () => {
+                playPrevious();
+            });
+
+            navigator.mediaSession.setActionHandler('nexttrack', () => {
+                playNext();
+            });
+
+            navigator.mediaSession.setActionHandler('seekto', (details) => {
+                if (audioRef.current && details.seekTime !== undefined) {
+                    audioRef.current.currentTime = details.seekTime;
+                    setCurrentTime(details.seekTime);
+                }
+            });
+            
+            // Update playback state
+            navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+        }
+    }, [currentTrack, isPlaying]);
 
     const togglePlayPause = () => {
         if (audioRef.current) {
@@ -221,7 +321,7 @@ function AudioPlayer() {
         const filtered = getFilteredAudio();
         if (filtered.length === 0) return;
         
-        const nextIndex = (currentIndex + 1) % filtered.length;
+        const nextIndex = getNextIndex();
         playTrack(filtered[nextIndex], nextIndex);
     };
 
@@ -229,7 +329,7 @@ function AudioPlayer() {
         const filtered = getFilteredAudio();
         if (filtered.length === 0) return;
         
-        const prevIndex = currentIndex === 0 ? filtered.length - 1 : currentIndex - 1;
+        const prevIndex = getPreviousIndex();
         playTrack(filtered[prevIndex], prevIndex);
     };
 
@@ -297,6 +397,7 @@ function AudioPlayer() {
             {currentTrack && (
                 <audio
                     ref={audioRef}
+                    crossOrigin="use-credentials"
                     src={getStreamUrl(currentTrack)}
                     onTimeUpdate={handleTimeUpdate}
                     onLoadedMetadata={handleLoadedMetadata}
@@ -345,21 +446,35 @@ function AudioPlayer() {
 
                             {/* Playback Controls */}
                             <div className="playback-controls">
-                                <button onClick={playPrevious} className="control-button">
-                                    ⏮ Previous
+                                <button onClick={playPrevious} className="control-button prev-button">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M6 6h2v12H6V6zm3.5 6l8.5 6V6l-8.5 6z"/>
+                                    </svg>
+                                    <span>Previous</span>
                                 </button>
-                                <button onClick={togglePlayPause} className="control-button play-pause">
-                                    {isPlaying ? '⏸ Pause' : '▶ Play'}
+                                <button onClick={togglePlayPause} className="control-button play-pause-button">
+                                    {isPlaying ? (
+                                        <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
+                                        </svg>
+                                    ) : (
+                                        <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M8 5v14l11-7z"/>
+                                        </svg>
+                                    )}
                                 </button>
-                                <button onClick={playNext} className="control-button">
-                                    ⏭ Next
+                                <button onClick={playNext} className="control-button next-button">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M6 18l8.5-6L6 6v12zm10-12v12h2V6h-2z"/>
+                                    </svg>
+                                    <span>Next</span>
                                 </button>
                             </div>
 
                             {/* Volume and Options */}
                             <div className="audio-options">
                                 <div className="volume-control">
-                                    <label>🔊 Volume:</label>
+                                    <label>🔊 Volume</label>
                                     <input
                                         type="range"
                                         min="0"
@@ -368,16 +483,29 @@ function AudioPlayer() {
                                         onChange={handleVolumeChange}
                                         className="volume-slider"
                                     />
+                                    <span className="volume-value">{Math.round(volume * 100)}%</span>
                                 </div>
-                                <div className="autoplay-control">
-                                    <label>
-                                        <input
-                                            type="checkbox"
-                                            checked={autoPlay}
-                                            onChange={(e) => setAutoPlay(e.target.checked)}
-                                        />
-                                        Auto-play next
-                                    </label>
+                                <div className="toggle-controls">
+                                    <div className="toggle-item">
+                                        <span className="toggle-label">Auto-play</span>
+                                        <button 
+                                            className={`toggle-switch ${autoPlay ? 'active' : ''}`}
+                                            onClick={() => setAutoPlay(!autoPlay)}
+                                        >
+                                            <span className="toggle-slider"></span>
+                                        </button>
+                                    </div>
+                                    {playlistMode && (
+                                        <div className="toggle-item">
+                                            <span className="toggle-label">🔀 Shuffle</span>
+                                            <button 
+                                                className={`toggle-switch ${shuffle ? 'active' : ''}`}
+                                                onClick={toggleShuffle}
+                                            >
+                                                <span className="toggle-slider"></span>
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -558,6 +686,16 @@ function AudioPlayer() {
                                     placeholder="Enter media description (optional)"
                                     rows="4"
                                 />
+                            </div>
+                            <div className="form-group">
+                                <label>
+                                    <input
+                                        type="checkbox"
+                                        checked={editFormData.isPublic}
+                                        onChange={(e) => setEditFormData({ ...editFormData, isPublic: e.target.checked })}
+                                    />
+                                    {' '}Public (visible to all users)
+                                </label>
                             </div>
                             <div className="modal-actions">
                                 <button type="submit" className="save-btn">Save Changes</button>

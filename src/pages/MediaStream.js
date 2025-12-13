@@ -1,7 +1,7 @@
 import React, { useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
-import background from '../assets/images/dashboard_background.jpg';
+import background from '../assets/images/lexicon_room.jpg';
 
 const MediaStream = () => {
   const { user } = useContext(UserContext);
@@ -49,7 +49,7 @@ const MediaStream = () => {
           Streaming functionality coming soon!
         </p>
         <p style={{ fontSize: '1rem', color: '#666' }}>
-          This page will allow you to stream media content in real-time.
+          This page will keep a constant stream of video and/or audio content from all public sources.
         </p>
         <Link to="/lexicon-dashboard">
           <button

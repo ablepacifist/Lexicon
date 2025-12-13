@@ -41,7 +41,7 @@ const KnowledgeBook = () => {
     }, [user]);
 
     const goBack = () => {
-        navigate('/dashboard');
+        navigate('/alchemy-dashboard');
     };
 
     return (
