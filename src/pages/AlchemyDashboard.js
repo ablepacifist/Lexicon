@@ -368,20 +368,58 @@ return (
           </label>
         </div>
       </div>
-      {/* Replace the buttons with clickable images */}
+      {/* Replace the buttons with clickable images - wrapped in buttons for better mobile compatibility */}
       <div>
-        <img
-          src={brewIcon}
-          alt="Brew Potion"
-          style={{ cursor: 'pointer', border: '2px solid black', width: '150px', height: '150px', margin: '0.5rem' }}
+        <button
+          style={{ 
+            background: 'none', 
+            border: 'none', 
+            padding: 0, 
+            cursor: 'pointer',
+            touchAction: 'manipulation',
+            WebkitTapHighlightColor: 'transparent'
+          }}
           onClick={handleBrewPotion}
-        />
-        <img
-          src={forageIcon}
-          alt="Forage"
-          style={{ cursor: 'pointer', border: '2px solid black', width: '150px', height: '150px', margin: '0.5rem' }}
+          aria-label="Brew Potion"
+        >
+          <img
+            src={brewIcon}
+            alt="Brew Potion"
+            style={{ 
+              border: '2px solid black', 
+              width: '150px', 
+              height: '150px', 
+              margin: '0.5rem',
+              display: 'block',
+              pointerEvents: 'none'
+            }}
+          />
+        </button>
+        <button
+          style={{ 
+            background: 'none', 
+            border: 'none', 
+            padding: 0, 
+            cursor: 'pointer',
+            touchAction: 'manipulation',
+            WebkitTapHighlightColor: 'transparent'
+          }}
           onClick={handleForage}
-        />
+          aria-label="Forage"
+        >
+          <img
+            src={forageIcon}
+            alt="Forage"
+            style={{ 
+              border: '2px solid black', 
+              width: '150px', 
+              height: '150px', 
+              margin: '0.5rem',
+              display: 'block',
+              pointerEvents: 'none'
+            }}
+          />
+        </button>
       </div>
     </div>
 

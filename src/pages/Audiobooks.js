@@ -403,6 +403,7 @@ function Audiobooks() {
             {currentBook && (
                 <audio
                     ref={audioRef}
+                    crossOrigin="use-credentials"
                     src={getStreamUrl(currentBook)}
                     onTimeUpdate={handleTimeUpdate}
                     onLoadedMetadata={handleLoadedMetadata}

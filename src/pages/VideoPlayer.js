@@ -264,6 +264,7 @@ function VideoPlayer() {
                             <video
                                 ref={videoRef}
                                 controls
+                                crossOrigin="use-credentials"
                                 className={isFullscreen ? 'fullscreen-video' : 'video-player'}
                                 src={getStreamUrl(currentVideo)}
                                 onError={() => setError('Failed to load video stream')}

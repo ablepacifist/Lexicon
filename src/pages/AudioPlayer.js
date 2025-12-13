@@ -397,6 +397,7 @@ function AudioPlayer() {
             {currentTrack && (
                 <audio
                     ref={audioRef}
+                    crossOrigin="use-credentials"
                     src={getStreamUrl(currentTrack)}
                     onTimeUpdate={handleTimeUpdate}
                     onLoadedMetadata={handleLoadedMetadata}
