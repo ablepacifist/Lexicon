@@ -1,6 +1,8 @@
 import React, { useState, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
+import ChunkedUpload from '../components/ChunkedUpload';
+import UploadProgressBar from '../components/UploadProgressBar';
 import '../styles/MediaUploadDownload.css';
 
 const API_URL = process.env.REACT_APP_LEXICON_API_URL || process.env.REACT_APP_API_URL;
@@ -28,6 +30,8 @@ const MediaUploadDownload = () => {
   
   // Upload progress state
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [bytesUploaded, setBytesUploaded] = useState(0);
+  const [uploadStatus, setUploadStatus] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -41,6 +45,8 @@ const MediaUploadDownload = () => {
   const [editDescription, setEditDescription] = useState('');
   const [editIsPublic, setEditIsPublic] = useState(true);
 
+  const LARGE_FILE_THRESHOLD = 100 * 1024 * 1024; // 100MB
+  
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
     setUploadFile(file);
@@ -48,6 +54,9 @@ const MediaUploadDownload = () => {
       // Auto-set title from filename
       setUploadTitle(file.name.replace(/\.[^/.]+$/, ""));
     }
+    // Reset any previous messages when new file is selected
+    setMessage('');
+    setUploadProgress(0);
   };
 
   const handleFileUpload = async (e) => {
@@ -63,6 +72,13 @@ const MediaUploadDownload = () => {
       return;
     }
 
+    // Check if file is large enough for chunked upload
+    if (uploadFile.size >= LARGE_FILE_THRESHOLD) {
+      setMessage('📦 Large file detected - using chunked upload for better reliability');
+      return; // Let ChunkedUpload component handle it
+    }
+
+    // Use traditional upload for smaller files
     const formData = new FormData();
     formData.append('file', uploadFile);
     formData.append('userId', user.id);
@@ -73,6 +89,8 @@ const MediaUploadDownload = () => {
 
     setIsUploading(true);
     setUploadProgress(0);
+    setBytesUploaded(0);
+    setUploadStatus('uploading');
     setMessage('');
 
     const xhr = new XMLHttpRequest();
@@ -81,18 +99,22 @@ const MediaUploadDownload = () => {
       if (e.lengthComputable) {
         const percentComplete = Math.round((e.loaded / e.total) * 100);
         setUploadProgress(percentComplete);
+        setBytesUploaded(e.loaded);
       }
     });
 
     xhr.addEventListener('load', () => {
       setIsUploading(false);
       if (xhr.status === 200) {
+        setUploadStatus('completed');
         setMessage('✅ File uploaded successfully!');
         setUploadFile(null);
         setUploadTitle('');
         setUploadDescription('');
         setUploadProgress(0);
+        setBytesUploaded(0);
       } else {
+        setUploadStatus('error');
         setMessage(`❌ Upload failed: ${xhr.responseText}`);
         setUploadProgress(0);
       }
@@ -114,6 +136,32 @@ const MediaUploadDownload = () => {
     xhr.timeout = 30 * 60 * 1000; // 30 minutes
     xhr.withCredentials = true;
     xhr.send(formData);
+  };
+
+  const handleChunkedUploadSuccess = (mediaFile) => {
+    setMessage(`✅ Large file uploaded successfully! File: ${mediaFile.filename}`);
+    setUploadFile(null);
+    setUploadTitle('');
+    setUploadDescription('');
+    setUploadProgress(0);
+    setIsUploading(false);
+  };
+
+  const handleChunkedUploadError = (error) => {
+    setMessage(`❌ Chunked upload failed: ${error}`);
+    setIsUploading(false);
+  };
+
+  const handleChunkedUploadProgress = (progress) => {
+    setUploadProgress(progress);
+  };
+
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   const handleLinkUpload = async (e) => {
@@ -193,16 +241,104 @@ const MediaUploadDownload = () => {
 
       if (response.ok) {
         const result = await response.json();
-        setMessage('✅ Playlist import started! Check your playlists in a few minutes.');
-        setPlaylistUrl('');
-        setPlaylistName('');
+        const importId = result.importId;
+        
+        if (importId) {
+          // Connect to SSE for real-time progress updates
+          setMessage('🔄 Connecting to progress stream...');
+          
+          const eventSource = new EventSource(`${API_URL}/api/playlists/import-progress/${importId}`);
+          
+          eventSource.addEventListener('connected', function(event) {
+            try {
+              const data = JSON.parse(event.data);
+              setMessage('✅ Connected! Waiting for playlist processing to begin...');
+            } catch (e) {
+              console.error('Error parsing connected event:', e);
+            }
+          });
+          
+          eventSource.addEventListener('progress', function(event) {
+            try {
+              const data = JSON.parse(event.data);
+              const percent = data.total > 0 ? Math.round((data.successful / data.total) * 100) : 0;
+              setMessage(`📥 ${data.message} (${data.successful}/${data.total} - ${percent}%)`);
+            } catch (e) {
+              console.error('Error parsing progress data:', e);
+            }
+          });
+          
+          eventSource.onmessage = function(event) {
+            try {
+              const data = JSON.parse(event.data);
+              
+              if (data.type === 'progress') {
+                const percent = data.total > 0 ? Math.round((data.successful / data.total) * 100) : 0;
+                setMessage(`📥 ${data.message} (${data.successful}/${data.total} - ${percent}%)`);
+              } else if (data.type === 'completion') {
+                const result = data.result;
+                if (result.success) {
+                  setMessage(`✅ Import complete! ${result.successfulDownloads}/${result.totalTracks} tracks imported successfully.`);
+                } else {
+                  setMessage(`❌ Import failed: ${result.errorMessage || 'Unknown error'}`);
+                }
+                eventSource.close();
+                setLoading(false);
+                setPlaylistUrl('');
+                setPlaylistName('');
+              } else if (data.type === 'error') {
+                setMessage(`❌ Import error: ${data.message}`);
+                eventSource.close();
+                setLoading(false);
+              } else if (data.type === 'connected') {
+                setMessage('✅ Connected! Waiting for playlist processing to begin...');
+              }
+            } catch (e) {
+              console.error('Error parsing SSE data:', e, event.data);
+            }
+          };
+          
+          eventSource.onerror = function(event) {
+            console.error('SSE connection error:', event);
+            
+            if (eventSource.readyState === EventSource.CLOSED) {
+              setMessage('❌ Connection lost - playlist processing may continue in background. Check your playlists in a few minutes.');
+            } else if (eventSource.readyState === EventSource.CONNECTING) {
+              setMessage('🔄 Reconnecting to progress stream...');
+              // Let it try to reconnect automatically
+              return;
+            } else {
+              setMessage('⚠️ Connection unstable - progress updates may be delayed');
+              // Keep connection open for potential recovery
+              return;
+            }
+            
+            eventSource.close();
+            setLoading(false);
+          };
+          
+          // Clean up on component unmount or timeout
+          setTimeout(() => {
+            if (eventSource.readyState !== EventSource.CLOSED) {
+              setMessage('⏰ Progress stream timeout - playlist may still be processing');
+              eventSource.close();
+              setLoading(false);
+            }
+          }, 600000); // 10 minute timeout to match backend
+          
+        } else {
+          setMessage('✅ Playlist import started! Check your playlists in a few minutes.');
+          setPlaylistUrl('');
+          setPlaylistName('');
+          setLoading(false);
+        }
       } else {
         const error = await response.text();
         setMessage(`❌ Import failed: ${error}`);
+        setLoading(false);
       }
     } catch (error) {
       setMessage('❌ Error importing playlist');
-    } finally {
       setLoading(false);
     }
   };
@@ -489,21 +625,64 @@ const MediaUploadDownload = () => {
                 <label htmlFor="filePublic">Make this file public (visible to all users)</label>
               </div>
 
-              {isUploading && (
-                <div className="progress-bar-container">
-                  <div className="progress-bar" style={{ width: `${uploadProgress}%` }}>
-                    {uploadProgress}%
-                  </div>
+              {/* Show file size and upload type info */}
+              {uploadFile && (
+                <div style={{ 
+                  margin: '15px 0', 
+                  padding: '10px', 
+                  backgroundColor: uploadFile.size >= LARGE_FILE_THRESHOLD ? '#fff3cd' : '#d4edda',
+                  borderRadius: '5px',
+                  fontSize: '14px'
+                }}>
+                  <strong>File Size:</strong> {formatFileSize(uploadFile.size)}<br />
+                  {uploadFile.size >= LARGE_FILE_THRESHOLD ? (
+                    <span style={{ color: '#856404' }}>
+                      📦 <strong>Large file detected</strong> - will use chunked upload for better reliability and resumability
+                    </span>
+                  ) : (
+                    <span style={{ color: '#155724' }}>
+                      ⚡ <strong>Standard upload</strong> - file will be uploaded normally
+                    </span>
+                  )}
                 </div>
               )}
 
-              <button 
-                type="submit" 
-                className="upload-button"
-                disabled={!uploadFile || isUploading}
-              >
-                {isUploading ? `Uploading ${uploadProgress}%` : '📤 Upload File'}
-              </button>
+              {/* Chunked Upload Component for Large Files */}
+              {uploadFile && uploadFile.size >= LARGE_FILE_THRESHOLD && uploadTitle.trim() && (
+                <ChunkedUpload
+                  file={uploadFile}
+                  title={uploadTitle}
+                  description={uploadDescription}
+                  isPublic={isPublic}
+                  mediaType={mediaType}
+                  onSuccess={handleChunkedUploadSuccess}
+                  onError={handleChunkedUploadError}
+                  onProgress={handleChunkedUploadProgress}
+                />
+              )}
+
+              {/* Enhanced Upload Progress Bar for Standard Uploads */}
+              {isUploading && uploadFile && uploadFile.size < LARGE_FILE_THRESHOLD && (
+                <UploadProgressBar
+                  progress={uploadProgress}
+                  bytesUploaded={bytesUploaded}
+                  totalBytes={uploadFile.size}
+                  status={uploadStatus}
+                  filename={uploadFile.name}
+                  showDetails={true}
+                />
+              )}
+
+              {/* Upload Button - Only show for small files or when no file selected */}
+              {(!uploadFile || uploadFile.size < LARGE_FILE_THRESHOLD) && (
+                <button 
+                  type="submit" 
+                  className="upload-button"
+                  disabled={!uploadFile || isUploading}
+                >
+                  {isUploading ? `Uploading ${uploadProgress}%` : '📤 Upload File'}
+                </button>
+              )}
             </form>
           </div>
         )}
