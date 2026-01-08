@@ -188,14 +188,87 @@ function PlaylistManager() {
         }
     };
 
-    const handleDeletePlaylist = async (playlistId) => {
-        if (!window.confirm('Are you sure you want to delete this playlist?')) return;
+    const showDeletePlaylistDialog = () => {
+        return new Promise((resolve) => {
+            const dialog = document.createElement('div');
+            dialog.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+                background: rgba(0,0,0,0.5); z-index: 1000; 
+                display: flex; align-items: center; justify-content: center;
+            `;
+            
+            dialog.innerHTML = `
+                <div style="
+                    background: white; padding: 20px; border-radius: 8px; 
+                    max-width: 400px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                ">
+                    <h3 style="margin-top: 0; color: #333;">Delete Playlist</h3>
+                    <p style="margin: 15px 0; color: #666;">
+                        What would you like to do with the media files in this playlist?
+                    </p>
+                    <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                        <button id="deletePlaylistOnly" style="
+                            padding: 10px 15px; border: 1px solid #ddd; background: #f8f9fa; 
+                            border-radius: 4px; cursor: pointer; color: #333;
+                        ">Keep Media Files</button>
+                        <button id="deletePlaylistAndMedia" style="
+                            padding: 10px 15px; border: 1px solid #dc3545; background: #dc3545; 
+                            border-radius: 4px; cursor: pointer; color: white;
+                        ">Delete Media Files Too</button>
+                        <button id="cancelDelete" style="
+                            padding: 10px 15px; border: 1px solid #6c757d; background: #6c757d; 
+                            border-radius: 4px; cursor: pointer; color: white;
+                        ">Cancel</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(dialog);
+            
+            const cleanup = () => document.body.removeChild(dialog);
+            
+            dialog.querySelector('#deletePlaylistOnly').onclick = () => {
+                cleanup();
+                resolve(false); // Don't delete media files
+            };
+            
+            dialog.querySelector('#deletePlaylistAndMedia').onclick = () => {
+                cleanup();
+                resolve(true); // Delete media files too
+            };
+            
+            dialog.querySelector('#cancelDelete').onclick = () => {
+                cleanup();
+                resolve(null); // Cancel
+            };
+            
+            // Close on outside click
+            dialog.onclick = (e) => {
+                if (e.target === dialog) {
+                    cleanup();
+                    resolve(null);
+                }
+            };
+        });
+    };
 
+    const handleDeletePlaylist = async (playlistId) => {
         setError('');
         setSuccess('');
 
+        // Custom dialog to ask user about deleting media files
+        const result = await showDeletePlaylistDialog();
+        if (result === null) return; // User cancelled
+        
+        const deleteMediaFiles = result;
+
         try {
-            const resp = await fetch(`${lexiconApiUrl}/api/playlists/${playlistId}?userId=${user.id}`, {
+            const params = new URLSearchParams({
+                userId: user.id,
+                deleteMediaFiles: deleteMediaFiles
+            });
+            
+            const resp = await fetch(`${lexiconApiUrl}/api/playlists/${playlistId}?${params}`, {
                 method: 'DELETE',
                 credentials: 'include'
             });
@@ -206,7 +279,8 @@ function PlaylistManager() {
             }
 
             if (resp.ok) {
-                setSuccess('Playlist deleted successfully!');
+                const message = await resp.text();
+                setSuccess(message);
                 if (selectedPlaylist?.id === playlistId) {
                     setSelectedPlaylist(null);
                     setPlaylistItems([]);
