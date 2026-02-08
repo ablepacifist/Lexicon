@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import background from '../assets/images/background.jpg';
 
-const API_URL = process.env.REACT_APP_API_URL;
+// Use Lexicon API for registration so it matches login
+const API_URL = process.env.REACT_APP_LEXICON_API_URL || process.env.REACT_APP_API_URL;
 // register component acts much the same way as the lognin component
 const Register = () => {
   const [username, setUsername] = useState('');

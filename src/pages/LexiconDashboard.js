@@ -176,7 +176,7 @@ const LexiconDashboard = () => {
             </button>
           </Link>
           <br />
-          <Link to="/media-stream">
+          <Link to="/live-stream">
             <button
               style={{
                 ...streamButtonStyle,
@@ -185,7 +185,21 @@ const LexiconDashboard = () => {
               onMouseEnter={() => setHover({ ...hover, stream: true })}
               onMouseLeave={() => setHover({ ...hover, stream: false })}
             >
-              Live Stream
+              🔴 Live Stream
+            </button>
+          </Link>
+          <br />
+          <Link to="/queue-manager">
+            <button
+              style={{
+                ...buttonStyle,
+                backgroundColor: '#667eea',
+                ...(hover.queueManager ? buttonHoverStyle : {}),
+              }}
+              onMouseEnter={() => setHover({ ...hover, queueManager: true })}
+              onMouseLeave={() => setHover({ ...hover, queueManager: false })}
+            >
+              🎵 Queue Manager
             </button>
           </Link>
           <br />

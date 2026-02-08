@@ -20,8 +20,11 @@ import About from './pages/About';
 import Profile from './components/Profile';
 import KnowledgeBook from './pages/KnowledgeBook';
 import PlaylistManager from './pages/PlaylistManager';
+import LiveStream from './pages/LiveStream';
+import QueueManager from './pages/QueueManager';
 
-const API_URL = process.env.REACT_APP_API_URL;
+// Use Lexicon API for session management so session works with media requests
+const API_URL = process.env.REACT_APP_LEXICON_API_URL || process.env.REACT_APP_API_URL;
 
 function PrivateRoute({ children }) {
   const { user } = useContext(UserContext);
@@ -39,7 +42,7 @@ function AppRoutes() {
         return res.json();
       })
       .then(data => {
-        setUser({ id: data.id, username: data.username });
+        setUser({ id: data.id, username: data.username, displayName: data.displayName });
       })
       .catch(() => {
         setUser(null);
@@ -85,6 +88,15 @@ function AppRoutes() {
       } />
       <Route path="/playlist-manager" element={
         <PrivateRoute><PlaylistManager /></PrivateRoute>
+      } />
+      <Route path="/live-stream" element={
+        <PrivateRoute><LiveStream /></PrivateRoute>
+      } />
+      <Route path="/livestream" element={
+        <PrivateRoute><LiveStream /></PrivateRoute>
+      } />
+      <Route path="/queue-manager" element={
+        <PrivateRoute><QueueManager /></PrivateRoute>
       } />
       <Route path="/profile" element={
         <PrivateRoute><Profile /></PrivateRoute>

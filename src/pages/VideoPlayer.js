@@ -163,7 +163,7 @@ function VideoPlayer() {
                 isPublic: editFormData.isPublic
             };
 
-            const resp = await fetch(`${lexiconApiUrl}/api/media/${editingMedia.id}`, {
+            const resp = await fetch(`${lexiconApiUrl}/api/media/${editingMedia.id}?userId=${user.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',

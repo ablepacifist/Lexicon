@@ -27,6 +27,8 @@ const MediaUploadDownload = () => {
   const [playlistName, setPlaylistName] = useState('');
   const [playlistIsPublic, setPlaylistIsPublic] = useState(true);
   const [mediaIsPublic, setMediaIsPublic] = useState(false);
+  const [playlistMediaType, setPlaylistMediaType] = useState('MUSIC');
+  const [playlistDownloadType, setPlaylistDownloadType] = useState('AUDIO_ONLY');
   
   // Upload progress state
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -227,7 +229,9 @@ const MediaUploadDownload = () => {
         url: playlistUrl,
         userId: user.id,
         isPublic: playlistIsPublic,
-        mediaIsPublic: mediaIsPublic
+        mediaIsPublic: mediaIsPublic,
+        mediaType: playlistMediaType,
+        downloadType: playlistDownloadType
       });
       
       if (playlistName.trim()) {
@@ -343,6 +347,15 @@ const MediaUploadDownload = () => {
     }
   };
 
+  const handlePlaylistDownloadTypeChange = (newDownloadType) => {
+    setPlaylistDownloadType(newDownloadType);
+    if (newDownloadType === 'AUDIO_ONLY') {
+      setPlaylistMediaType('MUSIC');
+    } else if (newDownloadType === 'VIDEO') {
+      setPlaylistMediaType('VIDEO');
+    }
+  };
+
   const handleDownloadTypeChange = (newDownloadType) => {
     setDownloadType(newDownloadType);
     if (newDownloadType === 'AUDIO_ONLY') {
@@ -393,7 +406,7 @@ const MediaUploadDownload = () => {
     }
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/api/media/search?query=${encodeURIComponent(searchQuery)}`, {
+      const response = await fetch(`${API_URL}/api/media/search?q=${encodeURIComponent(searchQuery)}`, {
         credentials: 'include'
       });
       if (response.ok) {
@@ -970,6 +983,40 @@ const MediaUploadDownload = () => {
                 />
               </div>
 
+              <div className="form-group">
+                <label>Download Type</label>
+                <div className="upload-mode-selector">
+                  <div 
+                    className={`mode-button ${playlistDownloadType === 'AUDIO_ONLY' ? 'active' : ''}`}
+                    onClick={() => handlePlaylistDownloadTypeChange('AUDIO_ONLY')}
+                  >
+                    <div className="mode-icon">🎵</div>
+                    Audio Only
+                  </div>
+                  <div 
+                    className={`mode-button ${playlistDownloadType === 'VIDEO' ? 'active' : ''}`}
+                    onClick={() => handlePlaylistDownloadTypeChange('VIDEO')}
+                  >
+                    <div className="mode-icon">🎬</div>
+                    Video + Audio
+                  </div>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Media Type</label>
+                <select
+                  className="form-select"
+                  value={playlistMediaType}
+                  onChange={(e) => setPlaylistMediaType(e.target.value)}
+                >
+                  <option value="MUSIC">Music</option>
+                  <option value="VIDEO">Video</option>
+                  <option value="AUDIOBOOK">Audiobook</option>
+                  <option value="OTHER">Other</option>
+                </select>
+              </div>
+
               <div className="checkbox-group">
                 <input
                   type="checkbox"
@@ -995,11 +1042,13 @@ const MediaUploadDownload = () => {
                   💡 How Playlist Import Works
                 </div>
                 <ul>
+                  <li><strong>Download Type:</strong> Choose Audio Only (music/audiobooks) or Video + Audio (full videos)</li>
+                  <li><strong>Media Type:</strong> Categorize your content (Music, Video, Audiobook, Other)</li>
                   <li><strong>Playlist visibility:</strong> Controls who can see and play the playlist</li>
-                  <li><strong>Song visibility:</strong> Controls who can see individual songs in the media library</li>
-                  <li><strong>Recommended:</strong> Playlist Public ✓, Songs Private ✗</li>
+                  <li><strong>Media visibility:</strong> Controls who can see individual items in the media library</li>
+                  <li><strong>Recommended:</strong> Playlist Public ✓, Media Private ✗</li>
                   <li><strong>Processing time:</strong> Large playlists may take 10-30 minutes to import</li>
-                  <li><strong>All songs:</strong> Will be downloaded as audio files (music format)</li>
+                  <li><strong>Note:</strong> Video downloads take longer and use more storage space</li>
                 </ul>
               </div>
 

@@ -8,7 +8,6 @@ const LARGE_FILE_THRESHOLD = 100 * 1024 * 1024; // 100MB threshold for chunked u
 const ChunkedUpload = ({ file, title, description, isPublic, mediaType, onSuccess, onError, onProgress }) => {
   const { user } = useContext(UserContext);
   const [uploadId, setUploadId] = useState(null);
-  const [currentChunk, setCurrentChunk] = useState(0);
   const [totalChunks, setTotalChunks] = useState(0);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
@@ -16,12 +15,17 @@ const ChunkedUpload = ({ file, title, description, isPublic, mediaType, onSucces
   const [uploadStatus, setUploadStatus] = useState('');
   const [uploadedChunks, setUploadedChunks] = useState(new Set());
 
-  const calculateMD5 = async (data) => {
+  const calculateSHA256 = async (data) => {
     const crypto = window.crypto;
     if (crypto && crypto.subtle) {
-      const hashBuffer = await crypto.subtle.digest('MD5', data);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      try {
+        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      } catch (error) {
+        console.warn('SHA-256 calculation failed:', error);
+        return null;
+      }
     }
     return null; // Fallback if crypto not available
   };
@@ -75,7 +79,7 @@ const ChunkedUpload = ({ file, title, description, isPublic, mediaType, onSucces
     // Calculate chunk checksum if possible
     try {
       const arrayBuffer = await chunkData.arrayBuffer();
-      const checksum = await calculateMD5(arrayBuffer);
+      const checksum = await calculateSHA256(arrayBuffer);
       if (checksum) {
         formData.append('checksum', checksum);
       }
@@ -116,13 +120,11 @@ const ChunkedUpload = ({ file, title, description, isPublic, mediaType, onSucces
         }
 
         setUploadStatus(`🔄 Resuming upload, ${missingChunks.length} chunks remaining`);
-        setCurrentChunk(Math.min(...missingChunks));
         
         // Continue uploading missing chunks
         for (const chunkNumber of missingChunks.sort((a, b) => a - b)) {
           if (isPaused) break;
           
-          setCurrentChunk(chunkNumber);
           setUploadStatus(`📤 Uploading chunk ${chunkNumber + 1}/${totalChunks}`);
           
           const result = await uploadChunk(uploadId, chunkNumber);
@@ -210,7 +212,6 @@ const ChunkedUpload = ({ file, title, description, isPublic, mediaType, onSucces
         });
         
         setUploadId(null);
-        setCurrentChunk(0);
         setTotalChunks(0);
         setUploadProgress(0);
         setUploadedChunks(new Set());

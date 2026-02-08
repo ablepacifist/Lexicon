@@ -2,7 +2,9 @@ import React, { useState, useContext } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
 import background from '../assets/images/background.jpg';
-const API_URL = process.env.REACT_APP_API_URL;
+
+// Use Lexicon API for login so session works with media requests
+const API_URL = process.env.REACT_APP_LEXICON_API_URL || process.env.REACT_APP_API_URL;
 
 const Login = () => {
   const [username, setUsername] = useState('');
@@ -30,8 +32,8 @@ const Login = () => {
       const data = await response.json();
       console.log("Login successful:", data);
 
-      // Update context with session-based info
-      setUser({ id: data.playerId, username: data.username }); // <-- Add username from backend
+      // Update context with session-based info - use 'id' field which AuthController returns
+      setUser({ id: data.id, username: data.username, displayName: data.displayName });
       navigate("/app-selector");
     } catch (err) {
       console.error("Login error:", err);
