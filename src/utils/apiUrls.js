@@ -1,9 +1,9 @@
-// Auto-detect whether to use local network or internet URLs
-// This allows the same build to work for both local and external users
+// Auto-detect whether to use local network, Cloudflare domain, or PlayIt tunnel URLs
+// This allows the same build to work for local dev, HTTPS domain, and external users
 
 const getApiUrls = () => {
-    // Try to detect if user is on local network by checking their IP
     const hostname = window.location.hostname;
+    const protocol = window.location.protocol;
     
     // If accessing via local IP or localhost, use local backend URLs for speed
     const isLocalAccess = (
@@ -14,14 +14,23 @@ const getApiUrls = () => {
         hostname.startsWith('172.')
     );
     
+    // If accessing via alex-dyakin.com (Cloudflare Tunnel), use HTTPS subdomains
+    const isCloudflareAccess = hostname.endsWith('alex-dyakin.com');
+    
     if (isLocalAccess) {
         // User is on local network - use local IPs for maximum speed
         return {
             lexiconApiUrl: process.env.REACT_APP_LEXICON_API_URL_LOCAL || 'http://192.168.4.29:36568',
             alchemyApiUrl: process.env.REACT_APP_API_URL_LOCAL || 'http://192.168.4.29:8080'
         };
+    } else if (isCloudflareAccess) {
+        // User is on HTTPS via Cloudflare - use HTTPS subdomains to avoid mixed content
+        return {
+            lexiconApiUrl: 'https://api.alex-dyakin.com',
+            alchemyApiUrl: 'https://alchemy.alex-dyakin.com'
+        };
     } else {
-        // User is external - use internet tunnel URLs
+        // User is external via PlayIt - use internet tunnel URLs
         return {
             lexiconApiUrl: process.env.REACT_APP_LEXICON_API_URL_INTERNET || 'http://147.185.221.24:15856',
             alchemyApiUrl: process.env.REACT_APP_API_URL_INTERNET || 'http://147.185.221.24:15821'
