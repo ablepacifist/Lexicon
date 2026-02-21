@@ -23,6 +23,13 @@ import PlaylistManager from './pages/PlaylistManager';
 import LiveStream from './pages/LiveStream';
 import QueueManager from './pages/QueueManager';
 
+// New pages
+import Career from './pages/Career';
+import Recipes from './pages/Recipes';
+import Blog from './pages/Blog';
+import Projects from './pages/Projects';
+import DndCampaigns from './pages/DndCampaigns';
+
 // Use Lexicon API for session management so session works with media requests
 const API_URL = process.env.REACT_APP_LEXICON_API_URL || process.env.REACT_APP_API_URL;
 
@@ -105,6 +112,13 @@ function AppRoutes() {
         <PrivateRoute><KnowledgeBook /></PrivateRoute>
       } />
       <Route path="/about" element={<About />} />
+
+      {/* New public pages */}
+      <Route path="/career" element={<Career />} />
+      <Route path="/recipes" element={<Recipes />} />
+      <Route path="/blog" element={<Blog />} />
+      <Route path="/projects" element={<Projects />} />
+      <Route path="/dnd" element={<DndCampaigns />} />
 
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
