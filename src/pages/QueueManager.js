@@ -1,474 +1,366 @@
-import React, { useState, useEffect, useRef, useContext, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useContext, useCallback } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
+import { getApiUrls } from '../utils/apiUrls';
 import './QueueManager.css';
 
+/**
+ * Queue Manager — dedicated page for browsing eligible media and managing
+ * the server-side live stream queue. Supports music and video channels.
+ */
 function QueueManager() {
     const { user } = useContext(UserContext);
     const navigate = useNavigate();
-    
-    // Queue state
+    const [searchParams, setSearchParams] = useSearchParams();
+    const { lexiconApiUrl } = getApiUrls();
+
+    const channel = searchParams.get('channel') || 'video';
+    const setChannel = (ch) => setSearchParams({ channel: ch });
+
     const [queue, setQueue] = useState([]);
     const [currentMedia, setCurrentMedia] = useState(null);
+    const [eligibleMedia, setEligibleMedia] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
-    const [connectionStatus, setConnectionStatus] = useState('connecting');
-    
-    // Search and add
-    const [availableMedia, setAvailableMedia] = useState([]);
-    const [showAddModal, setShowAddModal] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
-    const [sortBy, setSortBy] = useState('position'); // position, added, user
-    
-    // Refs
-    const eventSourceRef = useRef(null);
-    const reconnectTimeoutRef = useRef(null);
-    
-    const lexiconApiUrl = process.env.REACT_APP_LEXICON_API_URL || 'http://localhost:36568';
+    const [filterType, setFilterType] = useState('ALL');
+    const [sortBy, setSortBy] = useState('title');
+    const [addingId, setAddingId] = useState(null);
+    const [isConnected, setIsConnected] = useState(false);
 
-    // Fetch queue with minimal data
-    const fetchQueue = useCallback(async () => {
+    /* ---- Fetch eligible media (public + public-playlist items + user's own) ---- */
+    const fetchEligible = useCallback(async () => {
         try {
-            const response = await fetch(`${lexiconApiUrl}/api/livestream/queue`, {
-                credentials: 'include'
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                if (data.success) {
-                    setQueue(data.queue || []);
-                }
-            }
-        } catch (err) {
-            console.error('Error fetching queue:', err);
-        }
-    }, [lexiconApiUrl]);
+            const [eligResp, userResp] = await Promise.all([
+                fetch(`${lexiconApiUrl}/api/livestream/eligible-media?channel=${channel}`, { credentials: 'include' }),
+                fetch(`${lexiconApiUrl}/api/media/user/${user.id}`, { credentials: 'include' })
+            ]);
 
-    // Fetch current media
-    const fetchCurrentMedia = useCallback(async () => {
-        try {
-            const response = await fetch(`${lexiconApiUrl}/api/livestream/state`, {
-                credentials: 'include'
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                if (data.success && data.state?.currentMediaId) {
-                    const mediaResponse = await fetch(
-                        `${lexiconApiUrl}/api/media/${data.state.currentMediaId}`,
-                        { credentials: 'include' }
-                    );
-                    if (mediaResponse.ok) {
-                        const mediaData = await mediaResponse.json();
-                        setCurrentMedia(mediaData);
-                    }
-                }
-            }
-        } catch (err) {
-            console.error('Error fetching current media:', err);
-        }
-    }, [lexiconApiUrl]);
+            const eligData = eligResp.ok ? await eligResp.json() : { media: [] };
+            const userData = userResp.ok ? await userResp.json() : [];
 
-    // Fetch available media for modal
-    const fetchAvailableMedia = useCallback(async () => {
-        try {
-            const response = await fetch(`${lexiconApiUrl}/api/livestream/eligible-media`, {
-                credentials: 'include'
-            });
-            if (response.ok) {
-                const data = await response.json();
-                if (data.success && data.media) {
-                    setAvailableMedia(data.media);
+            const allowedType = channel === 'music' ? 'MUSIC' : 'VIDEO';
+            const map = new Map();
+            (eligData.media || []).forEach(m => map.set(m.id, m));
+            (Array.isArray(userData) ? userData : []).forEach(m => {
+                if (m.mediaType === allowedType && !map.has(m.id)) {
+                    map.set(m.id, m);
                 }
-            }
-        } catch (err) {
-            console.error('Error fetching available media:', err);
-        }
-    }, [lexiconApiUrl]);
+            });
 
-    // Setup lightweight SSE for queue updates only
+            setEligibleMedia(Array.from(map.values()));
+        } catch (err) {
+            setError('Failed to load media: ' + err.message);
+        }
+    }, [lexiconApiUrl, user, channel]);
+
+    /* ---- SSE for real-time queue & state updates ---- */
     useEffect(() => {
         if (!user) return;
 
-        let retryCount = 0;
-        const maxRetries = 10;
-        const baseRetryDelay = 500; // Faster retry for queue manager
+        let es;
+        let reconnectTimer;
+        let alive = true;
 
-        const setupSSE = () => {
-            setConnectionStatus('connecting');
-            
-            // Use lightweight updates for queue manager - no media streaming data
-            const eventSource = new EventSource(`${lexiconApiUrl}/api/livestream/light/updates`);
-            eventSourceRef.current = eventSource;
+        const connect = () => {
+            if (!alive) return;
+            es = new EventSource(`${lexiconApiUrl}/api/livestream/updates?channel=${channel}`);
 
-            eventSource.addEventListener('init', (event) => {
-                const data = JSON.parse(event.data);
-                if (data.state?.currentMediaId) {
-                    // Fetch full media details
-                    fetch(`${lexiconApiUrl}/api/media/${data.state.currentMediaId}`, {
-                        credentials: 'include'
-                    })
-                    .then(res => {
-                        if (!res.ok) return null;
-                        return res.json();
-                    })
-                    .then(mediaData => { if (mediaData) setCurrentMedia(mediaData); })
-                    .catch(console.error);
-                }
-                
-                setConnectionStatus('connected');
-                setIsLoading(false);
-                retryCount = 0;
+            es.addEventListener('heartbeat', () => setIsConnected(true));
+
+            es.addEventListener('init', (e) => {
+                try {
+                    const d = JSON.parse(e.data);
+                    setIsConnected(true);
+                    if (d.queue) setQueue(d.queue);
+                    if (d.state?.currentMedia) setCurrentMedia(d.state.currentMedia);
+                    setIsLoading(false);
+                } catch (err) { console.error(err); }
             });
 
-            // Listen for queue updates
-            eventSource.addEventListener('queue-update', (event) => {
-                const data = JSON.parse(event.data);
-                if (data.data) {
-                    const queueData = data.data;
-                    if (Array.isArray(queueData)) {
-                        setQueue(queueData);
-                    } else if (queueData.items && Array.isArray(queueData.items)) {
-                        setQueue(queueData.items);
-                    }
-                }
+            es.addEventListener('state-update', (e) => {
+                try {
+                    const d = JSON.parse(e.data);
+                    const data = d.data || d;
+                    if (data.currentMedia) setCurrentMedia(data.currentMedia);
+                } catch (err) { /* ignore */ }
             });
 
-            // Listen for state changes in light mode (media changes)
-            eventSource.addEventListener('state-update-light', (event) => {
-                const data = JSON.parse(event.data);
-                if (data.data?.currentMediaId) {
-                    fetch(`${lexiconApiUrl}/api/media/${data.data.currentMediaId}`, {
-                        credentials: 'include'
-                    })
-                    .then(res => {
-                        if (!res.ok) return null;
-                        return res.json();
-                    })
-                    .then(mediaData => { if (mediaData) setCurrentMedia(mediaData); })
-                    .catch(console.error);
-                }
+            es.addEventListener('state-update-light', (e) => {
+                try {
+                    const d = JSON.parse(e.data);
+                    const data = d.data || d;
+                    if (data.currentMedia) setCurrentMedia(data.currentMedia);
+                } catch (err) { /* ignore */ }
             });
 
-            eventSource.onopen = () => {
-                console.log('Queue Manager SSE connected');
-                setConnectionStatus('connected');
-            };
+            es.addEventListener('queue-update', (e) => {
+                try {
+                    const d = JSON.parse(e.data);
+                    const items = d.data || d;
+                    if (Array.isArray(items)) setQueue(items);
+                } catch (err) { /* ignore */ }
+            });
 
-            eventSource.onerror = () => {
-                console.log('Queue Manager SSE error');
-                setConnectionStatus('disconnected');
-                eventSource.close();
-                
-                if (retryCount < maxRetries) {
-                    const delay = Math.min(baseRetryDelay * Math.pow(2, retryCount), 10000);
-                    console.log(`Reconnecting queue manager in ${delay}ms`);
-                    retryCount++;
-                    reconnectTimeoutRef.current = setTimeout(setupSSE, delay);
-                } else {
-                    setError('Lost connection. Please refresh the page.');
-                }
+            es.onerror = () => {
+                setIsConnected(false);
+                es.close();
+                reconnectTimer = setTimeout(connect, 3000);
             };
         };
 
-        setupSSE();
+        connect();
+        fetchEligible();
 
         return () => {
-            if (eventSourceRef.current) {
-                eventSourceRef.current.close();
-            }
-            if (reconnectTimeoutRef.current) {
-                clearTimeout(reconnectTimeoutRef.current);
-            }
+            alive = false;
+            if (es) es.close();
+            if (reconnectTimer) clearTimeout(reconnectTimer);
         };
-    }, [user, lexiconApiUrl]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [lexiconApiUrl, user, channel]);
 
-    // Initial data fetch
+    /* ---- Auth guard ---- */
     useEffect(() => {
         if (user === undefined) return;
-        if (user === null) {
-            navigate('/login');
-            return;
-        }
+        if (user === null) navigate('/login');
+    }, [user, navigate]);
 
-        fetchQueue();
-        fetchCurrentMedia();
-        fetchAvailableMedia();
-    }, [user, navigate, fetchQueue, fetchCurrentMedia, fetchAvailableMedia]);
-
-    // Add to queue
-    const handleAddToQueue = async (mediaFileId) => {
+    /* ---- Actions ---- */
+    const addToQueue = async (mediaFileId) => {
+        if (!user) return;
+        setAddingId(mediaFileId);
         try {
-            const response = await fetch(`${lexiconApiUrl}/api/livestream/queue`, {
+            const resp = await fetch(`${lexiconApiUrl}/api/livestream/queue?channel=${channel}`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
-                body: JSON.stringify({
-                    userId: user.id,
-                    mediaFileId: mediaFileId
-                })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: user.id, mediaFileId })
             });
-
-            const data = await response.json();
-            if (data.success) {
-                setShowAddModal(false);
-                setSearchQuery('');
-                // SSE will update queue automatically
-            } else {
-                setError(data.message || 'Failed to add to queue');
-            }
+            const data = await resp.json();
+            if (!data.success) setError(data.message || 'Failed to add');
         } catch (err) {
-            setError('Error adding to queue: ' + err.message);
+            setError('Add failed: ' + err.message);
+        } finally {
+            setAddingId(null);
         }
     };
 
-    // Remove from queue
-    const handleRemoveFromQueue = async (queueId) => {
+    const removeFromQueue = async (queueId) => {
+        if (!user) return;
         try {
-            const response = await fetch(
-                `${lexiconApiUrl}/api/livestream/queue/${queueId}?userId=${user.id}`,
-                {
-                    method: 'DELETE',
-                    credentials: 'include'
-                }
-            );
-
-            const data = await response.json();
-            if (data.success) {
-                // SSE will update queue automatically
-            } else {
-                setError(data.message || 'Failed to remove from queue');
-            }
+            const resp = await fetch(`${lexiconApiUrl}/api/livestream/queue/${queueId}?userId=${user.id}&channel=${channel}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
+            const data = await resp.json();
+            if (!data.success) setError(data.message || 'Failed to remove');
         } catch (err) {
-            setError('Error removing from queue: ' + err.message);
+            setError('Remove failed: ' + err.message);
         }
     };
 
-    // Vote to skip
     const handleSkip = async () => {
+        if (!user) return;
         try {
-            const response = await fetch(`${lexiconApiUrl}/api/livestream/skip`, {
+            await fetch(`${lexiconApiUrl}/api/livestream/skip?channel=${channel}`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId: user.id })
             });
-
-            const data = await response.json();
-            if (!data.success) {
-                setError(data.message || 'Failed to skip');
-            }
-            // SSE will update the state automatically
         } catch (err) {
-            setError('Error skipping: ' + err.message);
+            setError('Skip failed: ' + err.message);
         }
     };
 
-    // Sort queue items
-    const getSortedQueue = useCallback(() => {
-        const queuedItems = queue.filter(q => q.status === 'QUEUED');
-        
-        switch (sortBy) {
-            case 'added':
-                return [...queuedItems].reverse(); // Most recently added first
-            case 'user':
-                return [...queuedItems].sort((a, b) => a.addedBy - b.addedBy);
-            case 'position':
-            default:
-                return queuedItems; // Original order
-        }
-    }, [queue, sortBy]);
+    /* ---- Filters ---- */
+    const filteredMedia = eligibleMedia
+        .filter(m => {
+            if (filterType !== 'ALL' && m.mediaType !== filterType) return false;
+            if (searchQuery) {
+                const q = searchQuery.toLowerCase();
+                return (m.title || m.originalFilename || '').toLowerCase().includes(q) ||
+                       (m.description || '').toLowerCase().includes(q);
+            }
+            return true;
+        })
+        .sort((a, b) => {
+            if (sortBy === 'title') return (a.title || a.originalFilename || '').localeCompare(b.title || b.originalFilename || '');
+            if (sortBy === 'newest') return (b.id || 0) - (a.id || 0);
+            if (sortBy === 'oldest') return (a.id || 0) - (b.id || 0);
+            return 0;
+        });
 
-    // Filter available media
-    const filteredMedia = availableMedia.filter(media => 
-        media.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        media.originalFilename?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const upNext = queue.filter(q => q.status === 'QUEUED');
+    // nowPlaying from queue is unreliable (stale PLAYING items may exist)
+    // Prefer currentMedia from server state, fall back to last PLAYING queue item
+    const playingItems = queue.filter(q => q.status === 'PLAYING');
+    const nowPlaying = playingItems.length > 0 ? playingItems[playingItems.length - 1] : null;
 
-    if (isLoading) {
-        return (
-            <div className="queue-manager-container">
-                <div className="loading-container">
-                    <div className="loading-spinner-animation"></div>
-                    <p className="loading-text">Loading Queue Manager...</p>
-                </div>
-            </div>
-        );
-    }
-
-    const sortedQueue = getSortedQueue();
+    if (user === undefined) return null;
 
     return (
         <div className="queue-manager-container">
+            {/* Header */}
             <div className="queue-manager-header">
-                <h1>🎵 Queue Manager</h1>
+                <h1>{channel === 'music' ? '🎵' : '🎬'} Queue Manager</h1>
                 <div className="header-actions">
-                    <span className={`connection-status ${connectionStatus}`}>
-                        {connectionStatus === 'connected' ? '🟢 Connected' : 
-                         connectionStatus === 'connecting' ? '🟡 Connecting...' : 
-                         '🔴 Disconnected'}
+                    <div className="qm-channel-tabs">
+                        <button
+                            className={`qm-channel-tab ${channel === 'music' ? 'active' : ''}`}
+                            onClick={() => setChannel('music')}
+                        >🎵 Music</button>
+                        <button
+                            className={`qm-channel-tab ${channel === 'video' ? 'active' : ''}`}
+                            onClick={() => setChannel('video')}
+                        >🎬 Video</button>
+                    </div>
+                    <span className={`qm-status ${isConnected ? 'connected' : ''}`}>
+                        {isConnected ? '● Connected' : '○ Connecting...'}
                     </span>
-                    <button className="back-button" onClick={() => navigate('/livestream')}>
-                        🔴 Watch Stream
+                    <button className="qm-nav-btn" onClick={() => navigate(channel === 'music' ? '/music-stream' : '/video-stream')}>
+                        📡 {channel === 'music' ? 'Music' : 'Video'} Stream
                     </button>
-                    <button className="back-button" onClick={() => navigate('/lexicon-dashboard')}>
-                        ← Back
+                    <button className="qm-nav-btn" onClick={() => navigate('/lexicon-dashboard')}>
+                        ← Dashboard
                     </button>
                 </div>
             </div>
 
             {error && (
-                <div className="error-message">
+                <div className="qm-error">
                     <span>{error}</span>
-                    <button className="dismiss-button" onClick={() => setError('')}>✕</button>
+                    <button onClick={() => setError('')}>✕</button>
                 </div>
             )}
 
-            <div className="queue-manager-layout">
-                {/* Now Playing Section */}
-                <div className="now-playing-section">
-                    <h2>🎬 Now Playing</h2>
-                    {currentMedia ? (
-                        <div className="now-playing-card">
-                            <h3>{currentMedia.title || currentMedia.originalFilename}</h3>
-                            <p className="duration">
-                                {currentMedia.durationMs ? 
-                                    `${Math.round(currentMedia.durationMs / 1000 / 60)} min` :
-                                    'Duration unknown'
-                                }
-                            </p>
-                            <p className="description">{currentMedia.description || 'No description'}</p>
-                            <button className="skip-button" onClick={handleSkip}>
-                                ⏭ Skip
-                            </button>
+            <div className="qm-layout">
+                {/* Left: Queue */}
+                <div className="qm-panel">
+                    <div className="qm-panel-header">
+                        <h2>Live Stream Queue</h2>
+                        <button className="qm-skip-btn" onClick={handleSkip}>⏭ Vote Skip</button>
+                    </div>
+
+                    {/* Now Playing — currentMedia from server state is authoritative */}
+                    {currentMedia && (
+                        <div className="qm-now-playing">
+                            <span className="qm-np-label">Now Playing</span>
+                            <span className="qm-np-title">
+                                {currentMedia.title || currentMedia.originalFilename || 'Unknown'}
+                            </span>
+                            <span className="qm-np-type">
+                                {currentMedia.mediaType === 'VIDEO' ? '🎬 Video' : '🎵 Music'}
+                            </span>
                         </div>
+                    )}
+
+                    {/* Up Next */}
+                    <h3 className="qm-section-title">Up Next ({upNext.length})</h3>
+                    {isLoading ? (
+                        <div className="qm-loading">Loading queue...</div>
+                    ) : upNext.length === 0 ? (
+                        <div className="qm-empty">Queue is empty — random media will auto-play</div>
                     ) : (
-                        <div className="no-media-message">
-                            <p>No media playing</p>
+                        <div className="qm-queue-list">
+                            {upNext.map((item, i) => (
+                                <div key={item.id} className="qm-queue-item">
+                                    <span className="qm-q-pos">{i + 1}</span>
+                                    <span className="qm-q-icon">
+                                        {item.mediaFile?.mediaType === 'VIDEO' ? '🎬' : '🎵'}
+                                    </span>
+                                    <div className="qm-q-info">
+                                        <span className="qm-q-title">
+                                            {item.mediaFile?.title || item.mediaFile?.originalFilename || `Media #${item.mediaFileId}`}
+                                        </span>
+                                    </div>
+                                    {user && item.addedBy === user.id && (
+                                        <button
+                                            className="qm-q-remove"
+                                            onClick={() => removeFromQueue(item.id)}
+                                        >✕</button>
+                                    )}
+                                </div>
+                            ))}
                         </div>
                     )}
                 </div>
 
-                {/* Queue Section */}
-                <div className="queue-list-section">
-                    <div className="queue-header">
-                        <div>
-                            <h2>📋 Up Next ({sortedQueue.length})</h2>
-                        </div>
-                        <div className="queue-controls">
-                            <select 
-                                value={sortBy} 
-                                onChange={(e) => setSortBy(e.target.value)}
-                                className="sort-selector"
-                            >
-                                <option value="position">Sort: Position</option>
-                                <option value="added">Sort: Recently Added</option>
-                                <option value="user">Sort: By User</option>
-                            </select>
-                            <button 
-                                className="add-button"
-                                onClick={() => setShowAddModal(true)}
-                            >
-                                ➕ Add
-                            </button>
-                        </div>
+                {/* Right: Browse & Add */}
+                <div className="qm-panel">
+                    <div className="qm-panel-header">
+                        <h2>Browse Media</h2>
+                        <span className="qm-count">{eligibleMedia.length} available</span>
                     </div>
 
-                    <div className="queue-items">
-                        {sortedQueue.length === 0 ? (
-                            <div className="empty-queue">
-                                <p>Queue is empty</p>
-                                <button 
-                                    className="add-button-large"
-                                    onClick={() => setShowAddModal(true)}
-                                >
-                                    ➕ Add Something
-                                </button>
-                            </div>
+                    <div className="qm-search-bar">
+                        <input
+                            type="text"
+                            placeholder="Search by title or description..."
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e.target.value)}
+                            className="qm-search-input"
+                        />
+                    </div>
+
+                    <div className="qm-filter-row">
+                        {['ALL', 'MUSIC', 'VIDEO'].map(f => (
+                            <button
+                                key={f}
+                                className={`qm-filter-btn ${filterType === f ? 'active' : ''}`}
+                                onClick={() => setFilterType(f)}
+                            >
+                                {f === 'ALL' ? '🎯 All' : f === 'MUSIC' ? '🎵 Music' : '🎬 Video'}
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="qm-sort-row">
+                        <span className="qm-sort-label">Sort:</span>
+                        {['title', 'newest', 'oldest'].map(s => (
+                            <button
+                                key={s}
+                                className={`qm-sort-btn ${sortBy === s ? 'active' : ''}`}
+                                onClick={() => setSortBy(s)}
+                            >
+                                {s === 'title' ? '🔤 A-Z' : s === 'newest' ? '🆕 Newest' : '📅 Oldest'}
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="qm-results-count">
+                        {filteredMedia.length} of {eligibleMedia.length} items
+                    </div>
+
+                    <div className="qm-media-list">
+                        {filteredMedia.length === 0 ? (
+                            <div className="qm-empty">No matching media</div>
                         ) : (
-                            sortedQueue.map((item, index) => (
-                                <div key={item.id} className="queue-item">
-                                    <div className="queue-position">{index + 1}</div>
-                                    <div className="queue-info">
-                                        <h4>{item.mediaFile?.title || `Media #${item.mediaFileId}`}</h4>
-                                        <p className="queue-meta">
-                                            Added by User #{item.addedBy}
-                                            {item.mediaFile?.durationMs && 
-                                                ` • ${Math.round(item.mediaFile.durationMs / 1000 / 60)} min`
-                                            }
-                                        </p>
+                            filteredMedia.map(m => (
+                                <div key={m.id} className="qm-media-item">
+                                    <span className="qm-m-icon">
+                                        {m.mediaType === 'VIDEO' ? '🎬' : '🎵'}
+                                    </span>
+                                    <div className="qm-m-info">
+                                        <span className="qm-m-title">{m.title || m.originalFilename}</span>
+                                        {m.description && (
+                                            <span className="qm-m-desc">{m.description}</span>
+                                        )}
                                     </div>
-                                    {item.addedBy === user?.id && (
-                                        <button 
-                                            className="remove-button"
-                                            onClick={() => handleRemoveFromQueue(item.id)}
-                                            title="Remove from queue"
-                                        >
-                                            ✕
-                                        </button>
-                                    )}
+                                    <button
+                                        className="qm-m-add"
+                                        onClick={() => addToQueue(m.id)}
+                                        disabled={addingId === m.id}
+                                    >
+                                        {addingId === m.id ? '...' : '+ Add'}
+                                    </button>
                                 </div>
                             ))
                         )}
                     </div>
                 </div>
             </div>
-
-            {/* Add to Queue Modal */}
-            {showAddModal && (
-                <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
-                    <div className="modal-content add-media-modal" onClick={e => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h2>Add to Queue</h2>
-                            <button 
-                                className="modal-close"
-                                onClick={() => setShowAddModal(false)}
-                            >
-                                ✕
-                            </button>
-                        </div>
-                        
-                        <input
-                            type="text"
-                            className="search-input"
-                            placeholder="Search media by title..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            autoFocus
-                        />
-
-                        <div className="media-grid">
-                            {filteredMedia.length === 0 ? (
-                                <div className="no-results">
-                                    {searchQuery ? 'No media found' : 'No media available'}
-                                </div>
-                            ) : (
-                                filteredMedia.map(media => (
-                                    <div 
-                                        key={media.id} 
-                                        className="media-card"
-                                        onClick={() => handleAddToQueue(media.id)}
-                                    >
-                                        <div className="media-badge">
-                                            {media.mediaType === 'VIDEO' ? '🎬' : '🎵'}
-                                        </div>
-                                        <h4>{media.title || media.originalFilename}</h4>
-                                        <p className="media-description">
-                                            {media.description || 'No description'}
-                                        </p>
-                                        <p className="media-duration">
-                                            {media.durationMs ? 
-                                                `${Math.round(media.durationMs / 1000 / 60)} min` :
-                                                'Unknown duration'
-                                            }
-                                        </p>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

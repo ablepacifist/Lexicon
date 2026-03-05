@@ -1,12 +1,14 @@
 import React, { useContext, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
+import { useAvatar } from '../hooks/useAvatar';
 import './Navbar.css';
 
 const Navbar = () => {
   const { user } = useContext(UserContext);
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const { avatarUrl } = useAvatar(user?.username);
 
   const navItems = [
     { path: '/', label: 'About Me' },
@@ -61,7 +63,19 @@ const Navbar = () => {
                   to="/profile"
                   className="navbar-link auth-link"
                   onClick={() => setMenuOpen(false)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
                 >
+                  <img
+                    src={avatarUrl}
+                    alt=""
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: '50%',
+                      objectFit: 'cover',
+                      border: '1.5px solid rgba(139, 139, 245, 0.5)',
+                    }}
+                  />
                   {user.username}
                 </Link>
               </>

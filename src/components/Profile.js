@@ -1,16 +1,25 @@
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useContext, useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
+import { useAvatar } from '../hooks/useAvatar';
 import background from '../assets/images/lexicon_room.jpg';
 
 const Profile = () => {
   const { user, setUser } = useContext(UserContext);
   const navigate = useNavigate();
   const [playerStats, setPlayerStats] = useState(null);
+  const [alchemyPlayer, setAlchemyPlayer] = useState(null);
   const [loading, setLoading] = useState(true);
   const [hover, setHover] = useState({});
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarMsg, setAvatarMsg] = useState('');
+  const [secretPassword, setSecretPassword] = useState('');
+  const [levelUpMsg, setLevelUpMsg] = useState('');
+  const fileInputRef = useRef(null);
 
+  const { avatarUrl, uploadAvatar, removeAvatar } = useAvatar(user?.username);
   const lexiconApiUrl = process.env.REACT_APP_LEXICON_API_URL || 'http://localhost:8081';
+  const alchemyApiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8080';
 
   useEffect(() => {
     if (!user) {
@@ -36,19 +45,88 @@ const Profile = () => {
       }
     };
 
+    // Fetch alchemy player details (for level)
+    const fetchAlchemyPlayer = async () => {
+      try {
+        const res = await fetch(`${alchemyApiUrl}/api/player/${user.id}`, {
+          credentials: 'include',
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setAlchemyPlayer(data);
+        }
+      } catch (err) {
+        console.error('Error fetching alchemy player:', err);
+      }
+    };
+
     fetchPlayerStats();
-  }, [user, navigate, lexiconApiUrl]);
+    fetchAlchemyPlayer();
+  }, [user, navigate, lexiconApiUrl, alchemyApiUrl]);
+
+  const handleLevelUp = async () => {
+    if (!user) return;
+    setLevelUpMsg('');
+    try {
+      const res = await fetch(`${alchemyApiUrl}/api/player/levelup`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playerId: user.id, secretPassword }),
+      });
+      if (!res.ok) {
+        const msg = await res.text();
+        setLevelUpMsg(`Failed: ${msg}`);
+      } else {
+        const updatedPlayer = await res.json();
+        setAlchemyPlayer(updatedPlayer);
+        setLevelUpMsg('Leveled up successfully!');
+        setSecretPassword('');
+      }
+    } catch (err) {
+      console.error('Error leveling up:', err);
+      setLevelUpMsg('Error leveling up.');
+    }
+  };
 
   const handleLogout = () => {
-    // Clear user context
     setUser(null);
-    
-    // Clear any stored session data
     localStorage.removeItem('user');
     sessionStorage.removeItem('user');
-    
-    // Navigate to home
     navigate('/');
+  };
+
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      setAvatarMsg('File must be under 2 MB');
+      return;
+    }
+    setAvatarUploading(true);
+    setAvatarMsg('');
+    try {
+      await uploadAvatar(file, user?.id);
+      setAvatarMsg('Avatar updated!');
+    } catch (err) {
+      setAvatarMsg('Upload failed — bridge may be offline');
+    } finally {
+      setAvatarUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleAvatarRemove = async () => {
+    setAvatarUploading(true);
+    setAvatarMsg('');
+    try {
+      await removeAvatar(user?.id);
+      setAvatarMsg('Avatar removed');
+    } catch {
+      setAvatarMsg('Remove failed');
+    } finally {
+      setAvatarUploading(false);
+    }
   };
 
   const containerStyle = {
@@ -143,6 +221,77 @@ const Profile = () => {
           <p style={{ fontSize: '1rem', color: '#aaa' }}>Account Information</p>
         </div>
 
+        {/* Avatar Section */}
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <div
+            style={{ position: 'relative', display: 'inline-block', cursor: 'pointer' }}
+            onClick={() => fileInputRef.current?.click()}
+            onMouseEnter={() => setHover(h => ({ ...h, avatar: true }))}
+            onMouseLeave={() => setHover(h => ({ ...h, avatar: false }))}
+            title="Click to change avatar"
+          >
+            <img
+              src={avatarUrl}
+              alt={`${user.username}'s avatar`}
+              style={{
+                width: 120,
+                height: 120,
+                borderRadius: '50%',
+                objectFit: 'cover',
+                border: '3px solid #9b59b6',
+                boxShadow: '0 0 20px rgba(155, 89, 182, 0.4)',
+                transition: 'opacity 0.2s',
+                opacity: hover.avatar ? 0.7 : 1,
+              }}
+            />
+            {hover.avatar && (
+              <div style={{
+                position: 'absolute', inset: 0, borderRadius: '50%',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'rgba(0,0,0,0.5)', color: '#fff', fontSize: '0.8rem', fontWeight: 600,
+              }}>
+                📷 Change
+              </div>
+            )}
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/gif,image/webp"
+            style={{ display: 'none' }}
+            onChange={handleAvatarUpload}
+          />
+          <div style={{ marginTop: '0.75rem', display: 'flex', justifyContent: 'center', gap: '0.5rem' }}>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={avatarUploading}
+              style={{
+                padding: '0.4rem 1rem', fontSize: '0.85rem', borderRadius: '6px',
+                border: 'none', cursor: 'pointer', fontWeight: 600,
+                backgroundColor: '#9b59b6', color: '#fff', opacity: avatarUploading ? 0.6 : 1,
+              }}
+            >
+              {avatarUploading ? 'Uploading…' : 'Upload Photo'}
+            </button>
+            <button
+              onClick={handleAvatarRemove}
+              disabled={avatarUploading}
+              style={{
+                padding: '0.4rem 1rem', fontSize: '0.85rem', borderRadius: '6px',
+                border: '1px solid rgba(155,89,182,0.4)', cursor: 'pointer', fontWeight: 600,
+                backgroundColor: 'transparent', color: '#aaa',
+              }}
+            >
+              Remove
+            </button>
+          </div>
+          {avatarMsg && (
+            <p style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: avatarMsg.includes('fail') || avatarMsg.includes('must') ? '#e74c3c' : '#2ecc71' }}>
+              {avatarMsg}
+            </p>
+          )}
+        </div>
+
         {loading ? (
           <div style={{ textAlign: 'center', padding: '2rem' }}>
             <p>Loading profile...</p>
@@ -190,6 +339,69 @@ const Profile = () => {
                 </span>
               </div>
             )}
+
+            {/* Alchemy Level */}
+            <div style={infoRowStyle}>
+              <span style={labelStyle}>Alchemy Level:</span>
+              <span style={valueStyle}>{alchemyPlayer?.level ?? '—'}</span>
+            </div>
+
+            {/* Level Up Section */}
+            <div style={{
+              marginTop: '1.5rem',
+              padding: '1.5rem',
+              borderRadius: '10px',
+              backgroundColor: 'rgba(155, 89, 182, 0.15)',
+              border: '1px solid rgba(155, 89, 182, 0.3)',
+            }}>
+              <h3 style={{ color: '#9b59b6', marginTop: 0, marginBottom: '1rem', fontSize: '1.3rem' }}>
+                ⬆️ Level Up
+              </h3>
+              <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                <input
+                  type="password"
+                  placeholder="Enter secret password"
+                  value={secretPassword}
+                  onChange={e => setSecretPassword(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleLevelUp()}
+                  style={{
+                    flex: 1,
+                    minWidth: '180px',
+                    padding: '0.75rem 1rem',
+                    fontSize: '1rem',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(155, 89, 182, 0.4)',
+                    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                    color: '#fff',
+                    outline: 'none',
+                  }}
+                />
+                <button
+                  onClick={handleLevelUp}
+                  style={{
+                    ...buttonStyle,
+                    backgroundColor: '#9b59b6',
+                    color: '#fff',
+                    margin: 0,
+                    ...(hover.levelUp ? buttonHoverStyle : {}),
+                  }}
+                  onMouseEnter={() => setHover(h => ({ ...h, levelUp: true }))}
+                  onMouseLeave={() => setHover(h => ({ ...h, levelUp: false }))}
+                >
+                  ⬆️ Level Up
+                </button>
+              </div>
+              {levelUpMsg && (
+                <p style={{
+                  marginTop: '0.75rem',
+                  marginBottom: 0,
+                  fontSize: '0.9rem',
+                  color: levelUpMsg.includes('success') ? '#2ecc71' : '#e74c3c',
+                }}>
+                  {levelUpMsg}
+                </p>
+              )}
+            </div>
 
             <div style={{ marginTop: '2rem' }}>
               <button

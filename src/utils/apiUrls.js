@@ -17,23 +17,29 @@ const getApiUrls = () => {
     // If accessing via alex-dyakin.com (Cloudflare Tunnel), use HTTPS subdomains
     const isCloudflareAccess = hostname.endsWith('alex-dyakin.com');
     
+    // Bridge always uses Cloudflare tunnel (not hosted locally)
+    const bridgeApiUrl = 'https://voice.alex-dyakin.com';
+
     if (isLocalAccess) {
         // User is on local network - use local IPs for maximum speed
         return {
             lexiconApiUrl: process.env.REACT_APP_LEXICON_API_URL_LOCAL || 'http://192.168.4.29:36568',
-            alchemyApiUrl: process.env.REACT_APP_API_URL_LOCAL || 'http://192.168.4.29:8080'
+            alchemyApiUrl: process.env.REACT_APP_API_URL_LOCAL || 'http://192.168.4.29:8080',
+            bridgeApiUrl
         };
     } else if (isCloudflareAccess) {
         // User is on HTTPS via Cloudflare - use HTTPS subdomains to avoid mixed content
         return {
             lexiconApiUrl: 'https://api.alex-dyakin.com',
-            alchemyApiUrl: 'https://alchemy.alex-dyakin.com'
+            alchemyApiUrl: 'https://alchemy.alex-dyakin.com',
+            bridgeApiUrl
         };
     } else {
         // User is external via PlayIt - use internet tunnel URLs
         return {
             lexiconApiUrl: process.env.REACT_APP_LEXICON_API_URL_INTERNET || 'http://147.185.221.24:15856',
-            alchemyApiUrl: process.env.REACT_APP_API_URL_INTERNET || 'http://147.185.221.24:15821'
+            alchemyApiUrl: process.env.REACT_APP_API_URL_INTERNET || 'http://147.185.221.24:15821',
+            bridgeApiUrl
         };
     }
 };

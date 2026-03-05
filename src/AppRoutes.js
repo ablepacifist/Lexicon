@@ -20,7 +20,8 @@ import About from './pages/About';
 import Profile from './components/Profile';
 import KnowledgeBook from './pages/KnowledgeBook';
 import PlaylistManager from './pages/PlaylistManager';
-import LiveStream from './pages/LiveStream';
+import MusicLiveStream from './pages/MusicLiveStream';
+import VideoLiveStream from './pages/VideoLiveStream';
 import QueueManager from './pages/QueueManager';
 
 // New pages
@@ -96,12 +97,13 @@ function AppRoutes() {
       <Route path="/playlist-manager" element={
         <PrivateRoute><PlaylistManager /></PrivateRoute>
       } />
-      <Route path="/live-stream" element={
-        <PrivateRoute><LiveStream /></PrivateRoute>
+      <Route path="/music-stream" element={
+        <PrivateRoute><MusicLiveStream /></PrivateRoute>
       } />
-      <Route path="/livestream" element={
-        <PrivateRoute><LiveStream /></PrivateRoute>
+      <Route path="/video-stream" element={
+        <PrivateRoute><VideoLiveStream /></PrivateRoute>
       } />
+      <Route path="/live-stream" element={<Navigate to="/video-stream" />} />
       <Route path="/queue-manager" element={
         <PrivateRoute><QueueManager /></PrivateRoute>
       } />
