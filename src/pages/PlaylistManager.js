@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
 import '../styles/PlaylistManager.css';
@@ -37,7 +37,7 @@ function PlaylistManager() {
             return;
         }
         fetchPlaylists();
-        fetchAvailableMedia();
+        // Don't fetch available media on mount — defer to add-media modal
     }, [user]);
 
     const fetchPlaylists = async () => {
@@ -411,7 +411,7 @@ function PlaylistManager() {
         setShowEditForm(true);
     };
 
-    const getFilteredMedia = () => {
+    const filteredMedia = useMemo(() => {
         if (!selectedPlaylist) return [];
         
         const playlistMediaType = selectedPlaylist.mediaType;
@@ -437,7 +437,7 @@ function PlaylistManager() {
         }
 
         return filtered;
-    };
+    }, [selectedPlaylist, playlistItems, availableMedia, mediaSearchQuery]);
 
     const getFilteredPlaylists = (playlistList) => {
         let result = playlistList;
@@ -594,7 +594,10 @@ function PlaylistManager() {
                                 <h2>{selectedPlaylist.name}</h2>
                                 {selectedPlaylist.createdBy === user?.id && (
                                     <button 
-                                        onClick={() => setShowAddMediaModal(true)}
+                                        onClick={() => {
+                                            setShowAddMediaModal(true);
+                                            if (availableMedia.length === 0) fetchAvailableMedia();
+                                        }}
                                         className="add-media-button"
                                     >
                                         + Add Media
@@ -785,17 +788,17 @@ function PlaylistManager() {
                                 autoFocus
                             />
                             <span className="modal-result-count">
-                                {getFilteredMedia().length} available
+                                {filteredMedia.length} available
                             </span>
                         </div>
 
                         <div className="media-list-scrollable">
-                            {getFilteredMedia().length === 0 ? (
+                            {filteredMedia.length === 0 ? (
                                 <p className="no-data">
                                     {mediaSearchQuery ? 'No media matches your search' : 'No available media to add'}
                                 </p>
                             ) : (
-                                getFilteredMedia().map(media => (
+                                filteredMedia.map(media => (
                                     <div key={media.id} className="media-add-row">
                                         <div className="media-add-icon">
                                             {media.mediaType === 'VIDEO' ? '🎬' : media.mediaType === 'AUDIOBOOK' ? '📚' : '🎵'}

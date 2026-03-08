@@ -146,31 +146,6 @@ function LiveStream() {
                 } catch (err) { console.error('SSE state-update error', err); }
             });
 
-            es.addEventListener('state-update-light', (e) => {
-                try {
-                    const d = JSON.parse(e.data);
-                    const data = d.data || d;
-
-                    const stMs = parseServerTime(data.currentStartTime);
-                    setStartTimeMs(stMs);
-                    setPositionOffsetMs(data.currentPositionMs || 0);
-                    setSkipVotes(data.totalSkipVotes || 0);
-
-                    if (data.currentMediaId && data.currentMediaId !== currentMediaIdRef.current) {
-                        setCurrentMediaId(data.currentMediaId);
-                        currentMediaIdRef.current = data.currentMediaId;
-                        hasEndedRef.current = false;
-                        seekTargetRef.current = calcSeekSec(stMs, data.currentPositionMs || 0);
-                    }
-
-                    if (data.currentMedia) {
-                        setCurrentMedia(data.currentMedia);
-                    } else if (data.currentMediaId && data.currentMediaId !== currentMediaIdRef.current) {
-                        fetchMediaInfo(data.currentMediaId);
-                    }
-                } catch (err) { console.error('SSE light-state error', err); }
-            });
-
             es.addEventListener('queue-update', (e) => {
                 try {
                     const d = JSON.parse(e.data);

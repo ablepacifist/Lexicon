@@ -86,14 +86,6 @@ function QueueManager() {
                 } catch (err) { /* ignore */ }
             });
 
-            es.addEventListener('state-update-light', (e) => {
-                try {
-                    const d = JSON.parse(e.data);
-                    const data = d.data || d;
-                    if (data.currentMedia) setCurrentMedia(data.currentMedia);
-                } catch (err) { /* ignore */ }
-            });
-
             es.addEventListener('queue-update', (e) => {
                 try {
                     const d = JSON.parse(e.data);

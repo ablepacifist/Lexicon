@@ -111,7 +111,13 @@ function MusicLiveStream() {
 
             eventSource.addEventListener('init', (event) => {
                 const data = JSON.parse(event.data);
-                if (data.state) setStreamState(data.state);
+                if (data.state) {
+                    setStreamState(data.state);
+                    // Use currentMedia from state payload if available
+                    if (data.state.currentMedia) {
+                        setCurrentMedia(data.state.currentMedia);
+                    }
+                }
                 if (data.queue) setQueue(data.queue);
                 setIsLoading(false);
                 setConnectionStatus('connected');
@@ -119,12 +125,17 @@ function MusicLiveStream() {
                 retryCount = 0;
                 
                 if (data.state?.currentMediaId) {
-                    fetch(`${lexiconApiUrl}/api/media/${data.state.currentMediaId}`, {
-                        credentials: 'include'
-                    })
-                    .then(res => res.ok ? res.json() : null)
-                    .then(mediaData => { if (mediaData) setCurrentMedia(mediaData); })
-                    .catch(console.error);
+                    // Only fetch full media details if not included in payload
+                    if (data.state.currentMedia) {
+                        setCurrentMedia(data.state.currentMedia);
+                    } else {
+                        fetch(`${lexiconApiUrl}/api/media/${data.state.currentMediaId}`, {
+                            credentials: 'include'
+                        })
+                        .then(res => res.ok ? res.json() : null)
+                        .then(mediaData => { if (mediaData) setCurrentMedia(mediaData); })
+                        .catch(console.error);
+                    }
                 }
             });
 
@@ -134,7 +145,9 @@ function MusicLiveStream() {
                     setStreamState(data.data);
                     setLastSyncTime(new Date());
                     
-                    if (data.data.currentMediaId) {
+                    if (data.data.currentMedia) {
+                        setCurrentMedia(data.data.currentMedia);
+                    } else if (data.data.currentMediaId) {
                         fetch(`${lexiconApiUrl}/api/media/${data.data.currentMediaId}`, {
                             credentials: 'include'
                         })
@@ -155,22 +168,6 @@ function MusicLiveStream() {
                         setQueue(queueData.items);
                     }
                     setLastSyncTime(new Date());
-                }
-            });
-
-            eventSource.addEventListener('state-update-light', (event) => {
-                const data = JSON.parse(event.data);
-                if (data.data) {
-                    setStreamState(data.data);
-                    setLastSyncTime(new Date());
-                    if (data.data.currentMediaId) {
-                        fetch(`${lexiconApiUrl}/api/media/${data.data.currentMediaId}`, {
-                            credentials: 'include'
-                        })
-                        .then(res => res.ok ? res.json() : null)
-                        .then(mediaData => { if (mediaData) setCurrentMedia(mediaData); })
-                        .catch(console.error);
-                    }
                 }
             });
 
@@ -206,8 +203,8 @@ function MusicLiveStream() {
         if (user === null) { navigate('/login'); return; }
         fetchStreamState();
         fetchQueue();
-        fetchAvailableMedia();
-    }, [user, navigate, fetchStreamState, fetchQueue, fetchAvailableMedia]);
+        // Don't fetch available media on mount — defer to modal open
+    }, [user, navigate, fetchStreamState, fetchQueue]);
 
     // Calculate real-time position
     const calculateCurrentPosition = useCallback(() => {
@@ -442,7 +439,10 @@ function MusicLiveStream() {
                         </button>
                         <button 
                             className="add-to-queue-button"
-                            onClick={() => setShowAddModal(true)}
+                            onClick={() => {
+                                setShowAddModal(true);
+                                if (availableMedia.length === 0) fetchAvailableMedia();
+                            }}
                         >
                             ➕ Add to Queue
                         </button>

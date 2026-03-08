@@ -3,12 +3,14 @@ import { getApiUrls } from '../utils/apiUrls';
 
 const { lexiconApiUrl, bridgeApiUrl } = getApiUrls();
 
-// Image files are loaded directly from the bridge (no CORS needed for <img> tags).
 // API calls (fetch JSON, upload, remove) go through the Lexicon backend proxy
 // because the bridge does NOT set CORS headers.
-const BRIDGE_IMAGE_BASE = bridgeApiUrl;                       // for <img src="...">
+// Avatar images are also proxied through the Lexicon backend to avoid Brave Shields
+// blocking cross-origin image loads from the bridge domain.
+const BRIDGE_IMAGE_BASE = bridgeApiUrl;                       // kept for reference
 const PROXY_BASE        = `${lexiconApiUrl}/api/avatar`;      // for fetch() calls
-const DEFAULT_AVATAR    = `${BRIDGE_IMAGE_BASE}/uploads/avatars/default.jpg`;
+const IMAGE_PROXY_BASE  = `${lexiconApiUrl}/api/avatar/image`; // for <img src="...">
+const DEFAULT_AVATAR    = `${IMAGE_PROXY_BASE}/default.jpg`;
 
 /**
  * Hook to fetch, upload, and remove user avatars.
@@ -35,8 +37,10 @@ export const useAvatar = (username) => {
       );
       if (res.ok) {
         const data = await res.json();
-        // Build the image URL pointing directly at the bridge CDN
-        setAvatarUrl(`${BRIDGE_IMAGE_BASE}${data.avatarUrl}`);
+        // Route avatar image through same-origin proxy to avoid Brave Shields blocking
+        // data.avatarUrl is like "/uploads/avatars/user.jpg"
+        const filename = data.avatarUrl.replace(/^\/uploads\/avatars\//, '');
+        setAvatarUrl(`${IMAGE_PROXY_BASE}/${filename}?t=${Date.now()}`);
       } else {
         setAvatarUrl(DEFAULT_AVATAR);
       }
@@ -75,7 +79,8 @@ export const useAvatar = (username) => {
     }
 
     const data = await res.json();
-    const newUrl = `${BRIDGE_IMAGE_BASE}${data.avatarUrl}`;
+    const filename = data.avatarUrl.replace(/^\/uploads\/avatars\//, '');
+    const newUrl = `${IMAGE_PROXY_BASE}/${filename}?t=${Date.now()}`;
     setAvatarUrl(newUrl);
     return newUrl;
   };
