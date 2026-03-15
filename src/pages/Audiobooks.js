@@ -64,8 +64,7 @@ function Audiobooks() {
             // Filter only audiobooks
             const audiobooksOnly = allMedia.filter(media => {
                 const mediaTypeValue = media.mediaType || media.type || '';
-                return mediaTypeValue === 'AUDIOBOOK' ||
-                       media.filePath?.match(/\.(mp3|m4a|m4b|aac)$/i);
+                return mediaTypeValue === 'AUDIOBOOK';
             });
             
             setAudiobooks(audiobooksOnly);

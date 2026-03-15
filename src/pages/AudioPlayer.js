@@ -74,9 +74,10 @@ function AudioPlayer() {
             console.log('AudioPlayer: Fetched media files:', allMedia.length);
             console.log('AudioPlayer: Media types:', allMedia.map(m => ({ id: m.id, title: m.title, mediaType: m.mediaType, type: m.type })));
 
-            // Filter only audio files (check both type and mediaType for compatibility)
+            // Filter only audio/music files (exclude audiobooks - they have their own player)
             const audioOnly = allMedia.filter(media => {
                 const mediaTypeValue = media.mediaType || media.type || '';
+                if (mediaTypeValue === 'AUDIOBOOK') return false;
                 return mediaTypeValue === 'AUDIO' || 
                        mediaTypeValue === 'MUSIC' ||
                        media.filePath?.match(/\.(mp3|wav|ogg|flac|m4a|aac)$/i);
