@@ -23,6 +23,7 @@ function Audiobooks() {
     const [editingMedia, setEditingMedia] = useState(null);
     const [editFormData, setEditFormData] = useState({ title: '', description: '', isPublic: true });
     const [showEditModal, setShowEditModal] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
     const audioRef = useRef(null);
     const navigate = useNavigate();
 
@@ -125,10 +126,20 @@ function Audiobooks() {
     };
 
     const getFilteredAudiobooks = () => {
-        if (filterType === 'all') return audiobooks;
-        return audiobooks.filter(book => 
-            filterType === 'personal' ? book.isPersonal : !book.isPersonal
-        );
+        let filtered = audiobooks;
+        if (filterType === 'personal') {
+            filtered = filtered.filter(book => book.isPersonal);
+        } else if (filterType === 'public') {
+            filtered = filtered.filter(book => !book.isPersonal);
+        }
+        if (searchQuery) {
+            const q = searchQuery.toLowerCase();
+            filtered = filtered.filter(book =>
+                book.title?.toLowerCase().includes(q) ||
+                book.description?.toLowerCase().includes(q)
+            );
+        }
+        return filtered;
     };
 
     const playBook = (book, index) => {
@@ -531,6 +542,13 @@ function Audiobooks() {
 
                     {activeTab === 'library' ? (
                         <>
+                            <input
+                                type="text"
+                                placeholder="Search audiobooks..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="library-search-input"
+                            />
                             <div className="filter-buttons">
                                 <button
                                     className={filterType === 'all' ? 'active' : ''}

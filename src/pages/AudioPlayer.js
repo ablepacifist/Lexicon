@@ -25,6 +25,7 @@ function AudioPlayer() {
     const [editFormData, setEditFormData] = useState({ title: '', description: '', isPublic: true });
     const [showEditModal, setShowEditModal] = useState(false);
     const [shuffledIndices, setShuffledIndices] = useState([]);
+    const [searchQuery, setSearchQuery] = useState('');
     const audioRef = useRef(null);
     const navigate = useNavigate();
 
@@ -238,10 +239,20 @@ function AudioPlayer() {
     };
 
     const getFilteredAudio = () => {
-        if (filterType === 'all') return audioFiles;
-        return audioFiles.filter(audio => 
-            filterType === 'personal' ? audio.isPersonal : !audio.isPersonal
-        );
+        let filtered = audioFiles;
+        if (filterType === 'personal') {
+            filtered = filtered.filter(audio => audio.isPersonal);
+        } else if (filterType === 'public') {
+            filtered = filtered.filter(audio => !audio.isPersonal);
+        }
+        if (searchQuery) {
+            const q = searchQuery.toLowerCase();
+            filtered = filtered.filter(audio =>
+                audio.title?.toLowerCase().includes(q) ||
+                audio.description?.toLowerCase().includes(q)
+            );
+        }
+        return filtered;
     };
 
     const getStreamUrl = (audio) => {
@@ -551,6 +562,13 @@ function AudioPlayer() {
                     {/* Tab Content */}
                     {activeTab === 'library' ? (
                         <>
+                            <input
+                                type="text"
+                                placeholder="Search music..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="library-search-input"
+                            />
                             {!playlistMode && (
                                 <div className="filter-buttons">
                                     <button
@@ -643,9 +661,11 @@ function AudioPlayer() {
                                                 onClick={() => loadPlaylist(pl.id)}
                                             >
                                                 <div className="playlist-icon">🎵</div>
-                                                <h4>{pl.name}</h4>
-                                                <p>{pl.description}</p>
-                                                <span className="playlist-type-badge">{pl.mediaType}</span>
+                                                <div className="playlist-info">
+                                                    <h4>{pl.name}</h4>
+                                                    <p>{pl.description}</p>
+                                                    <span className="playlist-type-badge">{pl.mediaType}</span>
+                                                </div>
                                             </div>
                                         ))
                                     }
