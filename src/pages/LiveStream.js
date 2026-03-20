@@ -198,9 +198,10 @@ function LiveStream() {
         if (!el) return;
         setDuration(el.duration || 0);
 
-        // Seek to sync position
+        // Seek to sync position — but only if the track has been playing for a while 
+        // (late joiner). If < 15s, the offset is just loading latency.
         const target = seekTargetRef.current;
-        if (target > 0 && target < el.duration) {
+        if (target > 15 && target < el.duration) {
             el.currentTime = target;
         }
     };
@@ -241,7 +242,7 @@ function LiveStream() {
         seekTargetRef.current = calcSeekSec(startTimeMs, positionOffsetMs);
         if (mediaRef.current) {
             const target = seekTargetRef.current;
-            if (target > 0 && target < (mediaRef.current.duration || Infinity)) {
+            if (target > 15 && target < (mediaRef.current.duration || Infinity)) {
                 mediaRef.current.currentTime = target;
             }
             mediaRef.current.play().catch(() => {});

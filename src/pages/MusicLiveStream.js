@@ -244,7 +244,13 @@ function MusicLiveStream() {
     const handleAudioLoad = useCallback(() => {
         if (audioRef.current && streamState) {
             const serverPosition = calculateCurrentPosition();
-            audioRef.current.currentTime = serverPosition / 1000;
+            // Only seek if the track has been playing for a while (late joiner).
+            // If < 15s, the offset is just loading latency — start from beginning.
+            if (serverPosition > 15000) {
+                audioRef.current.currentTime = serverPosition / 1000;
+            } else {
+                audioRef.current.currentTime = 0;
+            }
             audioRef.current.play().catch(err => console.log('Autoplay prevented:', err));
         }
     }, [streamState, calculateCurrentPosition]);
@@ -416,6 +422,7 @@ function MusicLiveStream() {
                                 <p>{currentMedia.description || 'No description'}</p>
                             </div>
                             <audio
+                                key={currentMedia.id}
                                 ref={audioRef}
                                 src={`${lexiconApiUrl}/api/media/stream/${currentMedia.id}`}
                                 autoPlay

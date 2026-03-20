@@ -242,7 +242,13 @@ function VideoLiveStream() {
     const handleVideoLoad = useCallback(() => {
         if (videoRef.current && streamState) {
             const serverPosition = calculateCurrentPosition();
-            videoRef.current.currentTime = serverPosition / 1000;
+            // Only seek if the track has been playing for a while (late joiner).
+            // If < 15s, the offset is just loading latency — start from beginning.
+            if (serverPosition > 15000) {
+                videoRef.current.currentTime = serverPosition / 1000;
+            } else {
+                videoRef.current.currentTime = 0;
+            }
             videoRef.current.play().catch(err => console.log('Autoplay prevented:', err));
         }
     }, [streamState, calculateCurrentPosition]);
@@ -420,6 +426,7 @@ function VideoLiveStream() {
                     {currentMedia ? (
                         <div className={`video-player-wrapper ${isFullscreen ? 'fullscreen' : ''}`} ref={playerContainerRef}>
                             <video
+                                key={currentMedia.id}
                                 ref={videoRef}
                                 className="video-player"
                                 src={`${lexiconApiUrl}/api/media/stream/${currentMedia.id}`}

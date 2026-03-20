@@ -273,6 +273,7 @@ function VideoPlayer() {
                     {currentVideo ? (
                         <div className="video-player-wrapper">
                             <video
+                                key={currentVideo.id}
                                 ref={videoRef}
                                 controls
                                 crossOrigin="use-credentials"

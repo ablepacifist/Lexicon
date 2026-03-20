@@ -412,6 +412,7 @@ function Audiobooks() {
 
             {currentBook && (
                 <audio
+                    key={currentBook.id}
                     ref={audioRef}
                     crossOrigin="use-credentials"
                     src={getStreamUrl(currentBook)}

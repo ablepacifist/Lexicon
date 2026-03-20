@@ -408,6 +408,7 @@ function AudioPlayer() {
             {/* Audio Element (hidden) */}
             {currentTrack && (
                 <audio
+                    key={currentTrack.id}
                     ref={audioRef}
                     crossOrigin="use-credentials"
                     src={getStreamUrl(currentTrack)}
