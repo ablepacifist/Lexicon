@@ -508,3 +508,91 @@
     .qm-channel-tabs { width: 100%; }
     .qm-nav-btn { width: 100%; }
 }
+
+/* Playlist button */
+.qm-panel-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.qm-playlist-btn {
+    padding: 6px 14px;
+    border: none;
+    border-radius: 6px;
+    background: #5865f2;
+    color: #fff;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: background 0.2s;
+}
+.qm-playlist-btn:hover { background: #4752c4; }
+
+/* Modal */
+.qm-modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+.qm-modal {
+    background: #2b2d31;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 500px;
+    max-height: 70vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+.qm-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid #3f4147;
+}
+.qm-modal-header h2 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: #fff;
+}
+.qm-modal-close {
+    background: none;
+    border: none;
+    color: #b5bac1;
+    font-size: 1.2rem;
+    cursor: pointer;
+}
+.qm-modal-close:hover { color: #fff; }
+.qm-modal-body {
+    padding: 12px 20px;
+    overflow-y: auto;
+    flex: 1;
+}
+.qm-playlist-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid #3f4147;
+}
+.qm-playlist-item:last-child { border-bottom: none; }
+.qm-playlist-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.qm-playlist-name {
+    color: #fff;
+    font-weight: 500;
+    font-size: 0.95rem;
+}
+.qm-playlist-count {
+    color: #b5bac1;
+    font-size: 0.8rem;
+}

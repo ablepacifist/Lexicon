@@ -24,6 +24,9 @@ function MusicLiveStream() {
     const [searchQuery, setSearchQuery] = useState('');
     const [sortBy, setSortBy] = useState('title');
     const [addingId, setAddingId] = useState(null);
+    const [showPlaylistModal, setShowPlaylistModal] = useState(false);
+    const [publicPlaylists, setPublicPlaylists] = useState([]);
+    const [addingPlaylistId, setAddingPlaylistId] = useState(null);
     
     const audioRef = useRef(null);
     const eventSourceRef = useRef(null);
@@ -92,6 +95,21 @@ function MusicLiveStream() {
             }
         } catch (err) {
             console.error('Error fetching available media:', err);
+        }
+    }, [lexiconApiUrl]);
+
+    // Fetch public playlists for this channel
+    const fetchPublicPlaylists = useCallback(async () => {
+        try {
+            const response = await fetch(`${lexiconApiUrl}/api/playlists/public?mediaType=MUSIC`, {
+                credentials: 'include'
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setPublicPlaylists(data || []);
+            }
+        } catch (err) {
+            console.error('Error fetching public playlists:', err);
         }
     }, [lexiconApiUrl]);
 
@@ -315,6 +333,30 @@ function MusicLiveStream() {
         }
     };
 
+    const handleAddPlaylistToQueue = async (playlistId) => {
+        if (addingPlaylistId) return;
+        setAddingPlaylistId(playlistId);
+        try {
+            const response = await fetch(`${lexiconApiUrl}/api/livestream/queue/playlist?channel=${CHANNEL}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ userId: user.id, playlistId })
+            });
+            const data = await response.json();
+            if (data.success) {
+                fetchQueue();
+                setShowPlaylistModal(false);
+            } else {
+                setError(data.message || 'Failed to add playlist to queue');
+            }
+        } catch (err) {
+            setError('Error adding playlist to queue: ' + err.message);
+        } finally {
+            setAddingPlaylistId(null);
+        }
+    };
+
     const handleSkip = async () => {
         try {
             const response = await fetch(`${lexiconApiUrl}/api/livestream/skip?channel=${CHANNEL}`, {
@@ -447,6 +489,15 @@ function MusicLiveStream() {
                         <button 
                             className="add-to-queue-button"
                             onClick={() => {
+                                setShowPlaylistModal(true);
+                                if (publicPlaylists.length === 0) fetchPublicPlaylists();
+                            }}
+                        >
+                            📋 Add Playlist
+                        </button>
+                        <button 
+                            className="add-to-queue-button"
+                            onClick={() => {
                                 setShowAddModal(true);
                                 if (availableMedia.length === 0) fetchAvailableMedia();
                             }}
@@ -554,6 +605,49 @@ function MusicLiveStream() {
                                             disabled={addingId === media.id}
                                         >
                                             {addingId === media.id ? '...' : '+ Add'}
+                                        </button>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Add Playlist to Queue Modal */}
+            {showPlaylistModal && (
+                <div className="modal-overlay" onClick={() => setShowPlaylistModal(false)}>
+                    <div className="add-queue-modal" onClick={e => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h2>📋 Add Playlist to Queue</h2>
+                            <button className="modal-close-x" onClick={() => setShowPlaylistModal(false)}>✕</button>
+                        </div>
+                        
+                        <div className="media-results-count">
+                            {publicPlaylists.length} public music playlist{publicPlaylists.length !== 1 ? 's' : ''}
+                        </div>
+
+                        <div className="media-list-scroll">
+                            {publicPlaylists.length === 0 ? (
+                                <div className="no-results">
+                                    <p>No public music playlists found</p>
+                                </div>
+                            ) : (
+                                publicPlaylists.map(playlist => (
+                                    <div key={playlist.id} className="media-list-item">
+                                        <div className="media-list-icon">📋</div>
+                                        <div className="media-list-info">
+                                            <span className="media-list-title">{playlist.name}</span>
+                                            <span className="media-list-desc">
+                                                {playlist.itemCount || 0} tracks{playlist.description ? ` • ${playlist.description}` : ''}
+                                            </span>
+                                        </div>
+                                        <button
+                                            className="media-add-btn"
+                                            onClick={() => handleAddPlaylistToQueue(playlist.id)}
+                                            disabled={addingPlaylistId === playlist.id}
+                                        >
+                                            {addingPlaylistId === playlist.id ? '...' : '+ Queue All'}
                                         </button>
                                     </div>
                                 ))
