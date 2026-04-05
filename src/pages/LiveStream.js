@@ -192,6 +192,33 @@ function LiveStream() {
         if (user === null) navigate('/login');
     }, [user, navigate]);
 
+    /* ---- Media Session API — lock screen / Bluetooth / CarPlay controls ---- */
+    useEffect(() => {
+        if (!('mediaSession' in navigator) || !currentMedia) return;
+
+        navigator.mediaSession.metadata = new MediaMetadata({
+            title: currentMedia.title || currentMedia.originalFilename || 'Unknown',
+            artist: currentMedia.description || 'Live Stream',
+            album: 'Lexicon Live Stream',
+            artwork: [
+                { src: '/logo192.png', sizes: '192x192', type: 'image/png' },
+                { src: '/logo512.png', sizes: '512x512', type: 'image/png' }
+            ]
+        });
+
+        navigator.mediaSession.setActionHandler('play', () => {
+            if (mediaRef.current) mediaRef.current.play();
+        });
+        navigator.mediaSession.setActionHandler('pause', () => {
+            if (mediaRef.current) mediaRef.current.pause();
+        });
+        navigator.mediaSession.setActionHandler('nexttrack', () => {
+            handleSkip();
+        });
+
+        navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+    }, [currentMedia, isPlaying, handleSkip]);
+
     /* ---- Player event handlers ---- */
     const handleLoadedMetadata = () => {
         const el = mediaRef.current;
@@ -249,7 +276,7 @@ function LiveStream() {
         }
     };
 
-    const handleSkip = async () => {
+    const handleSkip = useCallback(async () => {
         if (!user) return;
         try {
             await fetch(`${lexiconApiUrl}/api/livestream/skip`, {
@@ -261,7 +288,7 @@ function LiveStream() {
         } catch (err) {
             setError('Skip failed: ' + err.message);
         }
-    };
+    }, [lexiconApiUrl, user]);
 
     /* ---- Fullscreen ---- */
     const toggleFullscreen = () => {

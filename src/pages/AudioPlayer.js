@@ -272,9 +272,8 @@ function AudioPlayer() {
                 artist: audio.description || 'Lexicon Audio',
                 album: playlistMode && selectedPlaylist ? selectedPlaylist.name : 'Library',
                 artwork: [
-                    { src: '/manifest.json', sizes: '96x96', type: 'image/png' },
-                    { src: '/manifest.json', sizes: '192x192', type: 'image/png' },
-                    { src: '/manifest.json', sizes: '512x512', type: 'image/png' }
+                    { src: '/logo192.png', sizes: '192x192', type: 'image/png' },
+                    { src: '/logo512.png', sizes: '512x512', type: 'image/png' }
                 ]
             });
         }

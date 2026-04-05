@@ -257,6 +257,44 @@ function VideoLiveStream() {
     
     useEffect(() => { hasSyncedRef.current = false; }, [currentMedia?.id]);
 
+    // Media Session API — lock screen / Bluetooth / CarPlay controls
+    useEffect(() => {
+        if (!('mediaSession' in navigator) || !currentMedia) return;
+
+        navigator.mediaSession.metadata = new MediaMetadata({
+            title: currentMedia.title || currentMedia.originalFilename || 'Unknown Video',
+            artist: currentMedia.description || 'Video Live Stream',
+            album: 'Lexicon Live Stream',
+            artwork: [
+                { src: '/logo192.png', sizes: '192x192', type: 'image/png' },
+                { src: '/logo512.png', sizes: '512x512', type: 'image/png' }
+            ]
+        });
+
+        navigator.mediaSession.setActionHandler('play', () => {
+            if (videoRef.current) videoRef.current.play();
+        });
+        navigator.mediaSession.setActionHandler('pause', () => {
+            if (videoRef.current) videoRef.current.pause();
+        });
+        navigator.mediaSession.setActionHandler('nexttrack', () => {
+            handleSkip();
+        });
+
+        const el = videoRef.current;
+        if (el) {
+            const onPlay = () => { navigator.mediaSession.playbackState = 'playing'; };
+            const onPause = () => { navigator.mediaSession.playbackState = 'paused'; };
+            el.addEventListener('play', onPlay);
+            el.addEventListener('pause', onPause);
+            navigator.mediaSession.playbackState = el.paused ? 'paused' : 'playing';
+            return () => {
+                el.removeEventListener('play', onPlay);
+                el.removeEventListener('pause', onPause);
+            };
+        }
+    }, [currentMedia, handleSkip]);
+
     const handleVideoLoad = useCallback(() => {
         if (videoRef.current && streamState) {
             const serverPosition = calculateCurrentPosition();
@@ -375,7 +413,7 @@ function VideoLiveStream() {
         }
     };
 
-    const handleSkip = async () => {
+    const handleSkip = useCallback(async () => {
         try {
             const response = await fetch(`${lexiconApiUrl}/api/livestream/skip?channel=${CHANNEL}`, {
                 method: 'POST',
@@ -388,7 +426,7 @@ function VideoLiveStream() {
         } catch (err) {
             setError('Error skipping: ' + err.message);
         }
-    };
+    }, [lexiconApiUrl, user]);
 
     const filteredMedia = availableMedia
         .filter(media => {
