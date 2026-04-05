@@ -2,8 +2,9 @@ import React, { useState, useEffect, useContext } from 'react';
 import { UserContext } from '../context/UserContext';
 import { useNavigate } from 'react-router-dom';
 import background from '../assets/images/dashboard_background.jpg';
+import { getApiUrls } from '../utils/apiUrls';
 
-const API_URL = process.env.REACT_APP_API_URL;
+const { alchemyApiUrl: API_URL } = getApiUrls();
 
 const KnowledgeBook = () => {
     const { user } = useContext(UserContext);

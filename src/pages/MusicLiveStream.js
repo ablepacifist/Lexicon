@@ -259,6 +259,28 @@ function MusicLiveStream() {
     
     useEffect(() => { hasSyncedRef.current = false; }, [currentMedia?.id]);
 
+    const handleSkip = useCallback(async () => {
+        try {
+            const response = await fetch(`${lexiconApiUrl}/api/livestream/skip?channel=${CHANNEL}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ userId: user.id })
+            });
+            const data = await response.json();
+            if (!data.success) {
+                setError(data.message || 'Failed to skip');
+            } else {
+                // Explicitly refresh state after skip — SSE may be throttled on locked screens
+                hasSyncedRef.current = false;
+                await fetchStreamState();
+                await fetchQueue();
+            }
+        } catch (err) {
+            setError('Error skipping: ' + err.message);
+        }
+    }, [lexiconApiUrl, user, fetchStreamState, fetchQueue]);
+
     // Media Session API — lock screen / Bluetooth / CarPlay controls
     useEffect(() => {
         if (!('mediaSession' in navigator) || !currentMedia) return;
@@ -279,8 +301,11 @@ function MusicLiveStream() {
         navigator.mediaSession.setActionHandler('pause', () => {
             if (audioRef.current) audioRef.current.pause();
         });
-        navigator.mediaSession.setActionHandler('nexttrack', () => {
-            handleSkip();
+        navigator.mediaSession.setActionHandler('nexttrack', async () => {
+            // Pause current audio to keep media session alive during skip
+            if (audioRef.current) audioRef.current.pause();
+            navigator.mediaSession.playbackState = 'paused';
+            await handleSkip();
         });
 
         // Update playback state based on audio element events
@@ -395,21 +420,6 @@ function MusicLiveStream() {
             setAddingPlaylistId(null);
         }
     };
-
-    const handleSkip = useCallback(async () => {
-        try {
-            const response = await fetch(`${lexiconApiUrl}/api/livestream/skip?channel=${CHANNEL}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ userId: user.id })
-            });
-            const data = await response.json();
-            if (!data.success) setError(data.message || 'Failed to skip');
-        } catch (err) {
-            setError('Error skipping: ' + err.message);
-        }
-    }, [lexiconApiUrl, user]);
 
     const filteredMedia = availableMedia
         .filter(media => {

@@ -9,8 +9,9 @@ import brewIcon from '../assets/images/brew.png';
 import forageIcon from '../assets/images/forage.png';
 import consumePotionIcon from '../assets/images/drink.png';
 import consumeIngredientIcon from '../assets/images/consume.png';
+import { getApiUrls } from '../utils/apiUrls';
 
-const API_URL = process.env.REACT_APP_API_URL;
+const { alchemyApiUrl: API_URL } = getApiUrls();
 
 
 const AlchemyDashboard = () => {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
+import { getApiUrls } from '../utils/apiUrls';
 import '../styles/MediaPlayer.css';
 
 function AudioPlayer() {
@@ -29,7 +30,7 @@ function AudioPlayer() {
     const audioRef = useRef(null);
     const navigate = useNavigate();
 
-    const lexiconApiUrl = process.env.REACT_APP_LEXICON_API_URL || 'http://localhost:36568';
+    const { lexiconApiUrl } = getApiUrls();
 
     useEffect(() => {
         // Wait until user context resolves

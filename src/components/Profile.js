@@ -2,6 +2,7 @@ import React, { useContext, useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
 import { useAvatar } from '../hooks/useAvatar';
+import { getApiUrls } from '../utils/apiUrls';
 import background from '../assets/images/lexicon_room.jpg';
 
 const Profile = () => {
@@ -18,8 +19,7 @@ const Profile = () => {
   const fileInputRef = useRef(null);
 
   const { avatarUrl, uploadAvatar, removeAvatar } = useAvatar(user?.username);
-  const lexiconApiUrl = process.env.REACT_APP_LEXICON_API_URL || 'http://localhost:8081';
-  const alchemyApiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+  const { lexiconApiUrl, alchemyApiUrl } = getApiUrls();
 
   useEffect(() => {
     if (!user) {

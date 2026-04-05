@@ -1,7 +1,8 @@
 import React, { useState, useContext } from 'react';
 import { UserContext } from '../context/UserContext';
+import { getApiUrls } from '../utils/apiUrls';
 
-const API_URL = process.env.REACT_APP_LEXICON_API_URL || process.env.REACT_APP_API_URL;
+const { lexiconApiUrl: API_URL } = getApiUrls();
 const CHUNK_SIZE = 10 * 1024 * 1024; // 10MB chunks
 const LARGE_FILE_THRESHOLD = 100 * 1024 * 1024; // 100MB threshold for chunked upload
 

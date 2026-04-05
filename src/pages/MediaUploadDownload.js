@@ -4,8 +4,9 @@ import { UserContext } from '../context/UserContext';
 import ChunkedUpload from '../components/ChunkedUpload';
 import UploadProgressBar from '../components/UploadProgressBar';
 import '../styles/MediaUploadDownload.css';
+import { getApiUrls } from '../utils/apiUrls';
 
-const API_URL = process.env.REACT_APP_LEXICON_API_URL || process.env.REACT_APP_API_URL;
+const { lexiconApiUrl: API_URL } = getApiUrls();
 
 const MediaUploadDownload = () => {
   const { user } = useContext(UserContext);

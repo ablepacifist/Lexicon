@@ -37,8 +37,8 @@ const getApiUrls = () => {
     } else {
         // User is external via PlayIt - use internet tunnel URLs
         return {
-            lexiconApiUrl: process.env.REACT_APP_LEXICON_API_URL_INTERNET || 'http://147.185.221.24:15856',
-            alchemyApiUrl: process.env.REACT_APP_API_URL_INTERNET || 'http://147.185.221.24:15821',
+            lexiconApiUrl: process.env.REACT_APP_LEXICON_API_URL_INTERNET || 'http://209.25.140.16:1792',
+            alchemyApiUrl: process.env.REACT_APP_API_URL_INTERNET || 'http://209.25.140.16:1760',
             bridgeApiUrl
         };
     }

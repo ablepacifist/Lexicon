@@ -31,8 +31,8 @@ import Blog from './pages/Blog';
 import Projects from './pages/Projects';
 import DndCampaigns from './pages/DndCampaigns';
 
-// Use Lexicon API for session management so session works with media requests
-const API_URL = process.env.REACT_APP_LEXICON_API_URL || process.env.REACT_APP_API_URL;
+import { getApiUrls } from './utils/apiUrls';
+const { lexiconApiUrl: API_URL } = getApiUrls();
 
 function PrivateRoute({ children }) {
   const { user } = useContext(UserContext);

@@ -2,9 +2,9 @@ import React, { useState, useContext } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
 import background from '../assets/images/background.jpg';
+import { getApiUrls } from '../utils/apiUrls';
 
-// Use Lexicon API for login so session works with media requests
-const API_URL = process.env.REACT_APP_LEXICON_API_URL || process.env.REACT_APP_API_URL;
+const { lexiconApiUrl: API_URL } = getApiUrls();
 
 const Login = () => {
   const [username, setUsername] = useState('');

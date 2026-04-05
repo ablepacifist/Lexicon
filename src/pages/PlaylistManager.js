@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
+import { getApiUrls } from '../utils/apiUrls';
 import '../styles/PlaylistManager.css';
 
 function PlaylistManager() {
@@ -18,7 +19,7 @@ function PlaylistManager() {
     const [success, setSuccess] = useState('');
     const navigate = useNavigate();
 
-    const lexiconApiUrl = process.env.REACT_APP_LEXICON_API_URL || 'http://localhost:36568';
+    const { lexiconApiUrl } = getApiUrls();
 
     const [formData, setFormData] = useState({
         name: '',
