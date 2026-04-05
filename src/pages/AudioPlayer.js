@@ -25,6 +25,7 @@ function AudioPlayer() {
     const [editFormData, setEditFormData] = useState({ title: '', description: '', isPublic: true });
     const [showEditModal, setShowEditModal] = useState(false);
     const [shuffledIndices, setShuffledIndices] = useState([]);
+    const [searchQuery, setSearchQuery] = useState('');
     const audioRef = useRef(null);
     const navigate = useNavigate();
 
@@ -74,9 +75,10 @@ function AudioPlayer() {
             console.log('AudioPlayer: Fetched media files:', allMedia.length);
             console.log('AudioPlayer: Media types:', allMedia.map(m => ({ id: m.id, title: m.title, mediaType: m.mediaType, type: m.type })));
 
-            // Filter only audio files (check both type and mediaType for compatibility)
+            // Filter only audio/music files (exclude audiobooks - they have their own player)
             const audioOnly = allMedia.filter(media => {
                 const mediaTypeValue = media.mediaType || media.type || '';
+                if (mediaTypeValue === 'AUDIOBOOK') return false;
                 return mediaTypeValue === 'AUDIO' || 
                        mediaTypeValue === 'MUSIC' ||
                        media.filePath?.match(/\.(mp3|wav|ogg|flac|m4a|aac)$/i);
@@ -237,10 +239,20 @@ function AudioPlayer() {
     };
 
     const getFilteredAudio = () => {
-        if (filterType === 'all') return audioFiles;
-        return audioFiles.filter(audio => 
-            filterType === 'personal' ? audio.isPersonal : !audio.isPersonal
-        );
+        let filtered = audioFiles;
+        if (filterType === 'personal') {
+            filtered = filtered.filter(audio => audio.isPersonal);
+        } else if (filterType === 'public') {
+            filtered = filtered.filter(audio => !audio.isPersonal);
+        }
+        if (searchQuery) {
+            const q = searchQuery.toLowerCase();
+            filtered = filtered.filter(audio =>
+                audio.title?.toLowerCase().includes(q) ||
+                audio.description?.toLowerCase().includes(q)
+            );
+        }
+        return filtered;
     };
 
     const getStreamUrl = (audio) => {
@@ -260,9 +272,8 @@ function AudioPlayer() {
                 artist: audio.description || 'Lexicon Audio',
                 album: playlistMode && selectedPlaylist ? selectedPlaylist.name : 'Library',
                 artwork: [
-                    { src: '/manifest.json', sizes: '96x96', type: 'image/png' },
-                    { src: '/manifest.json', sizes: '192x192', type: 'image/png' },
-                    { src: '/manifest.json', sizes: '512x512', type: 'image/png' }
+                    { src: '/logo192.png', sizes: '192x192', type: 'image/png' },
+                    { src: '/logo512.png', sizes: '512x512', type: 'image/png' }
                 ]
             });
         }
@@ -396,6 +407,7 @@ function AudioPlayer() {
             {/* Audio Element (hidden) */}
             {currentTrack && (
                 <audio
+                    key={currentTrack.id}
                     ref={audioRef}
                     crossOrigin="use-credentials"
                     src={getStreamUrl(currentTrack)}
@@ -550,6 +562,13 @@ function AudioPlayer() {
                     {/* Tab Content */}
                     {activeTab === 'library' ? (
                         <>
+                            <input
+                                type="text"
+                                placeholder="Search music..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="library-search-input"
+                            />
                             {!playlistMode && (
                                 <div className="filter-buttons">
                                     <button
@@ -642,9 +661,11 @@ function AudioPlayer() {
                                                 onClick={() => loadPlaylist(pl.id)}
                                             >
                                                 <div className="playlist-icon">🎵</div>
-                                                <h4>{pl.name}</h4>
-                                                <p>{pl.description}</p>
-                                                <span className="playlist-type-badge">{pl.mediaType}</span>
+                                                <div className="playlist-info">
+                                                    <h4>{pl.name}</h4>
+                                                    <p>{pl.description}</p>
+                                                    <span className="playlist-type-badge">{pl.mediaType}</span>
+                                                </div>
                                             </div>
                                         ))
                                     }

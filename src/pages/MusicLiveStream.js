@@ -24,6 +24,9 @@ function MusicLiveStream() {
     const [searchQuery, setSearchQuery] = useState('');
     const [sortBy, setSortBy] = useState('title');
     const [addingId, setAddingId] = useState(null);
+    const [showPlaylistModal, setShowPlaylistModal] = useState(false);
+    const [publicPlaylists, setPublicPlaylists] = useState([]);
+    const [addingPlaylistId, setAddingPlaylistId] = useState(null);
     
     const audioRef = useRef(null);
     const eventSourceRef = useRef(null);
@@ -92,6 +95,21 @@ function MusicLiveStream() {
             }
         } catch (err) {
             console.error('Error fetching available media:', err);
+        }
+    }, [lexiconApiUrl]);
+
+    // Fetch public playlists for this channel
+    const fetchPublicPlaylists = useCallback(async () => {
+        try {
+            const response = await fetch(`${lexiconApiUrl}/api/playlists/public?mediaType=MUSIC`, {
+                credentials: 'include'
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setPublicPlaylists(data || []);
+            }
+        } catch (err) {
+            console.error('Error fetching public playlists:', err);
         }
     }, [lexiconApiUrl]);
 
@@ -241,10 +259,55 @@ function MusicLiveStream() {
     
     useEffect(() => { hasSyncedRef.current = false; }, [currentMedia?.id]);
 
+    // Media Session API — lock screen / Bluetooth / CarPlay controls
+    useEffect(() => {
+        if (!('mediaSession' in navigator) || !currentMedia) return;
+
+        navigator.mediaSession.metadata = new MediaMetadata({
+            title: currentMedia.title || currentMedia.originalFilename || 'Unknown Track',
+            artist: currentMedia.description || 'Music Live Stream',
+            album: 'Lexicon Live Stream',
+            artwork: [
+                { src: '/logo192.png', sizes: '192x192', type: 'image/png' },
+                { src: '/logo512.png', sizes: '512x512', type: 'image/png' }
+            ]
+        });
+
+        navigator.mediaSession.setActionHandler('play', () => {
+            if (audioRef.current) audioRef.current.play();
+        });
+        navigator.mediaSession.setActionHandler('pause', () => {
+            if (audioRef.current) audioRef.current.pause();
+        });
+        navigator.mediaSession.setActionHandler('nexttrack', () => {
+            handleSkip();
+        });
+
+        // Update playback state based on audio element events
+        const el = audioRef.current;
+        if (el) {
+            const onPlay = () => { navigator.mediaSession.playbackState = 'playing'; };
+            const onPause = () => { navigator.mediaSession.playbackState = 'paused'; };
+            el.addEventListener('play', onPlay);
+            el.addEventListener('pause', onPause);
+            navigator.mediaSession.playbackState = el.paused ? 'paused' : 'playing';
+            return () => {
+                el.removeEventListener('play', onPlay);
+                el.removeEventListener('pause', onPause);
+            };
+        }
+    }, [currentMedia, handleSkip]);
+
     const handleAudioLoad = useCallback(() => {
         if (audioRef.current && streamState) {
             const serverPosition = calculateCurrentPosition();
-            audioRef.current.currentTime = serverPosition / 1000;
+            // Only seek if the track has been playing for a while (late joiner).
+            // If < 15s, the offset is just loading latency — start from beginning.
+            if (serverPosition > 15000) {
+                audioRef.current.currentTime = serverPosition / 1000;
+            } else {
+                audioRef.current.currentTime = 0;
+            }
             audioRef.current.play().catch(err => console.log('Autoplay prevented:', err));
         }
     }, [streamState, calculateCurrentPosition]);
@@ -309,7 +372,31 @@ function MusicLiveStream() {
         }
     };
 
-    const handleSkip = async () => {
+    const handleAddPlaylistToQueue = async (playlistId) => {
+        if (addingPlaylistId) return;
+        setAddingPlaylistId(playlistId);
+        try {
+            const response = await fetch(`${lexiconApiUrl}/api/livestream/queue/playlist?channel=${CHANNEL}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ userId: user.id, playlistId })
+            });
+            const data = await response.json();
+            if (data.success) {
+                fetchQueue();
+                setShowPlaylistModal(false);
+            } else {
+                setError(data.message || 'Failed to add playlist to queue');
+            }
+        } catch (err) {
+            setError('Error adding playlist to queue: ' + err.message);
+        } finally {
+            setAddingPlaylistId(null);
+        }
+    };
+
+    const handleSkip = useCallback(async () => {
         try {
             const response = await fetch(`${lexiconApiUrl}/api/livestream/skip?channel=${CHANNEL}`, {
                 method: 'POST',
@@ -322,7 +409,7 @@ function MusicLiveStream() {
         } catch (err) {
             setError('Error skipping: ' + err.message);
         }
-    };
+    }, [lexiconApiUrl, user]);
 
     const filteredMedia = availableMedia
         .filter(media => {
@@ -416,6 +503,7 @@ function MusicLiveStream() {
                                 <p>{currentMedia.description || 'No description'}</p>
                             </div>
                             <audio
+                                key={currentMedia.id}
                                 ref={audioRef}
                                 src={`${lexiconApiUrl}/api/media/stream/${currentMedia.id}`}
                                 autoPlay
@@ -436,6 +524,15 @@ function MusicLiveStream() {
                     <div className="stream-controls">
                         <button className="skip-button" onClick={handleSkip}>
                             ⏭ Skip
+                        </button>
+                        <button 
+                            className="add-to-queue-button"
+                            onClick={() => {
+                                setShowPlaylistModal(true);
+                                if (publicPlaylists.length === 0) fetchPublicPlaylists();
+                            }}
+                        >
+                            📋 Add Playlist
                         </button>
                         <button 
                             className="add-to-queue-button"
@@ -547,6 +644,49 @@ function MusicLiveStream() {
                                             disabled={addingId === media.id}
                                         >
                                             {addingId === media.id ? '...' : '+ Add'}
+                                        </button>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Add Playlist to Queue Modal */}
+            {showPlaylistModal && (
+                <div className="modal-overlay" onClick={() => setShowPlaylistModal(false)}>
+                    <div className="add-queue-modal" onClick={e => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h2>📋 Add Playlist to Queue</h2>
+                            <button className="modal-close-x" onClick={() => setShowPlaylistModal(false)}>✕</button>
+                        </div>
+                        
+                        <div className="media-results-count">
+                            {publicPlaylists.length} public music playlist{publicPlaylists.length !== 1 ? 's' : ''}
+                        </div>
+
+                        <div className="media-list-scroll">
+                            {publicPlaylists.length === 0 ? (
+                                <div className="no-results">
+                                    <p>No public music playlists found</p>
+                                </div>
+                            ) : (
+                                publicPlaylists.map(playlist => (
+                                    <div key={playlist.id} className="media-list-item">
+                                        <div className="media-list-icon">📋</div>
+                                        <div className="media-list-info">
+                                            <span className="media-list-title">{playlist.name}</span>
+                                            <span className="media-list-desc">
+                                                {playlist.itemCount || 0} tracks{playlist.description ? ` • ${playlist.description}` : ''}
+                                            </span>
+                                        </div>
+                                        <button
+                                            className="media-add-btn"
+                                            onClick={() => handleAddPlaylistToQueue(playlist.id)}
+                                            disabled={addingPlaylistId === playlist.id}
+                                        >
+                                            {addingPlaylistId === playlist.id ? '...' : '+ Queue All'}
                                         </button>
                                     </div>
                                 ))

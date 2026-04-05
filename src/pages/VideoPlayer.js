@@ -20,6 +20,7 @@ function VideoPlayer() {
     const [editingMedia, setEditingMedia] = useState(null);
     const [editFormData, setEditFormData] = useState({ title: '', description: '', isPublic: true });
     const [showEditModal, setShowEditModal] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
     const videoRef = useRef(null);
     const containerRef = useRef(null);
     const navigate = useNavigate();
@@ -183,10 +184,20 @@ function VideoPlayer() {
     };
 
     const getFilteredVideos = () => {
-        if (filterType === 'all') return videos;
-        return videos.filter(video => 
-            filterType === 'personal' ? video.isPersonal : !video.isPersonal
-        );
+        let filtered = videos;
+        if (filterType === 'personal') {
+            filtered = filtered.filter(video => video.isPersonal);
+        } else if (filterType === 'public') {
+            filtered = filtered.filter(video => !video.isPersonal);
+        }
+        if (searchQuery) {
+            const q = searchQuery.toLowerCase();
+            filtered = filtered.filter(video =>
+                video.title?.toLowerCase().includes(q) ||
+                video.description?.toLowerCase().includes(q)
+            );
+        }
+        return filtered;
     };
 
     const playVideo = (video, index = 0) => {
@@ -262,6 +273,7 @@ function VideoPlayer() {
                     {currentVideo ? (
                         <div className="video-player-wrapper">
                             <video
+                                key={currentVideo.id}
                                 ref={videoRef}
                                 controls
                                 crossOrigin="use-credentials"
@@ -351,6 +363,13 @@ function VideoPlayer() {
                     {/* Tab Content */}
                     {activeTab === 'library' ? (
                         <>
+                            <input
+                                type="text"
+                                placeholder="Search videos..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="library-search-input"
+                            />
                             {!playlistMode && (
                                 <div className="filter-buttons">
                                     <button
@@ -436,9 +455,11 @@ function VideoPlayer() {
                                                 onClick={() => loadPlaylist(pl.id)}
                                             >
                                                 <div className="playlist-icon">🎬</div>
-                                                <h4>{pl.name}</h4>
-                                                <p>{pl.description}</p>
-                                                <span className="playlist-type-badge">{pl.mediaType}</span>
+                                                <div className="playlist-info">
+                                                    <h4>{pl.name}</h4>
+                                                    <p>{pl.description}</p>
+                                                    <span className="playlist-type-badge">{pl.mediaType}</span>
+                                                </div>
                                             </div>
                                         ))
                                     }

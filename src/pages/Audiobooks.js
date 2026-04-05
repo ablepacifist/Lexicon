@@ -23,6 +23,7 @@ function Audiobooks() {
     const [editingMedia, setEditingMedia] = useState(null);
     const [editFormData, setEditFormData] = useState({ title: '', description: '', isPublic: true });
     const [showEditModal, setShowEditModal] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
     const audioRef = useRef(null);
     const navigate = useNavigate();
 
@@ -64,8 +65,7 @@ function Audiobooks() {
             // Filter only audiobooks
             const audiobooksOnly = allMedia.filter(media => {
                 const mediaTypeValue = media.mediaType || media.type || '';
-                return mediaTypeValue === 'AUDIOBOOK' ||
-                       media.filePath?.match(/\.(mp3|m4a|m4b|aac)$/i);
+                return mediaTypeValue === 'AUDIOBOOK';
             });
             
             setAudiobooks(audiobooksOnly);
@@ -126,10 +126,20 @@ function Audiobooks() {
     };
 
     const getFilteredAudiobooks = () => {
-        if (filterType === 'all') return audiobooks;
-        return audiobooks.filter(book => 
-            filterType === 'personal' ? book.isPersonal : !book.isPersonal
-        );
+        let filtered = audiobooks;
+        if (filterType === 'personal') {
+            filtered = filtered.filter(book => book.isPersonal);
+        } else if (filterType === 'public') {
+            filtered = filtered.filter(book => !book.isPersonal);
+        }
+        if (searchQuery) {
+            const q = searchQuery.toLowerCase();
+            filtered = filtered.filter(book =>
+                book.title?.toLowerCase().includes(q) ||
+                book.description?.toLowerCase().includes(q)
+            );
+        }
+        return filtered;
     };
 
     const playBook = (book, index) => {
@@ -145,9 +155,8 @@ function Audiobooks() {
                 artist: book.description || 'Lexicon Audiobooks',
                 album: 'Audiobooks',
                 artwork: [
-                    { src: '/manifest.json', sizes: '96x96', type: 'image/png' },
-                    { src: '/manifest.json', sizes: '192x192', type: 'image/png' },
-                    { src: '/manifest.json', sizes: '512x512', type: 'image/png' }
+                    { src: '/logo192.png', sizes: '192x192', type: 'image/png' },
+                    { src: '/logo512.png', sizes: '512x512', type: 'image/png' }
                 ]
             });
         }
@@ -402,6 +411,7 @@ function Audiobooks() {
 
             {currentBook && (
                 <audio
+                    key={currentBook.id}
                     ref={audioRef}
                     crossOrigin="use-credentials"
                     src={getStreamUrl(currentBook)}
@@ -532,6 +542,13 @@ function Audiobooks() {
 
                     {activeTab === 'library' ? (
                         <>
+                            <input
+                                type="text"
+                                placeholder="Search audiobooks..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="library-search-input"
+                            />
                             <div className="filter-buttons">
                                 <button
                                     className={filterType === 'all' ? 'active' : ''}

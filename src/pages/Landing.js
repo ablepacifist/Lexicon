@@ -173,6 +173,12 @@ const Landing = () => {
               description="Log in to access the Alchemy game and Lexicon media apps."
               icon="⚗️"
             />
+            <QuickLinkCard
+              to="https://voice.alex-dyakin.com"
+              title="Voice Bridge"
+              description="Real-time voice communication powered by Mumble."
+              icon="🎙️"
+            />
           </div>
         </div>
       </section>

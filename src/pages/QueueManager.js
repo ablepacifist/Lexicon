@@ -27,6 +27,24 @@ function QueueManager() {
     const [sortBy, setSortBy] = useState('title');
     const [addingId, setAddingId] = useState(null);
     const [isConnected, setIsConnected] = useState(false);
+    const [showPlaylistModal, setShowPlaylistModal] = useState(false);
+    const [publicPlaylists, setPublicPlaylists] = useState([]);
+    const [addingPlaylistId, setAddingPlaylistId] = useState(null);
+
+    /* ---- Fetch public playlists for this channel ---- */
+    const fetchPublicPlaylists = useCallback(async () => {
+        try {
+            const mediaType = channel === 'music' ? 'MUSIC' : 'VIDEO';
+            const resp = await fetch(`${lexiconApiUrl}/api/playlists/public?mediaType=${mediaType}`, {
+                credentials: 'include'
+            });
+            if (resp.ok) {
+                setPublicPlaylists(await resp.json());
+            }
+        } catch (err) {
+            console.error('Error fetching playlists:', err);
+        }
+    }, [lexiconApiUrl, channel]);
 
     /* ---- Fetch eligible media (public + public-playlist items + user's own) ---- */
     const fetchEligible = useCallback(async () => {
@@ -103,6 +121,7 @@ function QueueManager() {
 
         connect();
         fetchEligible();
+        fetchPublicPlaylists();
 
         return () => {
             alive = false;
@@ -149,6 +168,29 @@ function QueueManager() {
             if (!data.success) setError(data.message || 'Failed to remove');
         } catch (err) {
             setError('Remove failed: ' + err.message);
+        }
+    };
+
+    const addPlaylistToQueue = async (playlistId) => {
+        if (!user || addingPlaylistId) return;
+        setAddingPlaylistId(playlistId);
+        try {
+            const resp = await fetch(`${lexiconApiUrl}/api/livestream/queue/playlist?channel=${channel}`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: user.id, playlistId })
+            });
+            const data = await resp.json();
+            if (data.success) {
+                setShowPlaylistModal(false);
+            } else {
+                setError(data.message || 'Failed to add playlist');
+            }
+        } catch (err) {
+            setError('Add playlist failed: ' + err.message);
+        } finally {
+            setAddingPlaylistId(null);
         }
     };
 
@@ -232,7 +274,10 @@ function QueueManager() {
                 <div className="qm-panel">
                     <div className="qm-panel-header">
                         <h2>Live Stream Queue</h2>
-                        <button className="qm-skip-btn" onClick={handleSkip}>⏭ Vote Skip</button>
+                        <div className="qm-panel-actions">
+                            <button className="qm-playlist-btn" onClick={() => setShowPlaylistModal(true)}>📋 Add Playlist</button>
+                            <button className="qm-skip-btn" onClick={handleSkip}>⏭ Vote Skip</button>
+                        </div>
                     </div>
 
                     {/* Now Playing — currentMedia from server state is authoritative */}
@@ -353,6 +398,39 @@ function QueueManager() {
                     </div>
                 </div>
             </div>
+
+            {/* Add Playlist to Queue Modal */}
+            {showPlaylistModal && (
+                <div className="qm-modal-overlay" onClick={() => setShowPlaylistModal(false)}>
+                    <div className="qm-modal" onClick={e => e.stopPropagation()}>
+                        <div className="qm-modal-header">
+                            <h2>📋 Add Playlist to Queue</h2>
+                            <button className="qm-modal-close" onClick={() => setShowPlaylistModal(false)}>✕</button>
+                        </div>
+                        <div className="qm-modal-body">
+                            {publicPlaylists.length === 0 ? (
+                                <div className="qm-empty">No public playlists for this channel</div>
+                            ) : (
+                                publicPlaylists.map(p => (
+                                    <div key={p.id} className="qm-playlist-item">
+                                        <div className="qm-playlist-info">
+                                            <span className="qm-playlist-name">{p.name}</span>
+                                            <span className="qm-playlist-count">{p.itemCount || 0} tracks</span>
+                                        </div>
+                                        <button
+                                            className="qm-m-add"
+                                            onClick={() => addPlaylistToQueue(p.id)}
+                                            disabled={addingPlaylistId === p.id}
+                                        >
+                                            {addingPlaylistId === p.id ? 'Adding...' : '+ Queue All'}
+                                        </button>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

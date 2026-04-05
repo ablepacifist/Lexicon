@@ -9,6 +9,7 @@ const API_URL = process.env.REACT_APP_LEXICON_API_URL || process.env.REACT_APP_A
 const Login = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const { setUser } = useContext(UserContext);
   const [error, setError] = useState('');
   const navigate = useNavigate();
@@ -21,7 +22,7 @@ const Login = () => {
         credentials: "include",
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ username, password, rememberMe })
       });
 
 
@@ -102,6 +103,16 @@ const Login = () => {
             />
           </div>
           {error && <p style={{ color: 'red' }}>{error}</p>}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem' }}>
+            <input
+              type="checkbox"
+              id="rememberMe"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              style={{ cursor: 'pointer', accentColor: '#61dafb' }}
+            />
+            <label htmlFor="rememberMe" style={{ cursor: 'pointer', fontSize: '0.9rem' }}>Remember me</label>
+          </div>
           <button type="submit" style={buttonStyle}>Login</button>
         </form>
         <p>
