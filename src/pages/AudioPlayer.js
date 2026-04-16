@@ -273,8 +273,7 @@ function AudioPlayer() {
                 artist: audio.description || 'Lexicon Audio',
                 album: playlistMode && selectedPlaylist ? selectedPlaylist.name : 'Library',
                 artwork: [
-                    { src: '/logo192.png', sizes: '192x192', type: 'image/png' },
-                    { src: '/logo512.png', sizes: '512x512', type: 'image/png' }
+                    { src: '/logo.webp', sizes: '512x512', type: 'image/webp' }
                 ]
             });
         }
@@ -299,11 +298,29 @@ function AudioPlayer() {
             });
 
             navigator.mediaSession.setActionHandler('previoustrack', () => {
-                playPrevious();
+                const filtered = getFilteredAudio();
+                if (filtered.length === 0) return;
+                const prevIndex = getPreviousIndex();
+                const prevTrack = filtered[prevIndex];
+                playTrack(prevTrack, prevIndex);
+                // Directly update src to avoid autoPlay block on locked screens
+                if (audioRef.current) {
+                    audioRef.current.src = getStreamUrl(prevTrack);
+                    audioRef.current.play().catch(() => {});
+                }
             });
 
             navigator.mediaSession.setActionHandler('nexttrack', () => {
-                playNext();
+                const filtered = getFilteredAudio();
+                if (filtered.length === 0) return;
+                const nextIndex = getNextIndex();
+                const nextTrack = filtered[nextIndex];
+                playTrack(nextTrack, nextIndex);
+                // Directly update src to avoid autoPlay block on locked screens
+                if (audioRef.current) {
+                    audioRef.current.src = getStreamUrl(nextTrack);
+                    audioRef.current.play().catch(() => {});
+                }
             });
 
             navigator.mediaSession.setActionHandler('seekto', (details) => {
@@ -408,7 +425,6 @@ function AudioPlayer() {
             {/* Audio Element (hidden) */}
             {currentTrack && (
                 <audio
-                    key={currentTrack.id}
                     ref={audioRef}
                     crossOrigin="use-credentials"
                     src={getStreamUrl(currentTrack)}

@@ -270,16 +270,33 @@ function MusicLiveStream() {
             const data = await response.json();
             if (!data.success) {
                 setError(data.message || 'Failed to skip');
-            } else {
-                // Explicitly refresh state after skip — SSE may be throttled on locked screens
-                hasSyncedRef.current = false;
-                await fetchStreamState();
-                await fetchQueue();
+                return null;
             }
+            // Explicitly refresh state after skip — SSE may be throttled on locked screens
+            hasSyncedRef.current = false;
+            const stateResp = await fetch(`${lexiconApiUrl}/api/livestream/state?channel=${CHANNEL}`, { credentials: 'include' });
+            if (stateResp.ok) {
+                const stateData = await stateResp.json();
+                if (stateData.success) {
+                    setStreamState(stateData.state);
+                    if (stateData.state?.currentMediaId) {
+                        const mediaResp = await fetch(`${lexiconApiUrl}/api/media/${stateData.state.currentMediaId}`, { credentials: 'include' });
+                        if (mediaResp.ok) {
+                            const newMedia = await mediaResp.json();
+                            setCurrentMedia(newMedia);
+                            fetchQueue();
+                            return newMedia;
+                        }
+                    }
+                }
+            }
+            fetchQueue();
+            return null;
         } catch (err) {
             setError('Error skipping: ' + err.message);
+            return null;
         }
-    }, [lexiconApiUrl, user, fetchStreamState, fetchQueue]);
+    }, [lexiconApiUrl, user, fetchQueue]);
 
     // Media Session API — lock screen / Bluetooth / CarPlay controls
     useEffect(() => {
@@ -290,8 +307,7 @@ function MusicLiveStream() {
             artist: currentMedia.description || 'Music Live Stream',
             album: 'Lexicon Live Stream',
             artwork: [
-                { src: '/logo192.png', sizes: '192x192', type: 'image/png' },
-                { src: '/logo512.png', sizes: '512x512', type: 'image/png' }
+                { src: '/logo.webp', sizes: '512x512', type: 'image/webp' }
             ]
         });
 
@@ -302,10 +318,17 @@ function MusicLiveStream() {
             if (audioRef.current) audioRef.current.pause();
         });
         navigator.mediaSession.setActionHandler('nexttrack', async () => {
-            // Pause current audio to keep media session alive during skip
+            // Keep the audio element alive — don't let it unmount
             if (audioRef.current) audioRef.current.pause();
             navigator.mediaSession.playbackState = 'paused';
-            await handleSkip();
+            const newMedia = await handleSkip();
+            // Directly update src and play on the SAME element (avoids autoPlay block on locked screens)
+            if (newMedia && audioRef.current) {
+                audioRef.current.src = `${lexiconApiUrl}/api/media/stream/${newMedia.id}`;
+                audioRef.current.currentTime = 0;
+                try { await audioRef.current.play(); } catch (e) { console.log('Lock screen play failed:', e); }
+                navigator.mediaSession.playbackState = 'playing';
+            }
         });
 
         // Update playback state based on audio element events
@@ -321,7 +344,7 @@ function MusicLiveStream() {
                 el.removeEventListener('pause', onPause);
             };
         }
-    }, [currentMedia, handleSkip]);
+    }, [currentMedia, handleSkip, lexiconApiUrl]);
 
     const handleAudioLoad = useCallback(() => {
         if (audioRef.current && streamState) {
@@ -513,7 +536,6 @@ function MusicLiveStream() {
                                 <p>{currentMedia.description || 'No description'}</p>
                             </div>
                             <audio
-                                key={currentMedia.id}
                                 ref={audioRef}
                                 src={`${lexiconApiUrl}/api/media/stream/${currentMedia.id}`}
                                 autoPlay
