@@ -2,11 +2,14 @@ import React, { useState, useContext } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
 import background from '../assets/images/background.jpg';
-const API_URL = process.env.REACT_APP_API_URL;
+import { getApiUrls } from '../utils/apiUrls';
+
+const { lexiconApiUrl: API_URL } = getApiUrls();
 
 const Login = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const { setUser } = useContext(UserContext);
   const [error, setError] = useState('');
   const navigate = useNavigate();
@@ -19,7 +22,7 @@ const Login = () => {
         credentials: "include",
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ username, password, rememberMe })
       });
 
 
@@ -30,8 +33,8 @@ const Login = () => {
       const data = await response.json();
       console.log("Login successful:", data);
 
-      // Update context with session-based info
-      setUser({ id: data.playerId, username: data.username }); // <-- Add username from backend
+      // Update context with session-based info - use 'id' field which AuthController returns
+      setUser({ id: data.id, username: data.username, displayName: data.displayName });
       navigate("/app-selector");
     } catch (err) {
       console.error("Login error:", err);
@@ -100,6 +103,16 @@ const Login = () => {
             />
           </div>
           {error && <p style={{ color: 'red' }}>{error}</p>}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem' }}>
+            <input
+              type="checkbox"
+              id="rememberMe"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              style={{ cursor: 'pointer', accentColor: '#61dafb' }}
+            />
+            <label htmlFor="rememberMe" style={{ cursor: 'pointer', fontSize: '0.9rem' }}>Remember me</label>
+          </div>
           <button type="submit" style={buttonStyle}>Login</button>
         </form>
         <p>

@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useContext } from 'react';
 import { UserContext } from '../context/UserContext';
 import { Link } from 'react-router-dom';
+import { useAvatar } from '../hooks/useAvatar';
 import background from '../assets/images/dashboard_background.jpg';
 import ItemModal from '../components/ItemModal'; // Ensure this component exists
 import '../animations.css';
@@ -8,12 +9,14 @@ import brewIcon from '../assets/images/brew.png';
 import forageIcon from '../assets/images/forage.png';
 import consumePotionIcon from '../assets/images/drink.png';
 import consumeIngredientIcon from '../assets/images/consume.png';
+import { getApiUrls } from '../utils/apiUrls';
 
-const API_URL = process.env.REACT_APP_API_URL;
+const { alchemyApiUrl: API_URL } = getApiUrls();
 
 
 const AlchemyDashboard = () => {
   const { user } = useContext(UserContext);
+  const { avatarUrl } = useAvatar(user?.username);
   console.log('ALCHEMY DASHBOARD mounted. User:', user);
   const playerId = user?.id; // Assumes the user object contains an 'id' field
   console.log('Player Id from context:', playerId);
@@ -236,6 +239,7 @@ const AlchemyDashboard = () => {
 return (
   <div style={containerStyle}>
     <h1 style={headerStyle}>
+      <img src={avatarUrl} alt="" style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', border: '2px solid #61dafb', verticalAlign: 'middle', marginRight: '0.6rem' }} />
       Alchemy Dashboard - Welcome, {user && user.username ? user.username : 'User'}!
     </h1>
     <div style={{ textAlign: 'center', marginBottom: '1rem' }}>

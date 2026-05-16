@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
+import { getApiUrls } from '../utils/apiUrls';
 import '../styles/PlaylistManager.css';
 
 function PlaylistManager() {
@@ -18,7 +19,7 @@ function PlaylistManager() {
     const [success, setSuccess] = useState('');
     const navigate = useNavigate();
 
-    const lexiconApiUrl = process.env.REACT_APP_LEXICON_API_URL || 'http://localhost:36568';
+    const { lexiconApiUrl } = getApiUrls();
 
     const [formData, setFormData] = useState({
         name: '',
@@ -28,6 +29,7 @@ function PlaylistManager() {
     });
     const [searchQuery, setSearchQuery] = useState('');
     const [mediaSearchQuery, setMediaSearchQuery] = useState('');
+    const [playlistTypeFilter, setPlaylistTypeFilter] = useState('ALL');
 
     useEffect(() => {
         if (user === undefined) return;
@@ -36,7 +38,7 @@ function PlaylistManager() {
             return;
         }
         fetchPlaylists();
-        fetchAvailableMedia();
+        // Don't fetch available media on mount — defer to add-media modal
     }, [user]);
 
     const fetchPlaylists = async () => {
@@ -410,7 +412,7 @@ function PlaylistManager() {
         setShowEditForm(true);
     };
 
-    const getFilteredMedia = () => {
+    const filteredMedia = useMemo(() => {
         if (!selectedPlaylist) return [];
         
         const playlistMediaType = selectedPlaylist.mediaType;
@@ -436,17 +438,26 @@ function PlaylistManager() {
         }
 
         return filtered;
-    };
+    }, [selectedPlaylist, playlistItems, availableMedia, mediaSearchQuery]);
 
     const getFilteredPlaylists = (playlistList) => {
-        if (!searchQuery.trim()) return playlistList;
+        let result = playlistList;
         
-        const query = searchQuery.toLowerCase();
-        return playlistList.filter(playlist =>
-            playlist.name?.toLowerCase().includes(query) ||
-            playlist.description?.toLowerCase().includes(query) ||
-            playlist.mediaType?.toLowerCase().includes(query)
-        );
+        // Type filter
+        if (playlistTypeFilter !== 'ALL') {
+            result = result.filter(p => p.mediaType === playlistTypeFilter);
+        }
+        
+        // Search filter
+        if (searchQuery.trim()) {
+            const query = searchQuery.toLowerCase();
+            result = result.filter(playlist =>
+                playlist.name?.toLowerCase().includes(query) ||
+                playlist.description?.toLowerCase().includes(query)
+            );
+        }
+        
+        return result;
     };
 
     const formatDate = (dateString) => {
@@ -479,8 +490,8 @@ function PlaylistManager() {
                         </button>
                     </div>
 
-                    {/* Search Box */}
-                    <div className="search-box">
+                    {/* Search Box & Filters */}
+                    <div className="search-filter-section">
                         <input
                             type="text"
                             placeholder="🔍 Search playlists..."
@@ -488,6 +499,20 @@ function PlaylistManager() {
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="search-input"
                         />
+                        <div className="playlist-filter-pills">
+                            {['ALL', 'MUSIC', 'VIDEO', 'AUDIOBOOK'].map(type => (
+                                <button
+                                    key={type}
+                                    className={`playlist-filter-pill ${playlistTypeFilter === type ? 'active' : ''}`}
+                                    onClick={() => setPlaylistTypeFilter(type)}
+                                >
+                                    {type === 'ALL' && '🎯 All'}
+                                    {type === 'MUSIC' && '🎵 Music'}
+                                    {type === 'VIDEO' && '🎬 Video'}
+                                    {type === 'AUDIOBOOK' && '📚 Books'}
+                                </button>
+                            ))}
+                        </div>
                     </div>
 
                     <div className="playlists-list">
@@ -570,7 +595,10 @@ function PlaylistManager() {
                                 <h2>{selectedPlaylist.name}</h2>
                                 {selectedPlaylist.createdBy === user?.id && (
                                     <button 
-                                        onClick={() => setShowAddMediaModal(true)}
+                                        onClick={() => {
+                                            setShowAddMediaModal(true);
+                                            if (availableMedia.length === 0) fetchAvailableMedia();
+                                        }}
                                         className="add-media-button"
                                     >
                                         + Add Media
@@ -740,51 +768,57 @@ function PlaylistManager() {
             {showAddMediaModal && (
                 <div className="modal-overlay" onClick={() => setShowAddMediaModal(false)}>
                     <div className="modal-content add-media-modal" onClick={(e) => e.stopPropagation()}>
-                        <h2>Add Media to Playlist</h2>
+                        <div className="modal-top-bar">
+                            <h2>Add Media to Playlist</h2>
+                            <button 
+                                className="modal-x-btn"
+                                onClick={() => { setShowAddMediaModal(false); setMediaSearchQuery(''); }}
+                            >
+                                ✕
+                            </button>
+                        </div>
                         
-                        {/* Media Search Box */}
-                        <div className="search-box">
+                        {/* Media Search */}
+                        <div className="modal-search-area">
                             <input
                                 type="text"
                                 placeholder="🔍 Search media files..."
                                 value={mediaSearchQuery}
                                 onChange={(e) => setMediaSearchQuery(e.target.value)}
                                 className="search-input"
+                                autoFocus
                             />
+                            <span className="modal-result-count">
+                                {filteredMedia.length} available
+                            </span>
                         </div>
 
-                        <div className="media-list">
-                            {getFilteredMedia().length === 0 ? (
+                        <div className="media-list-scrollable">
+                            {filteredMedia.length === 0 ? (
                                 <p className="no-data">
                                     {mediaSearchQuery ? 'No media matches your search' : 'No available media to add'}
                                 </p>
                             ) : (
-                                getFilteredMedia().map(media => (
-                                    <div key={media.id} className="media-item">
-                                        <div className="media-info">
-                                            <h4>{media.title}</h4>
-                                            <p>{media.description}</p>
+                                filteredMedia.map(media => (
+                                    <div key={media.id} className="media-add-row">
+                                        <div className="media-add-icon">
+                                            {media.mediaType === 'VIDEO' ? '🎬' : media.mediaType === 'AUDIOBOOK' ? '📚' : '🎵'}
+                                        </div>
+                                        <div className="media-add-info">
+                                            <span className="media-add-title">{media.title || media.originalFilename}</span>
+                                            {media.description && (
+                                                <span className="media-add-desc">{media.description}</span>
+                                            )}
                                         </div>
                                         <button
                                             onClick={() => handleAddMediaToPlaylist(media.id)}
                                             className="add-btn"
                                         >
-                                            Add
+                                            + Add
                                         </button>
                                     </div>
                                 ))
                             )}
-                        </div>
-                        <div className="form-actions">
-                            <button 
-                                onClick={() => {
-                                    setShowAddMediaModal(false);
-                                    setMediaSearchQuery('');
-                                }} 
-                                className="cancel-btn"
-                            >
-                                Close
-                            </button>
                         </div>
                     </div>
                 </div>

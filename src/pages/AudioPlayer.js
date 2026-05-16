@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef, useContext } from 'react';
+import React, { useState, useEffect, useRef, useContext, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
+import { getApiUrls } from '../utils/apiUrls';
 import '../styles/MediaPlayer.css';
 
 function AudioPlayer() {
@@ -25,10 +26,12 @@ function AudioPlayer() {
     const [editFormData, setEditFormData] = useState({ title: '', description: '', isPublic: true });
     const [showEditModal, setShowEditModal] = useState(false);
     const [shuffledIndices, setShuffledIndices] = useState([]);
+    const [searchQuery, setSearchQuery] = useState('');
     const audioRef = useRef(null);
+    const [audioReady, setAudioReady] = useState(false);
     const navigate = useNavigate();
 
-    const lexiconApiUrl = process.env.REACT_APP_LEXICON_API_URL || 'http://localhost:36568';
+    const { lexiconApiUrl } = getApiUrls();
 
     useEffect(() => {
         // Wait until user context resolves
@@ -74,9 +77,10 @@ function AudioPlayer() {
             console.log('AudioPlayer: Fetched media files:', allMedia.length);
             console.log('AudioPlayer: Media types:', allMedia.map(m => ({ id: m.id, title: m.title, mediaType: m.mediaType, type: m.type })));
 
-            // Filter only audio files (check both type and mediaType for compatibility)
+            // Filter only audio/music files (exclude audiobooks - they have their own player)
             const audioOnly = allMedia.filter(media => {
                 const mediaTypeValue = media.mediaType || media.type || '';
+                if (mediaTypeValue === 'AUDIOBOOK') return false;
                 return mediaTypeValue === 'AUDIO' || 
                        mediaTypeValue === 'MUSIC' ||
                        media.filePath?.match(/\.(mp3|wav|ogg|flac|m4a|aac)$/i);
@@ -217,7 +221,7 @@ function AudioPlayer() {
                 isPublic: editFormData.isPublic
             };
 
-            const resp = await fetch(`${lexiconApiUrl}/api/media/${editingMedia.id}`, {
+            const resp = await fetch(`${lexiconApiUrl}/api/media/${editingMedia.id}?userId=${user.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
@@ -237,21 +241,81 @@ function AudioPlayer() {
     };
 
     const getFilteredAudio = () => {
-        if (filterType === 'all') return audioFiles;
-        return audioFiles.filter(audio => 
-            filterType === 'personal' ? audio.isPersonal : !audio.isPersonal
-        );
+        let filtered = audioFiles;
+        if (filterType === 'personal') {
+            filtered = filtered.filter(audio => audio.isPersonal);
+        } else if (filterType === 'public') {
+            filtered = filtered.filter(audio => !audio.isPersonal);
+        }
+        if (searchQuery) {
+            const q = searchQuery.toLowerCase();
+            filtered = filtered.filter(audio =>
+                audio.title?.toLowerCase().includes(q) ||
+                audio.description?.toLowerCase().includes(q)
+            );
+        }
+        return filtered;
     };
 
     const getStreamUrl = (audio) => {
         return `${lexiconApiUrl}/api/media/stream/${audio.id}`;
     };
 
+    // Load a track by directly setting src on the existing audio element (never destroy/recreate it)
+    const loadAndPlay = useCallback((audio) => {
+        if (!audioRef.current) { console.error('loadAndPlay: audioRef is null'); return; }
+        const el = audioRef.current;
+        const newSrc = getStreamUrl(audio);
+        console.log(`loadAndPlay: id=${audio.id} title="${audio.title}" src=${newSrc}`);
+        console.log(`loadAndPlay: BEFORE — paused=${el.paused} net=${el.networkState} ready=${el.readyState} ended=${el.ended}`);
+        
+        // First verify the URL is reachable via fetch (HEAD request)
+        fetch(newSrc, { method: 'HEAD', mode: 'no-cors' })
+            .then(() => console.log('loadAndPlay: HEAD fetch OK'))
+            .catch(e => console.error('loadAndPlay: HEAD fetch FAILED:', e));
+        
+        // Defer out of the ended event handler — mobile browsers can reject 
+        // src changes made synchronously inside ended/error callbacks
+        setTimeout(() => {
+            console.log(`loadAndPlay: (deferred) setting src and loading`);
+            // Fully reset the element before loading new source
+            el.pause();
+            el.removeAttribute('src');
+            el.load(); // reset to empty state
+            
+            const onCanPlay = () => {
+                el.removeEventListener('canplay', onCanPlay);
+                el.removeEventListener('error', onError);
+                console.log(`loadAndPlay: canplay fired — calling play()`);
+                el.play().catch(e => {
+                    console.error('loadAndPlay: play() rejected:', e.name, e.message);
+                    setError(`play() rejected: ${e.name} — ${e.message}`);
+                });
+            };
+            const onError = () => {
+                el.removeEventListener('canplay', onCanPlay);
+                el.removeEventListener('error', onError);
+                const code = el.error?.code;
+                const msg = el.error?.message || 'no message';
+                console.error(`loadAndPlay: error during load — code=${code} msg=${msg} net=${el.networkState} ready=${el.readyState}`);
+                setError(`[Code ${code}] ${msg} | net:${el.networkState} ready:${el.readyState} | src: ${newSrc}`);
+            };
+            el.addEventListener('canplay', onCanPlay);
+            el.addEventListener('error', onError);
+            el.src = newSrc;
+            el.load();
+            console.log(`loadAndPlay: AFTER load() — net=${el.networkState} ready=${el.readyState}`);
+        }, 0);
+    }, [lexiconApiUrl]);
+
     const playTrack = (audio, index) => {
         setCurrentTrack(audio);
         setCurrentIndex(index);
         setError('');
         setIsPlaying(true);
+        
+        // Directly update the audio element src (don't rely on React re-render)
+        loadAndPlay(audio);
         
         // Update Media Session API for lock screen controls (iOS, Android)
         if ('mediaSession' in navigator) {
@@ -260,9 +324,7 @@ function AudioPlayer() {
                 artist: audio.description || 'Lexicon Audio',
                 album: playlistMode && selectedPlaylist ? selectedPlaylist.name : 'Library',
                 artwork: [
-                    { src: '/manifest.json', sizes: '96x96', type: 'image/png' },
-                    { src: '/manifest.json', sizes: '192x192', type: 'image/png' },
-                    { src: '/manifest.json', sizes: '512x512', type: 'image/png' }
+                    { src: '/logo.webp', sizes: '512x512', type: 'image/webp' }
                 ]
             });
         }
@@ -287,11 +349,19 @@ function AudioPlayer() {
             });
 
             navigator.mediaSession.setActionHandler('previoustrack', () => {
-                playPrevious();
+                const filtered = getFilteredAudio();
+                if (filtered.length === 0) return;
+                const prevIndex = getPreviousIndex();
+                const prevTrack = filtered[prevIndex];
+                playTrack(prevTrack, prevIndex);
             });
 
             navigator.mediaSession.setActionHandler('nexttrack', () => {
-                playNext();
+                const filtered = getFilteredAudio();
+                if (filtered.length === 0) return;
+                const nextIndex = getNextIndex();
+                const nextTrack = filtered[nextIndex];
+                playTrack(nextTrack, nextIndex);
             });
 
             navigator.mediaSession.setActionHandler('seekto', (details) => {
@@ -362,6 +432,7 @@ function AudioPlayer() {
     };
 
     const handleEnded = () => {
+        console.log(`handleEnded: autoPlay=${autoPlay} currentIndex=${currentIndex} track=${currentTrack?.title}`);
         if (autoPlay) {
             playNext();
         } else {
@@ -393,21 +464,27 @@ function AudioPlayer() {
 
             {error && <div className="error-message">{error}</div>}
 
-            {/* Audio Element (hidden) */}
-            {currentTrack && (
-                <audio
-                    ref={audioRef}
-                    crossOrigin="use-credentials"
-                    src={getStreamUrl(currentTrack)}
-                    onTimeUpdate={handleTimeUpdate}
-                    onLoadedMetadata={handleLoadedMetadata}
-                    onEnded={handleEnded}
-                    onPlay={() => setIsPlaying(true)}
-                    onPause={() => setIsPlaying(false)}
-                    onError={() => setError('Failed to load audio stream')}
-                    autoPlay={isPlaying}
-                />
-            )}
+            {/* Audio Element — always mounted, never destroyed. src updated via ref. */}
+            <audio
+                ref={audioRef}
+                onTimeUpdate={handleTimeUpdate}
+                onLoadedMetadata={handleLoadedMetadata}
+                onEnded={handleEnded}
+                onPlay={() => setIsPlaying(true)}
+                onPause={() => setIsPlaying(false)}
+                onError={(e) => {
+                    const el = e.target;
+                    const code = el?.error?.code;
+                    const msg = el?.error?.message || 'no message';
+                    if (code === 1) return; // MEDIA_ERR_ABORTED — normal during src change
+                    const networkState = el?.networkState; // 0=EMPTY,1=IDLE,2=LOADING,3=NO_SOURCE
+                    const readyState = el?.readyState; // 0=NOTHING,1=METADATA,2=CURRENT_DATA,3=FUTURE_DATA,4=ENOUGH_DATA
+                    const src = el?.currentSrc || el?.src || 'no src';
+                    const detail = `[Code ${code}] ${msg} | net:${networkState} ready:${readyState} | src: ${src}`;
+                    console.error('AUDIO ERROR:', detail);
+                    setError(detail);
+                }}
+            />
 
             <div className="media-player-layout">
                 {/* Audio Player Controls */}
@@ -550,6 +627,13 @@ function AudioPlayer() {
                     {/* Tab Content */}
                     {activeTab === 'library' ? (
                         <>
+                            <input
+                                type="text"
+                                placeholder="Search music..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="library-search-input"
+                            />
                             {!playlistMode && (
                                 <div className="filter-buttons">
                                     <button
@@ -642,9 +726,11 @@ function AudioPlayer() {
                                                 onClick={() => loadPlaylist(pl.id)}
                                             >
                                                 <div className="playlist-icon">🎵</div>
-                                                <h4>{pl.name}</h4>
-                                                <p>{pl.description}</p>
-                                                <span className="playlist-type-badge">{pl.mediaType}</span>
+                                                <div className="playlist-info">
+                                                    <h4>{pl.name}</h4>
+                                                    <p>{pl.description}</p>
+                                                    <span className="playlist-type-badge">{pl.mediaType}</span>
+                                                </div>
                                             </div>
                                         ))
                                     }

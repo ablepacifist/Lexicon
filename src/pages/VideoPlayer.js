@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef, useContext } from 'react';
+import React, { useState, useEffect, useRef, useContext, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
+import { getApiUrls } from '../utils/apiUrls';
 import '../styles/MediaPlayer.css';
 
 function VideoPlayer() {
@@ -20,11 +21,12 @@ function VideoPlayer() {
     const [editingMedia, setEditingMedia] = useState(null);
     const [editFormData, setEditFormData] = useState({ title: '', description: '', isPublic: true });
     const [showEditModal, setShowEditModal] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
     const videoRef = useRef(null);
     const containerRef = useRef(null);
     const navigate = useNavigate();
 
-    const lexiconApiUrl = process.env.REACT_APP_LEXICON_API_URL || 'http://localhost:36568';
+    const { lexiconApiUrl } = getApiUrls();
 
     useEffect(() => {
         // Wait until user is resolved by UserContext
@@ -163,7 +165,7 @@ function VideoPlayer() {
                 isPublic: editFormData.isPublic
             };
 
-            const resp = await fetch(`${lexiconApiUrl}/api/media/${editingMedia.id}`, {
+            const resp = await fetch(`${lexiconApiUrl}/api/media/${editingMedia.id}?userId=${user.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
@@ -183,17 +185,55 @@ function VideoPlayer() {
     };
 
     const getFilteredVideos = () => {
-        if (filterType === 'all') return videos;
-        return videos.filter(video => 
-            filterType === 'personal' ? video.isPersonal : !video.isPersonal
-        );
+        let filtered = videos;
+        if (filterType === 'personal') {
+            filtered = filtered.filter(video => video.isPersonal);
+        } else if (filterType === 'public') {
+            filtered = filtered.filter(video => !video.isPersonal);
+        }
+        if (searchQuery) {
+            const q = searchQuery.toLowerCase();
+            filtered = filtered.filter(video =>
+                video.title?.toLowerCase().includes(q) ||
+                video.description?.toLowerCase().includes(q)
+            );
+        }
+        return filtered;
     };
 
     const playVideo = (video, index = 0) => {
         setCurrentVideo(video);
         setCurrentIndex(index);
         setError('');
+        loadAndPlay(video);
     };
+
+    const loadAndPlay = useCallback((video) => {
+        if (!videoRef.current) return;
+        const el = videoRef.current;
+        const newSrc = getStreamUrl(video);
+        setTimeout(() => {
+            el.pause();
+            el.removeAttribute('src');
+            el.load();
+            const onCanPlay = () => {
+                el.removeEventListener('canplay', onCanPlay);
+                el.removeEventListener('error', onLoadError);
+                el.play().catch(() => {});
+            };
+            const onLoadError = () => {
+                el.removeEventListener('canplay', onCanPlay);
+                el.removeEventListener('error', onLoadError);
+                const code = el.error?.code;
+                const msg = el.error?.message || 'no message';
+                setError(`[Code ${code}] ${msg} | net:${el.networkState} ready:${el.readyState} | src: ${newSrc}`);
+            };
+            el.addEventListener('canplay', onCanPlay);
+            el.addEventListener('error', onLoadError);
+            el.src = newSrc;
+            el.load();
+        }, 0);
+    }, [lexiconApiUrl]);
 
     const playNext = () => {
         const filtered = getFilteredVideos();
@@ -256,22 +296,29 @@ function VideoPlayer() {
 
             {error && <div className="error-message">{error}</div>}
 
+            {/* Video element — always mounted, src updated via ref */}
+            <video
+                ref={videoRef}
+                controls
+                style={{ display: currentVideo ? 'block' : 'none' }}
+                className={isFullscreen ? 'fullscreen-video' : 'video-player'}
+                onEnded={handleVideoEnded}
+                onError={(e) => {
+                    const el = e.target;
+                    const code = el?.error?.code;
+                    if (code === 1) return;
+                    const msg = el?.error?.message || 'no message';
+                    setError(`[Code ${code}] ${msg} | net:${el.networkState} ready:${el.readyState} | src: ${el.currentSrc}`);
+                }}
+            >
+                Your browser does not support the video tag.
+            </video>
+
             <div className="media-player-layout">
                 {/* Video Player Section */}
                 <div className="player-section" ref={containerRef}>
                     {currentVideo ? (
                         <div className="video-player-wrapper">
-                            <video
-                                ref={videoRef}
-                                controls
-                                crossOrigin="use-credentials"
-                                className={isFullscreen ? 'fullscreen-video' : 'video-player'}
-                                src={getStreamUrl(currentVideo)}
-                                onError={() => setError('Failed to load video stream')}
-                                onEnded={handleVideoEnded}
-                            >
-                                Your browser does not support the video tag.
-                            </video>
                             <div className="video-controls">
                                 <h3>{currentVideo.title}</h3>
                                 <p>{currentVideo.description}</p>
@@ -351,6 +398,13 @@ function VideoPlayer() {
                     {/* Tab Content */}
                     {activeTab === 'library' ? (
                         <>
+                            <input
+                                type="text"
+                                placeholder="Search videos..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="library-search-input"
+                            />
                             {!playlistMode && (
                                 <div className="filter-buttons">
                                     <button
@@ -436,9 +490,11 @@ function VideoPlayer() {
                                                 onClick={() => loadPlaylist(pl.id)}
                                             >
                                                 <div className="playlist-icon">🎬</div>
-                                                <h4>{pl.name}</h4>
-                                                <p>{pl.description}</p>
-                                                <span className="playlist-type-badge">{pl.mediaType}</span>
+                                                <div className="playlist-info">
+                                                    <h4>{pl.name}</h4>
+                                                    <p>{pl.description}</p>
+                                                    <span className="playlist-type-badge">{pl.mediaType}</span>
+                                                </div>
                                             </div>
                                         ))
                                     }

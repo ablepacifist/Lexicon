@@ -1,0 +1,756 @@
+/* ===== Live Stream – Unified Dark Theme ===== */
+
+.ls-container {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #0a0a12 0%, #12101e 50%, #0a0a12 100%);
+    color: #e0e0e0;
+    padding: 16px 20px;
+}
+
+/* ---- Header ---- */
+.ls-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 1400px;
+    margin: 0 auto 16px;
+}
+
+.ls-header-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.ls-title {
+    font-size: 1.6rem;
+    background: linear-gradient(135deg, #7c3aed, #3b82f6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin: 0;
+}
+
+.ls-status {
+    font-size: 0.8rem;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.ls-status.connected {
+    color: #4ade80;
+    background: rgba(74, 222, 128, 0.12);
+    border: 1px solid rgba(74, 222, 128, 0.3);
+    animation: ls-pulse 2s ease-in-out infinite;
+}
+
+.ls-status.disconnected {
+    color: #f97316;
+    background: rgba(249, 115, 22, 0.12);
+    border: 1px solid rgba(249, 115, 22, 0.3);
+}
+
+@keyframes ls-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+.ls-back-btn {
+    background: rgba(255, 255, 255, 0.07);
+    color: #aaa;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    padding: 6px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+}
+
+.ls-back-btn:hover {
+    background: rgba(255, 255, 255, 0.14);
+    color: #fff;
+}
+
+/* ---- Error ---- */
+.ls-error {
+    background: rgba(255, 50, 50, 0.12);
+    border: 1px solid rgba(255, 50, 50, 0.25);
+    color: #ff6b6b;
+    padding: 8px 14px;
+    border-radius: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 1400px;
+    margin: 0 auto 12px;
+    font-size: 0.9rem;
+}
+
+.ls-error button {
+    background: none;
+    border: none;
+    color: #ff6b6b;
+    cursor: pointer;
+    font-size: 1rem;
+}
+
+/* ---- Layout ---- */
+.ls-layout {
+    display: flex;
+    gap: 16px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+/* ---- Player Area ---- */
+.ls-player-area {
+    flex: 1;
+    min-width: 0;
+}
+
+.ls-player-wrapper {
+    position: relative;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #000;
+}
+
+.ls-player-wrapper.video-mode {
+    aspect-ratio: 16 / 9;
+}
+
+.ls-player-wrapper.audio-mode {
+    aspect-ratio: 16 / 7;
+    background: linear-gradient(135deg, #1a103a 0%, #0d1b2a 50%, #1a103a 100%);
+}
+
+.ls-video-el {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+/* ---- Audio Visual ---- */
+.ls-audio-visual {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    z-index: 1;
+}
+
+.ls-audio-icon {
+    font-size: 3.5rem;
+    animation: ls-bounce 2s ease-in-out infinite;
+}
+
+@keyframes ls-bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+}
+
+.ls-audio-bars {
+    display: flex;
+    gap: 4px;
+    align-items: flex-end;
+    height: 50px;
+}
+
+.ls-bar {
+    width: 6px;
+    height: 8px;
+    background: linear-gradient(to top, #7c3aed, #3b82f6);
+    border-radius: 3px;
+    transition: height 0.2s;
+}
+
+.ls-bar.active {
+    animation: ls-barAnim 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes ls-barAnim {
+    0% { height: 8px; }
+    100% { height: 45px; }
+}
+
+/* ---- Start Overlay ---- */
+.ls-start-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.7);
+    cursor: pointer;
+    z-index: 10;
+}
+
+.ls-start-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 28px 44px;
+    background: linear-gradient(135deg, #7c3aed, #3b82f6);
+    border-radius: 20px;
+    box-shadow: 0 8px 40px rgba(124, 58, 237, 0.4);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.ls-start-btn:hover {
+    transform: scale(1.06);
+    box-shadow: 0 12px 50px rgba(124, 58, 237, 0.55);
+}
+
+.ls-start-icon {
+    font-size: 2.8rem;
+    line-height: 1;
+}
+
+.ls-start-text {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #fff;
+}
+
+.ls-start-sub {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+/* ---- Video Overlay Controls ---- */
+.ls-vid-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+    z-index: 5;
+}
+
+.ls-vid-overlay.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.ls-vid-overlay-top {
+    padding: 14px 18px;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.65), transparent);
+}
+
+.ls-vid-title-overlay {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #fff;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+}
+
+.ls-vid-overlay-bottom {
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.75), transparent);
+    padding: 8px 14px 12px;
+}
+
+.ls-vid-bottom-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* ---- Progress Bar ---- */
+.ls-progress {
+    width: 100%;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+
+.ls-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #7c3aed, #3b82f6);
+    border-radius: 2px;
+    transition: width 0.3s linear;
+}
+
+.ls-time {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.65);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+/* ---- Controls ---- */
+.ls-ctl {
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: #fff;
+    padding: 5px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: background 0.2s;
+}
+
+.ls-ctl:hover {
+    background: rgba(255, 255, 255, 0.22);
+}
+
+.ls-skip-btn {
+    padding: 5px 16px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #7c3aed, #3b82f6);
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+.ls-skip-btn:hover {
+    box-shadow: 0 2px 12px rgba(124, 58, 237, 0.4);
+    background: linear-gradient(135deg, #6d28d9, #2563eb);
+}
+
+/* ---- Now Playing Bar ---- */
+.ls-now-playing-bar {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 0 0 14px 14px;
+    padding: 12px 16px;
+    margin-top: -2px;
+}
+
+.ls-np-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 4px;
+}
+
+.ls-np-type-badge {
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 8px;
+    background: rgba(124, 58, 237, 0.2);
+    color: #a78bfa;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.ls-np-title {
+    font-size: 0.95rem;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ls-np-hint {
+    font-size: 0.8rem;
+    color: #666;
+}
+
+/* Audio controls (below player for audio mode) */
+.ls-audio-controls {
+    margin-top: 8px;
+}
+
+.ls-audio-progress {
+    margin-bottom: 6px;
+}
+
+.ls-audio-ctrl-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* ---- Sidebar ---- */
+.ls-sidebar {
+    width: 300px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
+}
+
+.ls-sidebar-card {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    padding: 14px;
+}
+
+.ls-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.ls-card-header h3 {
+    font-size: 0.9rem;
+    color: #a78bfa;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin: 0;
+}
+
+.ls-add-btn {
+    background: linear-gradient(135deg, #7c3aed, #3b82f6);
+    color: #fff;
+    border: none;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: box-shadow 0.2s;
+}
+
+.ls-add-btn:hover {
+    box-shadow: 0 2px 10px rgba(124, 58, 237, 0.4);
+}
+
+.ls-skip-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.85rem;
+}
+
+.ls-empty-msg {
+    color: #555;
+    font-size: 0.82rem;
+    text-align: center;
+    padding: 14px 0;
+    margin: 0;
+}
+
+/* Queue list */
+.ls-queue-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.ls-queue-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+    transition: background 0.2s;
+}
+
+.ls-queue-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.ls-qi-pos {
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    background: rgba(124, 58, 237, 0.15);
+    color: #a78bfa;
+    font-size: 0.75rem;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.ls-qi-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ls-qi-title {
+    font-size: 0.82rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ls-qi-type {
+    font-size: 0.7rem;
+    flex-shrink: 0;
+}
+
+.ls-qi-remove {
+    background: none;
+    border: none;
+    color: #666;
+    cursor: pointer;
+    font-size: 0.8rem;
+    padding: 2px 4px;
+    border-radius: 4px;
+    transition: color 0.2s, background 0.2s;
+    flex-shrink: 0;
+}
+
+.ls-qi-remove:hover {
+    color: #ff6b6b;
+    background: rgba(255, 107, 107, 0.1);
+}
+
+/* Now playing card */
+.ls-now-card {
+    border-color: rgba(124, 58, 237, 0.2);
+}
+
+.ls-now-card h3 {
+    font-size: 0.85rem;
+    color: #4ade80;
+    margin: 0 0 6px;
+}
+
+.ls-now-name {
+    font-size: 0.85rem;
+    color: #ddd;
+}
+
+/* ---- Add To Queue Modal ---- */
+.ls-add-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.65);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(4px);
+}
+
+.ls-add-panel {
+    background: #1a1a2e;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.ls-add-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.ls-add-header h2 {
+    font-size: 1.2rem;
+    margin: 0;
+    background: linear-gradient(135deg, #7c3aed, #3b82f6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.ls-add-close {
+    background: rgba(255, 255, 255, 0.08);
+    border: none;
+    color: #aaa;
+    font-size: 1.1rem;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.ls-add-close:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+}
+
+/* Filters */
+.ls-add-filters {
+    padding: 12px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.ls-add-search {
+    width: 100%;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    color: #e0e0e0;
+    font-size: 0.9rem;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.ls-add-search:focus {
+    border-color: rgba(124, 58, 237, 0.5);
+}
+
+.ls-filter-btns {
+    display: flex;
+    gap: 6px;
+}
+
+.ls-filter-btn {
+    padding: 4px 12px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #aaa;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.ls-filter-btn.active {
+    background: rgba(124, 58, 237, 0.2);
+    border-color: rgba(124, 58, 237, 0.4);
+    color: #a78bfa;
+}
+
+/* Media list */
+.ls-add-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 12px;
+}
+
+.ls-add-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    transition: background 0.2s;
+}
+
+.ls-add-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.ls-add-item-icon {
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+
+.ls-add-item-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.ls-add-item-title {
+    font-size: 0.85rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ls-add-item-desc {
+    font-size: 0.72rem;
+    color: #777;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ls-add-item-btn {
+    background: rgba(124, 58, 237, 0.15);
+    border: 1px solid rgba(124, 58, 237, 0.3);
+    color: #a78bfa;
+    padding: 4px 12px;
+    border-radius: 10px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.ls-add-item-btn:hover:not(:disabled) {
+    background: rgba(124, 58, 237, 0.3);
+}
+
+.ls-add-item-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 900px) {
+    .ls-layout {
+        flex-direction: column;
+    }
+
+    .ls-sidebar {
+        width: 100%;
+        max-height: none;
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+
+    .ls-sidebar-card {
+        flex: 1;
+        min-width: 180px;
+    }
+}
+
+@media (max-width: 480px) {
+    .ls-container {
+        padding: 10px;
+    }
+
+    .ls-header {
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-start;
+    }
+
+    .ls-title {
+        font-size: 1.3rem;
+    }
+
+    .ls-player-wrapper.audio-mode {
+        aspect-ratio: 16 / 9;
+    }
+
+    .ls-start-btn {
+        padding: 20px 30px;
+    }
+
+    .ls-start-icon {
+        font-size: 2rem;
+    }
+
+    .ls-add-panel {
+        width: 95%;
+        max-height: 85vh;
+    }
+}

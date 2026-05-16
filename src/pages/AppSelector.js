@@ -1,12 +1,14 @@
 import React, { useContext, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
+import { useAvatar } from '../hooks/useAvatar';
 import background from '../assets/images/background.jpg';
 
 const AppSelector = () => {
   const { user } = useContext(UserContext);
   const navigate = useNavigate();
   const [hover, setHover] = useState({});
+  const { avatarUrl } = useAvatar(user?.username);
 
   // Redirect to login if not authenticated
   if (!user) {
@@ -94,7 +96,17 @@ const AppSelector = () => {
     <div style={containerStyle}>
       <div style={cardStyle}>
         <h1 style={headingStyle}>Choose Your App</h1>
-        <p style={welcomeStyle}>Welcome back, {user.username}!</p>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
+          <img
+            src={avatarUrl}
+            alt=""
+            style={{
+              width: 48, height: 48, borderRadius: '50%', objectFit: 'cover',
+              border: '2px solid #61dafb', boxShadow: '0 0 10px rgba(97,218,251,0.3)',
+            }}
+          />
+          <p style={{ ...welcomeStyle, marginBottom: 0 }}>Welcome back, {user.username}!</p>
+        </div>
 
         <div>
           <Link to="/alchemy-dashboard">
@@ -122,6 +134,21 @@ const AppSelector = () => {
               Lexicon Media
             </button>
           </Link>
+          <br />
+          <a href="https://voice.alex-dyakin.com" rel="noopener noreferrer">
+            <button
+              style={{
+                ...buttonStyle,
+                backgroundColor: '#06b6d4',
+                color: '#fff',
+                ...(hover.voice ? buttonHoverStyle : {}),
+              }}
+              onMouseEnter={() => setHover({ ...hover, voice: true })}
+              onMouseLeave={() => setHover({ ...hover, voice: false })}
+            >
+              🎙️ Voice Bridge
+            </button>
+          </a>
         </div>
 
         <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>

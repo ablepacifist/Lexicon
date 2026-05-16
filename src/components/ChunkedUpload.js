@@ -1,14 +1,14 @@
 import React, { useState, useContext } from 'react';
 import { UserContext } from '../context/UserContext';
+import { getApiUrls } from '../utils/apiUrls';
 
-const API_URL = process.env.REACT_APP_LEXICON_API_URL || process.env.REACT_APP_API_URL;
+const { lexiconApiUrl: API_URL } = getApiUrls();
 const CHUNK_SIZE = 10 * 1024 * 1024; // 10MB chunks
 const LARGE_FILE_THRESHOLD = 100 * 1024 * 1024; // 100MB threshold for chunked upload
 
 const ChunkedUpload = ({ file, title, description, isPublic, mediaType, onSuccess, onError, onProgress }) => {
   const { user } = useContext(UserContext);
   const [uploadId, setUploadId] = useState(null);
-  const [currentChunk, setCurrentChunk] = useState(0);
   const [totalChunks, setTotalChunks] = useState(0);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
@@ -16,12 +16,17 @@ const ChunkedUpload = ({ file, title, description, isPublic, mediaType, onSucces
   const [uploadStatus, setUploadStatus] = useState('');
   const [uploadedChunks, setUploadedChunks] = useState(new Set());
 
-  const calculateMD5 = async (data) => {
+  const calculateSHA256 = async (data) => {
     const crypto = window.crypto;
     if (crypto && crypto.subtle) {
-      const hashBuffer = await crypto.subtle.digest('MD5', data);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      try {
+        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      } catch (error) {
+        console.warn('SHA-256 calculation failed:', error);
+        return null;
+      }
     }
     return null; // Fallback if crypto not available
   };
@@ -75,7 +80,7 @@ const ChunkedUpload = ({ file, title, description, isPublic, mediaType, onSucces
     // Calculate chunk checksum if possible
     try {
       const arrayBuffer = await chunkData.arrayBuffer();
-      const checksum = await calculateMD5(arrayBuffer);
+      const checksum = await calculateSHA256(arrayBuffer);
       if (checksum) {
         formData.append('checksum', checksum);
       }
@@ -116,13 +121,11 @@ const ChunkedUpload = ({ file, title, description, isPublic, mediaType, onSucces
         }
 
         setUploadStatus(`🔄 Resuming upload, ${missingChunks.length} chunks remaining`);
-        setCurrentChunk(Math.min(...missingChunks));
         
         // Continue uploading missing chunks
         for (const chunkNumber of missingChunks.sort((a, b) => a - b)) {
           if (isPaused) break;
           
-          setCurrentChunk(chunkNumber);
           setUploadStatus(`📤 Uploading chunk ${chunkNumber + 1}/${totalChunks}`);
           
           const result = await uploadChunk(uploadId, chunkNumber);
@@ -145,20 +148,33 @@ const ChunkedUpload = ({ file, title, description, isPublic, mediaType, onSucces
 
   const finalizeUpload = async (uploadId) => {
     try {
-      const response = await fetch(`${API_URL}/api/media/chunked/finalize/${uploadId}`, {
-        method: 'POST',
-        credentials: 'include',
-      });
+      // Poll finalize — server may return "assembling" for large files
+      const maxAttempts = 120; // 10 minutes at 5s intervals
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        const response = await fetch(`${API_URL}/api/media/chunked/finalize/${uploadId}`, {
+          method: 'POST',
+          credentials: 'include',
+        });
 
-      if (response.ok) {
-        const result = await response.json();
-        setUploadStatus('🎉 Upload completed successfully!');
-        setUploadProgress(100);
-        onProgress(100);
-        onSuccess(result.mediaFile);
-      } else {
-        throw new Error('Failed to finalize upload');
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success) {
+            setUploadStatus('🎉 Upload completed successfully!');
+            setUploadProgress(100);
+            onProgress(100);
+            onSuccess(result.mediaFile);
+            return;
+          }
+          // Still assembling — wait and retry
+          if (result.status === 'assembling') {
+            setUploadStatus(`🔧 Assembling file... (${attempt * 5}s)`);
+            await new Promise(r => setTimeout(r, 5000));
+            continue;
+          }
+        }
+        throw new Error(`Finalize failed (${response.status})`);
       }
+      throw new Error('Finalize timed out — file may be too large');
     } catch (error) {
       onError(`Finalization failed: ${error.message}`);
     }
@@ -210,7 +226,6 @@ const ChunkedUpload = ({ file, title, description, isPublic, mediaType, onSucces
         });
         
         setUploadId(null);
-        setCurrentChunk(0);
         setTotalChunks(0);
         setUploadProgress(0);
         setUploadedChunks(new Set());

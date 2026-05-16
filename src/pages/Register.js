@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import background from '../assets/images/background.jpg';
+import { getApiUrls } from '../utils/apiUrls';
 
-const API_URL = process.env.REACT_APP_API_URL;
+const { lexiconApiUrl: API_URL } = getApiUrls();
 // register component acts much the same way as the lognin component
 const Register = () => {
   const [username, setUsername] = useState('');

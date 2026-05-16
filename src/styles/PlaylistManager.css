@@ -501,17 +501,252 @@
 @media (max-width: 768px) {
     .playlist-header {
         flex-direction: column;
-        gap: 15px;
+        gap: 12px;
+        padding: 14px;
+    }
+
+    .playlist-header h1 {
+        font-size: 1.5rem;
     }
 
     .modal-content {
         width: 95%;
-        padding: 20px;
+        padding: 16px;
+        max-height: 90vh;
+    }
+
+    .modal-content.add-media-modal {
+        max-width: 100%;
+        max-height: 92vh;
     }
 
     .playlist-card-header {
         flex-direction: column;
         align-items: flex-start;
+        gap: 6px;
+    }
+
+    .playlist-actions {
+        gap: 6px;
+    }
+
+    .edit-btn, .delete-btn {
+        padding: 8px 14px;
+        font-size: 0.9rem;
+    }
+
+    .panel-header {
+        flex-direction: column;
         gap: 10px;
+        align-items: stretch;
+    }
+
+    .create-button, .add-media-button {
+        text-align: center;
+        padding: 10px 16px;
+    }
+
+    .playlist-item {
+        padding: 12px 10px;
+    }
+
+    .item-actions {
+        gap: 4px;
+    }
+
+    .move-btn, .remove-btn {
+        padding: 8px 12px;
+        font-size: 1rem;
+    }
+
+    .search-input {
+        font-size: 16px; /* prevents iOS zoom */
+    }
+}
+
+/* ========================================
+   Playlist Filter Pills
+   ======================================== */
+
+.search-filter-section {
+    margin-bottom: 16px;
+}
+
+.search-filter-section .search-input {
+    margin-bottom: 10px;
+}
+
+.playlist-filter-pills {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.playlist-filter-pill {
+    padding: 6px 14px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 20px;
+    color: rgba(255, 255, 255, 0.65);
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 500;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.playlist-filter-pill:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+}
+
+.playlist-filter-pill.active {
+    background: rgba(102, 126, 234, 0.2);
+    border-color: rgba(102, 126, 234, 0.4);
+    color: #a8b3ff;
+    font-weight: 600;
+}
+
+/* ========================================
+   Improved Add Media Modal UX
+   ======================================== */
+
+.modal-top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.modal-top-bar h2 {
+    margin: 0;
+    font-size: 1.3rem;
+}
+
+.modal-x-btn {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 22px;
+    cursor: pointer;
+    padding: 2px 6px;
+    transition: color 0.2s;
+}
+
+.modal-x-btn:hover {
+    color: #fff;
+}
+
+.modal-search-area {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.modal-search-area .search-input {
+    margin-bottom: 0;
+}
+
+.modal-result-count {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.4);
+    text-align: right;
+}
+
+.media-list-scrollable {
+    flex: 1;
+    overflow-y: auto;
+    max-height: 50vh;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.media-add-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 8px;
+    transition: all 0.15s;
+}
+
+.media-add-row:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.media-add-icon {
+    font-size: 20px;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+.media-add-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.media-add-title {
+    font-size: 0.9rem;
+    color: #fff;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.media-add-desc {
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.45);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.media-add-row .add-btn {
+    flex: 0 0 auto;
+    padding: 8px 16px;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    min-width: 60px;
+    text-align: center;
+}
+
+/* Mobile improvements for add media */
+@media (max-width: 480px) {
+    .playlist-filter-pills {
+        gap: 4px;
+    }
+
+    .playlist-filter-pill {
+        padding: 7px 10px;
+        font-size: 0.75rem;
+    }
+
+    .media-add-row {
+        padding: 12px 10px;
+    }
+
+    .media-add-row .add-btn {
+        padding: 10px 14px;
+        font-size: 0.9rem;
+        min-width: 55px;
+    }
+
+    .media-list-scrollable {
+        max-height: 55vh;
     }
 }

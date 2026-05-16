@@ -1,11 +1,13 @@
 import React, { useContext, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
+import { useAvatar } from '../hooks/useAvatar';
 import background from '../assets/images/lexicon_room.jpg';
 
 const LexiconDashboard = () => {
   const { user } = useContext(UserContext);
   const [hover, setHover] = useState({});
+  const { avatarUrl } = useAvatar(user?.username);
 
   const containerStyle = {
     backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url(${background})`,
@@ -102,7 +104,10 @@ const LexiconDashboard = () => {
       <div style={cardStyle}>
         <div style={headerStyle}>
           <h1 style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>Lexicon Media Dashboard</h1>
-          <p style={{ fontSize: '1.2rem', color: '#9b59b6' }}>Welcome, {user?.username}!</p>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', marginTop: '0.5rem' }}>
+            <img src={avatarUrl} alt="" style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', border: '2px solid #9b59b6' }} />
+            <p style={{ fontSize: '1.2rem', color: '#9b59b6', margin: 0 }}>Welcome, {user?.username}!</p>
+          </div>
           <p style={{ fontSize: '1rem', color: '#aaa', marginTop: '1rem' }}>
             Choose a feature to get started
           </p>
@@ -176,16 +181,46 @@ const LexiconDashboard = () => {
             </button>
           </Link>
           <br />
-          <Link to="/media-stream">
+
+          <Link to="/music-stream">
             <button
               style={{
-                ...streamButtonStyle,
-                ...(hover.stream ? buttonHoverStyle : {}),
+                ...buttonStyle,
+                backgroundColor: '#7c3aed',
+                ...(hover.musicStream ? buttonHoverStyle : {}),
               }}
-              onMouseEnter={() => setHover({ ...hover, stream: true })}
-              onMouseLeave={() => setHover({ ...hover, stream: false })}
+              onMouseEnter={() => setHover({ ...hover, musicStream: true })}
+              onMouseLeave={() => setHover({ ...hover, musicStream: false })}
             >
-              Live Stream
+              🎵 Music Stream
+            </button>
+          </Link>
+          <br />
+          <Link to="/video-stream">
+            <button
+              style={{
+                ...buttonStyle,
+                backgroundColor: '#e74c3c',
+                ...(hover.videoStream ? buttonHoverStyle : {}),
+              }}
+              onMouseEnter={() => setHover({ ...hover, videoStream: true })}
+              onMouseLeave={() => setHover({ ...hover, videoStream: false })}
+            >
+              🎬 Video Stream
+            </button>
+          </Link>
+          <br />
+          <Link to="/queue-manager">
+            <button
+              style={{
+                ...buttonStyle,
+                backgroundColor: '#3b82f6',
+                ...(hover.queueManager ? buttonHoverStyle : {}),
+              }}
+              onMouseEnter={() => setHover({ ...hover, queueManager: true })}
+              onMouseLeave={() => setHover({ ...hover, queueManager: false })}
+            >
+              🎵 Queue Manager
             </button>
           </Link>
           <br />
