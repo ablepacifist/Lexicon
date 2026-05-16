@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useContext } from 'react';
+import React, { useState, useEffect, useRef, useContext, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
 import { getApiUrls } from '../utils/apiUrls';
@@ -28,6 +28,7 @@ function AudioPlayer() {
     const [shuffledIndices, setShuffledIndices] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const audioRef = useRef(null);
+    const [audioReady, setAudioReady] = useState(false);
     const navigate = useNavigate();
 
     const { lexiconApiUrl } = getApiUrls();
@@ -260,11 +261,61 @@ function AudioPlayer() {
         return `${lexiconApiUrl}/api/media/stream/${audio.id}`;
     };
 
+    // Load a track by directly setting src on the existing audio element (never destroy/recreate it)
+    const loadAndPlay = useCallback((audio) => {
+        if (!audioRef.current) { console.error('loadAndPlay: audioRef is null'); return; }
+        const el = audioRef.current;
+        const newSrc = getStreamUrl(audio);
+        console.log(`loadAndPlay: id=${audio.id} title="${audio.title}" src=${newSrc}`);
+        console.log(`loadAndPlay: BEFORE — paused=${el.paused} net=${el.networkState} ready=${el.readyState} ended=${el.ended}`);
+        
+        // First verify the URL is reachable via fetch (HEAD request)
+        fetch(newSrc, { method: 'HEAD', mode: 'no-cors' })
+            .then(() => console.log('loadAndPlay: HEAD fetch OK'))
+            .catch(e => console.error('loadAndPlay: HEAD fetch FAILED:', e));
+        
+        // Defer out of the ended event handler — mobile browsers can reject 
+        // src changes made synchronously inside ended/error callbacks
+        setTimeout(() => {
+            console.log(`loadAndPlay: (deferred) setting src and loading`);
+            // Fully reset the element before loading new source
+            el.pause();
+            el.removeAttribute('src');
+            el.load(); // reset to empty state
+            
+            const onCanPlay = () => {
+                el.removeEventListener('canplay', onCanPlay);
+                el.removeEventListener('error', onError);
+                console.log(`loadAndPlay: canplay fired — calling play()`);
+                el.play().catch(e => {
+                    console.error('loadAndPlay: play() rejected:', e.name, e.message);
+                    setError(`play() rejected: ${e.name} — ${e.message}`);
+                });
+            };
+            const onError = () => {
+                el.removeEventListener('canplay', onCanPlay);
+                el.removeEventListener('error', onError);
+                const code = el.error?.code;
+                const msg = el.error?.message || 'no message';
+                console.error(`loadAndPlay: error during load — code=${code} msg=${msg} net=${el.networkState} ready=${el.readyState}`);
+                setError(`[Code ${code}] ${msg} | net:${el.networkState} ready:${el.readyState} | src: ${newSrc}`);
+            };
+            el.addEventListener('canplay', onCanPlay);
+            el.addEventListener('error', onError);
+            el.src = newSrc;
+            el.load();
+            console.log(`loadAndPlay: AFTER load() — net=${el.networkState} ready=${el.readyState}`);
+        }, 0);
+    }, [lexiconApiUrl]);
+
     const playTrack = (audio, index) => {
         setCurrentTrack(audio);
         setCurrentIndex(index);
         setError('');
         setIsPlaying(true);
+        
+        // Directly update the audio element src (don't rely on React re-render)
+        loadAndPlay(audio);
         
         // Update Media Session API for lock screen controls (iOS, Android)
         if ('mediaSession' in navigator) {
@@ -303,11 +354,6 @@ function AudioPlayer() {
                 const prevIndex = getPreviousIndex();
                 const prevTrack = filtered[prevIndex];
                 playTrack(prevTrack, prevIndex);
-                // Directly update src to avoid autoPlay block on locked screens
-                if (audioRef.current) {
-                    audioRef.current.src = getStreamUrl(prevTrack);
-                    audioRef.current.play().catch(() => {});
-                }
             });
 
             navigator.mediaSession.setActionHandler('nexttrack', () => {
@@ -316,11 +362,6 @@ function AudioPlayer() {
                 const nextIndex = getNextIndex();
                 const nextTrack = filtered[nextIndex];
                 playTrack(nextTrack, nextIndex);
-                // Directly update src to avoid autoPlay block on locked screens
-                if (audioRef.current) {
-                    audioRef.current.src = getStreamUrl(nextTrack);
-                    audioRef.current.play().catch(() => {});
-                }
             });
 
             navigator.mediaSession.setActionHandler('seekto', (details) => {
@@ -391,6 +432,7 @@ function AudioPlayer() {
     };
 
     const handleEnded = () => {
+        console.log(`handleEnded: autoPlay=${autoPlay} currentIndex=${currentIndex} track=${currentTrack?.title}`);
         if (autoPlay) {
             playNext();
         } else {
@@ -422,21 +464,27 @@ function AudioPlayer() {
 
             {error && <div className="error-message">{error}</div>}
 
-            {/* Audio Element (hidden) */}
-            {currentTrack && (
-                <audio
-                    ref={audioRef}
-                    crossOrigin="use-credentials"
-                    src={getStreamUrl(currentTrack)}
-                    onTimeUpdate={handleTimeUpdate}
-                    onLoadedMetadata={handleLoadedMetadata}
-                    onEnded={handleEnded}
-                    onPlay={() => setIsPlaying(true)}
-                    onPause={() => setIsPlaying(false)}
-                    onError={() => setError('Failed to load audio stream')}
-                    autoPlay={isPlaying}
-                />
-            )}
+            {/* Audio Element — always mounted, never destroyed. src updated via ref. */}
+            <audio
+                ref={audioRef}
+                onTimeUpdate={handleTimeUpdate}
+                onLoadedMetadata={handleLoadedMetadata}
+                onEnded={handleEnded}
+                onPlay={() => setIsPlaying(true)}
+                onPause={() => setIsPlaying(false)}
+                onError={(e) => {
+                    const el = e.target;
+                    const code = el?.error?.code;
+                    const msg = el?.error?.message || 'no message';
+                    if (code === 1) return; // MEDIA_ERR_ABORTED — normal during src change
+                    const networkState = el?.networkState; // 0=EMPTY,1=IDLE,2=LOADING,3=NO_SOURCE
+                    const readyState = el?.readyState; // 0=NOTHING,1=METADATA,2=CURRENT_DATA,3=FUTURE_DATA,4=ENOUGH_DATA
+                    const src = el?.currentSrc || el?.src || 'no src';
+                    const detail = `[Code ${code}] ${msg} | net:${networkState} ready:${readyState} | src: ${src}`;
+                    console.error('AUDIO ERROR:', detail);
+                    setError(detail);
+                }}
+            />
 
             <div className="media-player-layout">
                 {/* Audio Player Controls */}

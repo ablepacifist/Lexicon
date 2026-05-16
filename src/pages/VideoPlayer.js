@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useContext } from 'react';
+import React, { useState, useEffect, useRef, useContext, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
 import { getApiUrls } from '../utils/apiUrls';
@@ -205,7 +205,35 @@ function VideoPlayer() {
         setCurrentVideo(video);
         setCurrentIndex(index);
         setError('');
+        loadAndPlay(video);
     };
+
+    const loadAndPlay = useCallback((video) => {
+        if (!videoRef.current) return;
+        const el = videoRef.current;
+        const newSrc = getStreamUrl(video);
+        setTimeout(() => {
+            el.pause();
+            el.removeAttribute('src');
+            el.load();
+            const onCanPlay = () => {
+                el.removeEventListener('canplay', onCanPlay);
+                el.removeEventListener('error', onLoadError);
+                el.play().catch(() => {});
+            };
+            const onLoadError = () => {
+                el.removeEventListener('canplay', onCanPlay);
+                el.removeEventListener('error', onLoadError);
+                const code = el.error?.code;
+                const msg = el.error?.message || 'no message';
+                setError(`[Code ${code}] ${msg} | net:${el.networkState} ready:${el.readyState} | src: ${newSrc}`);
+            };
+            el.addEventListener('canplay', onCanPlay);
+            el.addEventListener('error', onLoadError);
+            el.src = newSrc;
+            el.load();
+        }, 0);
+    }, [lexiconApiUrl]);
 
     const playNext = () => {
         const filtered = getFilteredVideos();
@@ -268,23 +296,29 @@ function VideoPlayer() {
 
             {error && <div className="error-message">{error}</div>}
 
+            {/* Video element — always mounted, src updated via ref */}
+            <video
+                ref={videoRef}
+                controls
+                style={{ display: currentVideo ? 'block' : 'none' }}
+                className={isFullscreen ? 'fullscreen-video' : 'video-player'}
+                onEnded={handleVideoEnded}
+                onError={(e) => {
+                    const el = e.target;
+                    const code = el?.error?.code;
+                    if (code === 1) return;
+                    const msg = el?.error?.message || 'no message';
+                    setError(`[Code ${code}] ${msg} | net:${el.networkState} ready:${el.readyState} | src: ${el.currentSrc}`);
+                }}
+            >
+                Your browser does not support the video tag.
+            </video>
+
             <div className="media-player-layout">
                 {/* Video Player Section */}
                 <div className="player-section" ref={containerRef}>
                     {currentVideo ? (
                         <div className="video-player-wrapper">
-                            <video
-                                key={currentVideo.id}
-                                ref={videoRef}
-                                controls
-                                crossOrigin="use-credentials"
-                                className={isFullscreen ? 'fullscreen-video' : 'video-player'}
-                                src={getStreamUrl(currentVideo)}
-                                onError={() => setError('Failed to load video stream')}
-                                onEnded={handleVideoEnded}
-                            >
-                                Your browser does not support the video tag.
-                            </video>
                             <div className="video-controls">
                                 <h3>{currentVideo.title}</h3>
                                 <p>{currentVideo.description}</p>

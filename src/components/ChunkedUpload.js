@@ -148,20 +148,33 @@ const ChunkedUpload = ({ file, title, description, isPublic, mediaType, onSucces
 
   const finalizeUpload = async (uploadId) => {
     try {
-      const response = await fetch(`${API_URL}/api/media/chunked/finalize/${uploadId}`, {
-        method: 'POST',
-        credentials: 'include',
-      });
+      // Poll finalize — server may return "assembling" for large files
+      const maxAttempts = 120; // 10 minutes at 5s intervals
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        const response = await fetch(`${API_URL}/api/media/chunked/finalize/${uploadId}`, {
+          method: 'POST',
+          credentials: 'include',
+        });
 
-      if (response.ok) {
-        const result = await response.json();
-        setUploadStatus('🎉 Upload completed successfully!');
-        setUploadProgress(100);
-        onProgress(100);
-        onSuccess(result.mediaFile);
-      } else {
-        throw new Error('Failed to finalize upload');
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success) {
+            setUploadStatus('🎉 Upload completed successfully!');
+            setUploadProgress(100);
+            onProgress(100);
+            onSuccess(result.mediaFile);
+            return;
+          }
+          // Still assembling — wait and retry
+          if (result.status === 'assembling') {
+            setUploadStatus(`🔧 Assembling file... (${attempt * 5}s)`);
+            await new Promise(r => setTimeout(r, 5000));
+            continue;
+          }
+        }
+        throw new Error(`Finalize failed (${response.status})`);
       }
+      throw new Error('Finalize timed out — file may be too large');
     } catch (error) {
       onError(`Finalization failed: ${error.message}`);
     }
