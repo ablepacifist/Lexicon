@@ -413,13 +413,16 @@ function Audiobooks() {
                 <audio
                     key={currentBook.id}
                     ref={audioRef}
-                    crossOrigin="use-credentials"
                     src={getStreamUrl(currentBook)}
                     onTimeUpdate={handleTimeUpdate}
                     onLoadedMetadata={handleLoadedMetadata}
                     onPlay={() => setIsPlaying(true)}
                     onPause={() => setIsPlaying(false)}
-                    onError={() => setError('Failed to load audiobook')}
+                    onError={(e) => {
+                        const code = e.target?.error?.code;
+                        console.error('Audiobook error code:', code, e.target?.error?.message);
+                        if (code !== 1) setError('Failed to load audiobook');
+                    }}
                     autoPlay={isPlaying}
                 />
             )}

@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef, useContext, useCallback } from 'rea
 import { useNavigate } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
 import { getApiUrls } from '../utils/apiUrls';
+import StreamLogger from '../utils/StreamLogger';
+import StreamLogPanel from '../components/StreamLogPanel';
 import '../styles/MediaPlayer.css';
 
 function AudioPlayer() {
@@ -28,10 +30,26 @@ function AudioPlayer() {
     const [shuffledIndices, setShuffledIndices] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const audioRef = useRef(null);
+    const pendingRetryRef = useRef(null); // track that failed all retries, auto-retry on focus
     const [audioReady, setAudioReady] = useState(false);
     const navigate = useNavigate();
 
     const { lexiconApiUrl } = getApiUrls();
+
+    // Auto-retry failed track when page regains visibility (Bluetooth reconnect, phone unlock)
+    useEffect(() => {
+        const onVisibility = () => {
+            if (document.visibilityState === 'visible' && pendingRetryRef.current) {
+                const track = pendingRetryRef.current;
+                pendingRetryRef.current = null;
+                StreamLogger.info('recovery', `Page visible — retrying failed track "${track.title}"`);
+                setError('');
+                loadAndPlay(track, { fromEnded: false, attempt: 1 });
+            }
+        };
+        document.addEventListener('visibilitychange', onVisibility);
+        return () => document.removeEventListener('visibilitychange', onVisibility);
+    }, []);
 
     useEffect(() => {
         // Wait until user context resolves
@@ -261,61 +279,102 @@ function AudioPlayer() {
         return `${lexiconApiUrl}/api/media/stream/${audio.id}`;
     };
 
-    // Load a track by directly setting src on the existing audio element (never destroy/recreate it)
-    const loadAndPlay = useCallback((audio) => {
-        if (!audioRef.current) { console.error('loadAndPlay: audioRef is null'); return; }
+    // Core audio loading function. Two modes:
+    // - fromEnded=true: called synchronously from the 'ended' handler. NO setTimeout, NO deferral.
+    //   iOS requires play()/load() to stay in the trusted event chain.
+    // - fromEnded=false: called from user interaction (click). Uses setTimeout to avoid
+    //   issues with React state updates mid-render.
+    const loadAndPlay = useCallback((audio, { fromEnded = false, attempt = 1 } = {}) => {
+        const MAX_RETRIES = 8;
+        if (!audioRef.current) { StreamLogger.error('loadAndPlay', 'audioRef is null'); return; }
         const el = audioRef.current;
-        const newSrc = getStreamUrl(audio);
-        console.log(`loadAndPlay: id=${audio.id} title="${audio.title}" src=${newSrc}`);
-        console.log(`loadAndPlay: BEFORE — paused=${el.paused} net=${el.networkState} ready=${el.readyState} ended=${el.ended}`);
-        
-        // First verify the URL is reachable via fetch (HEAD request)
-        fetch(newSrc, { method: 'HEAD', mode: 'no-cors' })
-            .then(() => console.log('loadAndPlay: HEAD fetch OK'))
-            .catch(e => console.error('loadAndPlay: HEAD fetch FAILED:', e));
-        
-        // Defer out of the ended event handler — mobile browsers can reject 
-        // src changes made synchronously inside ended/error callbacks
-        setTimeout(() => {
-            console.log(`loadAndPlay: (deferred) setting src and loading`);
-            // Fully reset the element before loading new source
-            el.pause();
-            el.removeAttribute('src');
-            el.load(); // reset to empty state
-            
-            const onCanPlay = () => {
+        const newSrc = `${getStreamUrl(audio)}?_t=${Date.now()}`;
+        StreamLogger.info('loadAndPlay', `Attempt ${attempt}/${MAX_RETRIES} | fromEnded=${fromEnded} | id=${audio.id} "${audio.title}"`, newSrc);
+
+        // Diagnostic preflight (non-blocking, logging only)
+        fetch(`${getStreamUrl(audio)}?_diag=${Date.now()}`, { method: 'HEAD', credentials: 'omit' })
+            .then(r => StreamLogger.info('preflight', `Status ${r.status} | type=${r.headers.get('content-type')} | length=${r.headers.get('content-length')}`))
+            .catch(e => StreamLogger.warn('preflight', `Network check failed: ${e.message} (will still try)`));
+
+        const doLoad = () => {
+            let settled = false;
+            const TIMEOUT_MS = 10000;
+
+            const cleanup = () => {
+                settled = true;
+                clearTimeout(tid);
                 el.removeEventListener('canplay', onCanPlay);
-                el.removeEventListener('error', onError);
-                console.log(`loadAndPlay: canplay fired — calling play()`);
-                el.play().catch(e => {
-                    console.error('loadAndPlay: play() rejected:', e.name, e.message);
-                    setError(`play() rejected: ${e.name} — ${e.message}`);
-                });
+                el.removeEventListener('error', onErr);
             };
-            const onError = () => {
-                el.removeEventListener('canplay', onCanPlay);
-                el.removeEventListener('error', onError);
+
+            const onCanPlay = () => {
+                if (settled) return;
+                cleanup();
+                StreamLogger.success('loadAndPlay', `canplay fired — calling play() (net=${el.networkState} ready=${el.readyState})`);
+                el.play().catch(e => StreamLogger.error('play()', `Rejected: ${e.name} — ${e.message}`));
+            };
+
+            const onErr = () => {
+                if (settled) return;
+                cleanup();
                 const code = el.error?.code;
                 const msg = el.error?.message || 'no message';
-                console.error(`loadAndPlay: error during load — code=${code} msg=${msg} net=${el.networkState} ready=${el.readyState}`);
-                setError(`[Code ${code}] ${msg} | net:${el.networkState} ready:${el.readyState} | src: ${newSrc}`);
+                StreamLogger.error('loadAndPlay', `Load failed: Code ${code} | ${msg} | net:${el.networkState} ready:${el.readyState}`);
+                retryTrack(audio, attempt);
             };
+
+            const tid = setTimeout(() => {
+                if (settled) return;
+                cleanup();
+                StreamLogger.warn('loadAndPlay', `Timeout (${TIMEOUT_MS}ms) — no canplay/error`);
+                retryTrack(audio, attempt);
+            }, TIMEOUT_MS);
+
+            // ALWAYS do a full element reset — the ended state leaves the pipeline dirty.
+            // This is synchronous on the fromEnded path, preserving iOS's trusted event chain.
+            el.pause();
+            el.removeAttribute('src');
+            el.load(); // force reset to HAVE_NOTHING state
+
             el.addEventListener('canplay', onCanPlay);
-            el.addEventListener('error', onError);
+            el.addEventListener('error', onErr);
             el.src = newSrc;
             el.load();
-            console.log(`loadAndPlay: AFTER load() — net=${el.networkState} ready=${el.readyState}`);
-        }, 0);
+            StreamLogger.info('loadAndPlay', `load() called — net=${el.networkState} ready=${el.readyState}`);
+        };
+
+        // CRITICAL: if called from ended handler, do NOT defer — stay in trusted event chain.
+        if (fromEnded && attempt === 1) {
+            doLoad();
+        } else {
+            setTimeout(doLoad, 0);
+        }
     }, [lexiconApiUrl]);
 
-    const playTrack = (audio, index) => {
+    // Retry with escalating delays — longer window for Bluetooth recovery (total ~90s)
+    const retryTrack = useCallback((audio, attempt) => {
+        const MAX_RETRIES = 8;
+        if (attempt < MAX_RETRIES) {
+            // Delays: 500, 1000, 2000, 4000, 5000, 5000, 5000 (total ~22.5s between retries + 80s of timeouts = ~100s window)
+            const delay = Math.min(attempt * 1000, 5000);
+            StreamLogger.warn('retry', `Retrying in ${delay}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
+            setTimeout(() => loadAndPlay(audio, { fromEnded: false, attempt: attempt + 1 }), delay);
+        } else {
+            StreamLogger.error('loadAndPlay', `All ${MAX_RETRIES} attempts failed for id=${audio.id}`);
+            setError(`Failed to load "${audio.title}". Tap play to retry.`);
+            // Store failed track so we can retry on visibility/focus change
+            pendingRetryRef.current = audio;
+        }
+    }, []);
+
+    const playTrack = (audio, index, { fromEnded = false } = {}) => {
         setCurrentTrack(audio);
         setCurrentIndex(index);
         setError('');
         setIsPlaying(true);
         
         // Directly update the audio element src (don't rely on React re-render)
-        loadAndPlay(audio);
+        loadAndPlay(audio, { fromEnded });
         
         // Update Media Session API for lock screen controls (iOS, Android)
         if ('mediaSession' in navigator) {
@@ -387,12 +446,12 @@ function AudioPlayer() {
         }
     };
 
-    const playNext = () => {
+    const playNext = ({ fromEnded = false } = {}) => {
         const filtered = getFilteredAudio();
         if (filtered.length === 0) return;
         
         const nextIndex = getNextIndex();
-        playTrack(filtered[nextIndex], nextIndex);
+        playTrack(filtered[nextIndex], nextIndex, { fromEnded });
     };
 
     const playPrevious = () => {
@@ -432,9 +491,11 @@ function AudioPlayer() {
     };
 
     const handleEnded = () => {
-        console.log(`handleEnded: autoPlay=${autoPlay} currentIndex=${currentIndex} track=${currentTrack?.title}`);
+        StreamLogger.info('handleEnded', `autoPlay=${autoPlay} track="${currentTrack?.title}"`);
         if (autoPlay) {
-            playNext();
+            // CRITICAL: call playNext synchronously — do NOT defer.
+            // iOS revokes audio session permission if we leave the trusted event chain.
+            playNext({ fromEnded: true });
         } else {
             setIsPlaying(false);
         }
@@ -477,14 +538,15 @@ function AudioPlayer() {
                     const code = el?.error?.code;
                     const msg = el?.error?.message || 'no message';
                     if (code === 1) return; // MEDIA_ERR_ABORTED — normal during src change
-                    const networkState = el?.networkState; // 0=EMPTY,1=IDLE,2=LOADING,3=NO_SOURCE
-                    const readyState = el?.readyState; // 0=NOTHING,1=METADATA,2=CURRENT_DATA,3=FUTURE_DATA,4=ENOUGH_DATA
+                    const networkState = el?.networkState;
+                    const readyState = el?.readyState;
                     const src = el?.currentSrc || el?.src || 'no src';
-                    const detail = `[Code ${code}] ${msg} | net:${networkState} ready:${readyState} | src: ${src}`;
-                    console.error('AUDIO ERROR:', detail);
-                    setError(detail);
+                    // Log to StreamLogger instead of just console
+                    StreamLogger.error('audio-element', `Code ${code} | ${msg} | net:${networkState} ready:${readyState}`, src);
                 }}
             />
+
+            <StreamLogPanel />
 
             <div className="media-player-layout">
                 {/* Audio Player Controls */}
