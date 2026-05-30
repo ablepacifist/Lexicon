@@ -2,6 +2,7 @@ import React, { useContext, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
 import { useAvatar } from '../hooks/useAvatar';
+import { navigateToVoice } from '../utils/voiceNavigation';
 import './Navbar.css';
 
 const Navbar = () => {
@@ -19,6 +20,7 @@ const Navbar = () => {
     { path: '/dnd', label: 'D&D' },
     { path: '/alchemy-dashboard', label: 'Alchemy', requiresAuth: true },
     { path: '/lexicon-dashboard', label: 'Lexicon', requiresAuth: true },
+    { path: '#voice', label: '🎙️ Voice', requiresAuth: true, external: true },
   ];
 
   const isActive = (path) => location.pathname === path;
@@ -44,6 +46,18 @@ const Navbar = () => {
         <div className={`navbar-links ${menuOpen ? 'show' : ''}`}>
           {navItems.map((item) => {
             if (item.requiresAuth && !user) return null;
+            if (item.external) {
+              return (
+                <button
+                  key={item.path}
+                  className="navbar-link"
+                  onClick={() => { setMenuOpen(false); navigateToVoice(); }}
+                  style={{ background: 'none', border: 'none', font: 'inherit', cursor: 'pointer', color: 'inherit' }}
+                >
+                  {item.label}
+                </button>
+              );
+            }
             return (
               <Link
                 key={item.path}

@@ -2,6 +2,7 @@ import React, { useContext, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
 import { useAvatar } from '../hooks/useAvatar';
+import { navigateToVoice } from '../utils/voiceNavigation';
 import background from '../assets/images/background.jpg';
 
 const AppSelector = () => {
@@ -135,20 +136,19 @@ const AppSelector = () => {
             </button>
           </Link>
           <br />
-          <a href="https://voice.alex-dyakin.com" rel="noopener noreferrer">
-            <button
-              style={{
-                ...buttonStyle,
-                backgroundColor: '#06b6d4',
-                color: '#fff',
-                ...(hover.voice ? buttonHoverStyle : {}),
-              }}
-              onMouseEnter={() => setHover({ ...hover, voice: true })}
-              onMouseLeave={() => setHover({ ...hover, voice: false })}
-            >
-              🎙️ Voice Bridge
-            </button>
-          </a>
+          <button
+            style={{
+              ...buttonStyle,
+              backgroundColor: '#06b6d4',
+              color: '#fff',
+              ...(hover.voice ? buttonHoverStyle : {}),
+            }}
+            onMouseEnter={() => setHover({ ...hover, voice: true })}
+            onMouseLeave={() => setHover({ ...hover, voice: false })}
+            onClick={() => navigateToVoice()}
+          >
+            🎙️ Voice Bridge
+          </button>
         </div>
 
         <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
