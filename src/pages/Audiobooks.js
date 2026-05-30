@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
 import { getApiUrls } from '../utils/apiUrls';
 import '../styles/MediaPlayer.css';
 
 function Audiobooks() {
     const { user } = useContext(UserContext);
+    const { id: urlBookId } = useParams();
     const [audiobooks, setAudiobooks] = useState([]);
     const [currentBook, setCurrentBook] = useState(null);
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -25,6 +26,7 @@ function Audiobooks() {
     const [editFormData, setEditFormData] = useState({ title: '', description: '', isPublic: true });
     const [showEditModal, setShowEditModal] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const [copiedBookId, setCopiedBookId] = useState(null);
     const audioRef = useRef(null);
     const navigate = useNavigate();
 
@@ -39,6 +41,16 @@ function Audiobooks() {
         fetchAudiobooks();
         fetchPlaylists();
     }, [user]);
+
+    // Deep-link: auto-play a specific audiobook from URL param
+    useEffect(() => {
+        if (!urlBookId || audiobooks.length === 0) return;
+        const bookId = parseInt(urlBookId, 10);
+        const idx = audiobooks.findIndex(b => b.id === bookId);
+        if (idx !== -1) {
+            playBook(audiobooks[idx], idx);
+        }
+    }, [urlBookId, audiobooks]);
 
     const fetchAudiobooks = async () => {
         try {
@@ -436,6 +448,17 @@ function Audiobooks() {
                                 <h2>Now Playing</h2>
                                 <h3>{currentBook.title}</h3>
                                 <p>{currentBook.description}</p>
+                                <button
+                                    className="share-button"
+                                    onClick={() => {
+                                        const url = `${window.location.origin}/audiobooks/${currentBook.id}`;
+                                        navigator.clipboard.writeText(url);
+                                        setCopiedBookId(currentBook.id);
+                                        setTimeout(() => setCopiedBookId(null), 2000);
+                                    }}
+                                >
+                                    {copiedBookId === currentBook.id ? '✓ Copied!' : '🔗 Share Link'}
+                                </button>
                             </div>
 
                             {/* Progress Bar */}

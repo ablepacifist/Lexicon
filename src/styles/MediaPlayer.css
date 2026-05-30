@@ -161,6 +161,32 @@
     font-size: 13px;
 }
 
+/* Share Button */
+.share-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+    padding: 6px 14px;
+    border: 1px solid #444;
+    border-radius: 20px;
+    background: #2a2a4a;
+    color: #e0e0e0;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.share-button:hover {
+    background: #3a3a5a;
+    border-color: #666;
+}
+
+.share-button:active {
+    transform: scale(0.95);
+}
+
 /* Progress Bar */
 .progress-container {
     display: flex;

@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, useContext, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
 import { getApiUrls } from '../utils/apiUrls';
 import '../styles/MediaPlayer.css';
 
 function VideoPlayer() {
     const { user } = useContext(UserContext);
+    const { id: urlVideoId, playlistId: urlPlaylistId } = useParams();
     const [videos, setVideos] = useState([]);
     const [currentVideo, setCurrentVideo] = useState(null);
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -22,6 +23,7 @@ function VideoPlayer() {
     const [editFormData, setEditFormData] = useState({ title: '', description: '', isPublic: true });
     const [showEditModal, setShowEditModal] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const [copiedVideoId, setCopiedVideoId] = useState(null);
     const videoRef = useRef(null);
     const containerRef = useRef(null);
     const navigate = useNavigate();
@@ -38,6 +40,22 @@ function VideoPlayer() {
         fetchVideos();
         fetchPlaylists();
     }, [user]);
+
+    // Deep-link: auto-play a specific video from URL param
+    useEffect(() => {
+        if (!urlVideoId || videos.length === 0) return;
+        const videoId = parseInt(urlVideoId, 10);
+        const idx = videos.findIndex(v => v.id === videoId);
+        if (idx !== -1) {
+            playVideo(videos[idx], idx);
+        }
+    }, [urlVideoId, videos]);
+
+    // Deep-link: auto-load a playlist from URL param
+    useEffect(() => {
+        if (!urlPlaylistId || !user) return;
+        loadPlaylist(parseInt(urlPlaylistId, 10));
+    }, [urlPlaylistId, user]);
 
     const fetchVideos = async () => {
         try {
@@ -322,6 +340,17 @@ function VideoPlayer() {
                             <div className="video-controls">
                                 <h3>{currentVideo.title}</h3>
                                 <p>{currentVideo.description}</p>
+                                <button
+                                    className="share-button"
+                                    onClick={() => {
+                                        const url = `${window.location.origin}/video-player/${currentVideo.id}`;
+                                        navigator.clipboard.writeText(url);
+                                        setCopiedVideoId(currentVideo.id);
+                                        setTimeout(() => setCopiedVideoId(null), 2000);
+                                    }}
+                                >
+                                    {copiedVideoId === currentVideo.id ? '✓ Copied!' : '🔗 Share Link'}
+                                </button>
                                 {playlistMode && selectedPlaylist && (
                                     <div className="playlist-info">
                                         <span className="playlist-badge">

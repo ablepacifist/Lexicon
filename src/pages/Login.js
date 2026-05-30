@@ -1,5 +1,5 @@
 import React, { useState, useContext } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
 import background from '../assets/images/background.jpg';
 import { getApiUrls } from '../utils/apiUrls';
@@ -13,6 +13,8 @@ const Login = () => {
   const { setUser } = useContext(UserContext);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const location = useLocation();
+  const redirectTo = location.state?.from || '/app-selector';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -35,7 +37,7 @@ const Login = () => {
 
       // Update context with session-based info - use 'id' field which AuthController returns
       setUser({ id: data.id, username: data.username, displayName: data.displayName });
-      navigate("/app-selector");
+      navigate(redirectTo, { replace: true });
     } catch (err) {
       console.error("Login error:", err);
       setError("Invalid username or password.");

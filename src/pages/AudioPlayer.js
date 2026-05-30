@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useContext, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
 import { getApiUrls } from '../utils/apiUrls';
 import StreamLogger from '../utils/StreamLogger';
@@ -8,6 +8,7 @@ import '../styles/MediaPlayer.css';
 
 function AudioPlayer() {
     const { user } = useContext(UserContext);
+    const { id: urlTrackId, playlistId: urlPlaylistId } = useParams();
     const [audioFiles, setAudioFiles] = useState([]);
     const [currentTrack, setCurrentTrack] = useState(null);
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -29,8 +30,11 @@ function AudioPlayer() {
     const [showEditModal, setShowEditModal] = useState(false);
     const [shuffledIndices, setShuffledIndices] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
+    const [copiedTrackId, setCopiedTrackId] = useState(null);
     const audioRef = useRef(null);
     const pendingRetryRef = useRef(null); // track that failed all retries, auto-retry on focus
+    const prefetchedRef = useRef({ trackId: null, blobUrl: null }); // pre-downloaded next track
+    const prefetchNextTrackRef = useRef(null); // stable ref to latest prefetch function
     const [audioReady, setAudioReady] = useState(false);
     const navigate = useNavigate();
 
@@ -61,6 +65,22 @@ function AudioPlayer() {
         fetchAudioFiles();
         fetchPlaylists();
     }, [user]);
+
+    // Deep-link: auto-play a specific track from URL param
+    useEffect(() => {
+        if (!urlTrackId || audioFiles.length === 0) return;
+        const trackId = parseInt(urlTrackId, 10);
+        const idx = audioFiles.findIndex(t => t.id === trackId);
+        if (idx !== -1) {
+            playTrack(audioFiles[idx], idx);
+        }
+    }, [urlTrackId, audioFiles]);
+
+    // Deep-link: auto-load a playlist from URL param
+    useEffect(() => {
+        if (!urlPlaylistId || !user) return;
+        loadPlaylist(parseInt(urlPlaylistId, 10));
+    }, [urlPlaylistId, user]);
 
     const fetchAudioFiles = async () => {
         try {
@@ -279,6 +299,41 @@ function AudioPlayer() {
         return `${lexiconApiUrl}/api/media/stream/${audio.id}`;
     };
 
+    // Prefetch the next track as a blob so locked-phone transitions don't need network
+    const prefetchNextTrack = () => {
+        if (!autoPlay) return;
+        const filtered = getFilteredAudio();
+        if (filtered.length <= 1) return;
+        const nextIdx = getNextIndex();
+        const nextTrack = filtered[nextIdx];
+        if (!nextTrack) return;
+        // Already prefetched this track
+        if (prefetchedRef.current.trackId === nextTrack.id) return;
+
+        // Revoke old blob URL to free memory
+        if (prefetchedRef.current.blobUrl) {
+            URL.revokeObjectURL(prefetchedRef.current.blobUrl);
+            prefetchedRef.current = { trackId: null, blobUrl: null };
+        }
+
+        StreamLogger.info('prefetch', `Downloading next track id=${nextTrack.id} "${nextTrack.title}"`);
+        fetch(getStreamUrl(nextTrack), { credentials: 'include' })
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                return r.blob();
+            })
+            .then(blob => {
+                const blobUrl = URL.createObjectURL(blob);
+                prefetchedRef.current = { trackId: nextTrack.id, blobUrl };
+                StreamLogger.info('prefetch', `Ready: id=${nextTrack.id} (${(blob.size / 1024 / 1024).toFixed(1)}MB)`);
+            })
+            .catch(e => {
+                StreamLogger.warn('prefetch', `Failed for id=${nextTrack.id}: ${e.message}`);
+            });
+    };
+    // Keep ref in sync so loadAndPlay (useCallback) always calls the latest version
+    prefetchNextTrackRef.current = prefetchNextTrack;
+
     // Core audio loading function. Two modes:
     // - fromEnded=true: called synchronously from the 'ended' handler. NO setTimeout, NO deferral.
     //   iOS requires play()/load() to stay in the trusted event chain.
@@ -288,13 +343,25 @@ function AudioPlayer() {
         const MAX_RETRIES = 8;
         if (!audioRef.current) { StreamLogger.error('loadAndPlay', 'audioRef is null'); return; }
         const el = audioRef.current;
-        const newSrc = `${getStreamUrl(audio)}?_t=${Date.now()}`;
+
+        // Check if we have a prefetched blob for this track (avoids network on locked phones)
+        let newSrc;
+        if (attempt === 1 && prefetchedRef.current.trackId === audio.id && prefetchedRef.current.blobUrl) {
+            newSrc = prefetchedRef.current.blobUrl;
+            StreamLogger.info('loadAndPlay', `Using prefetched blob for id=${audio.id}`);
+            // Clear the ref (don't revoke yet — the element is using it)
+            prefetchedRef.current = { trackId: null, blobUrl: null };
+        } else {
+            newSrc = `${getStreamUrl(audio)}?_t=${Date.now()}`;
+        }
         StreamLogger.info('loadAndPlay', `Attempt ${attempt}/${MAX_RETRIES} | fromEnded=${fromEnded} | id=${audio.id} "${audio.title}"`, newSrc);
 
-        // Diagnostic preflight (non-blocking, logging only)
-        fetch(`${getStreamUrl(audio)}?_diag=${Date.now()}`, { method: 'HEAD', credentials: 'omit' })
-            .then(r => StreamLogger.info('preflight', `Status ${r.status} | type=${r.headers.get('content-type')} | length=${r.headers.get('content-length')}`))
-            .catch(e => StreamLogger.warn('preflight', `Network check failed: ${e.message} (will still try)`));
+        // Diagnostic preflight (non-blocking, logging only) — skip for blob URLs
+        if (!newSrc.startsWith('blob:')) {
+            fetch(`${getStreamUrl(audio)}?_diag=${Date.now()}`, { method: 'HEAD', credentials: 'omit' })
+                .then(r => StreamLogger.info('preflight', `Status ${r.status} | type=${r.headers.get('content-type')} | length=${r.headers.get('content-length')}`))
+                .catch(e => StreamLogger.warn('preflight', `Network check failed: ${e.message} (will still try)`));
+        }
 
         const doLoad = () => {
             let settled = false;
@@ -312,6 +379,8 @@ function AudioPlayer() {
                 cleanup();
                 StreamLogger.success('loadAndPlay', `canplay fired — calling play() (net=${el.networkState} ready=${el.readyState})`);
                 el.play().catch(e => StreamLogger.error('play()', `Rejected: ${e.name} — ${e.message}`));
+                // Start prefetching the next track while this one plays
+                if (prefetchNextTrackRef.current) prefetchNextTrackRef.current();
             };
 
             const onErr = () => {
@@ -557,6 +626,17 @@ function AudioPlayer() {
                                 <h2>Now Playing</h2>
                                 <h3>{currentTrack.title}</h3>
                                 <p>{currentTrack.description}</p>
+                                <button
+                                    className="share-button"
+                                    onClick={() => {
+                                        const url = `${window.location.origin}/audio-player/${currentTrack.id}`;
+                                        navigator.clipboard.writeText(url);
+                                        setCopiedTrackId(currentTrack.id);
+                                        setTimeout(() => setCopiedTrackId(null), 2000);
+                                    }}
+                                >
+                                    {copiedTrackId === currentTrack.id ? '✓ Copied!' : '🔗 Share Link'}
+                                </button>
                                 {playlistMode && selectedPlaylist && (
                                     <div className="playlist-info">
                                         <span className="playlist-badge">
