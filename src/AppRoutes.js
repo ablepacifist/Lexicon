@@ -1,6 +1,6 @@
 // src/AppRoutes.js
 import React, { useEffect, useContext } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { UserContext } from './context/UserContext';
 
 import Home from './pages/Home';
@@ -36,7 +36,12 @@ const { lexiconApiUrl: API_URL } = getApiUrls();
 
 function PrivateRoute({ children }) {
   const { user } = useContext(UserContext);
-  return user ? children : <Navigate to="/login" />;
+  const location = useLocation();
+  if (!user) {
+    // Save the attempted URL so login can redirect back
+    return <Navigate to="/login" state={{ from: location.pathname + location.search }} replace />;
+  }
+  return children;
 }
 
 function AppRoutes() {
@@ -88,10 +93,25 @@ function AppRoutes() {
       <Route path="/video-player" element={
         <PrivateRoute><VideoPlayer /></PrivateRoute>
       } />
+      <Route path="/video-player/:id" element={
+        <PrivateRoute><VideoPlayer /></PrivateRoute>
+      } />
+      <Route path="/video-player/playlist/:playlistId" element={
+        <PrivateRoute><VideoPlayer /></PrivateRoute>
+      } />
       <Route path="/audio-player" element={
         <PrivateRoute><AudioPlayer /></PrivateRoute>
       } />
+      <Route path="/audio-player/:id" element={
+        <PrivateRoute><AudioPlayer /></PrivateRoute>
+      } />
+      <Route path="/audio-player/playlist/:playlistId" element={
+        <PrivateRoute><AudioPlayer /></PrivateRoute>
+      } />
       <Route path="/audiobooks" element={
+        <PrivateRoute><Audiobooks /></PrivateRoute>
+      } />
+      <Route path="/audiobooks/:id" element={
         <PrivateRoute><Audiobooks /></PrivateRoute>
       } />
       <Route path="/playlist-manager" element={

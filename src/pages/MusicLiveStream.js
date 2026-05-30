@@ -34,6 +34,8 @@ function MusicLiveStream() {
     const reconnectTimeoutRef = useRef(null);
     const hasSyncedRef = useRef(false);
     const mediaEndedInProgressRef = useRef(false);
+    const skipHandledRef = useRef(false);
+    const prevMediaIdRef = useRef(null);
     
     const lexiconApiUrl = getApiUrls().lexiconApiUrl;
 
@@ -118,14 +120,21 @@ function MusicLiveStream() {
         if (!user) return;
 
         let retryCount = 0;
-        const maxRetries = 10;
+        const maxRetries = 50;
         const baseRetryDelay = 1000;
+        let lastHeartbeat = Date.now();
+        let staleCheckInterval = null;
 
         const setupSSE = () => {
             setConnectionStatus('connecting');
             
             const eventSource = new EventSource(`${lexiconApiUrl}/api/livestream/updates?channel=${CHANNEL}`);
             eventSourceRef.current = eventSource;
+
+            eventSource.addEventListener('heartbeat', () => {
+                lastHeartbeat = Date.now();
+                retryCount = 0;  // Reset retry count on successful heartbeat
+            });
 
             eventSource.addEventListener('init', (event) => {
                 const data = JSON.parse(event.data);
@@ -191,20 +200,32 @@ function MusicLiveStream() {
 
             eventSource.onopen = () => {
                 setConnectionStatus('connected');
+                lastHeartbeat = Date.now();
+                retryCount = 0;
             };
 
             eventSource.onerror = () => {
                 setConnectionStatus('disconnected');
                 eventSource.close();
                 
-                if (retryCount < maxRetries) {
-                    const delay = Math.min(baseRetryDelay * Math.pow(2, retryCount), 30000);
-                    retryCount++;
-                    reconnectTimeoutRef.current = setTimeout(setupSSE, delay);
-                } else {
-                    setError('Lost connection to server. Please refresh the page.');
-                }
+                // Always retry — never give up
+                const delay = Math.min(baseRetryDelay * Math.pow(2, Math.min(retryCount, 5)), 30000);
+                retryCount++;
+                reconnectTimeoutRef.current = setTimeout(setupSSE, delay);
             };
+
+            // Client-side stale connection detector: if no heartbeat in 90s, reconnect
+            if (staleCheckInterval) clearInterval(staleCheckInterval);
+            staleCheckInterval = setInterval(() => {
+                if (Date.now() - lastHeartbeat > 90000) {
+                    console.log('SSE stale — no heartbeat in 90s, reconnecting');
+                    if (eventSourceRef.current) eventSourceRef.current.close();
+                    setConnectionStatus('disconnected');
+                    retryCount = 0;
+                    lastHeartbeat = Date.now();
+                    setupSSE();
+                }
+            }, 15000);
         };
 
         setupSSE();
@@ -212,6 +233,7 @@ function MusicLiveStream() {
         return () => {
             if (eventSourceRef.current) eventSourceRef.current.close();
             if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+            if (staleCheckInterval) clearInterval(staleCheckInterval);
         };
     }, [user, lexiconApiUrl]);
 
@@ -258,6 +280,24 @@ function MusicLiveStream() {
     }, [streamState, currentMedia, calculateCurrentPosition]);
     
     useEffect(() => { hasSyncedRef.current = false; }, [currentMedia?.id]);
+
+    // When currentMedia changes (via SSE or media-ended), reload the audio element
+    useEffect(() => {
+        if (!currentMedia || !audioRef.current) return;
+        if (currentMedia.id === prevMediaIdRef.current) return;
+        prevMediaIdRef.current = currentMedia.id;
+        // If skip handler already set the src and played, don't double-load
+        if (skipHandledRef.current) {
+            skipHandledRef.current = false;
+            return;
+        }
+        const newSrc = `${lexiconApiUrl}/api/media/stream/${currentMedia.id}`;
+        if (audioRef.current.src !== newSrc) {
+            audioRef.current.src = newSrc;
+        }
+        audioRef.current.load();
+        audioRef.current.play().catch(e => console.log('Auto-play after track change:', e));
+    }, [currentMedia, lexiconApiUrl]);
 
     const handleSkip = useCallback(async () => {
         try {
@@ -321,6 +361,7 @@ function MusicLiveStream() {
             // Keep the audio element alive — don't let it unmount
             if (audioRef.current) audioRef.current.pause();
             navigator.mediaSession.playbackState = 'paused';
+            skipHandledRef.current = true;
             const newMedia = await handleSkip();
             // Directly update src and play on the SAME element (avoids autoPlay block on locked screens)
             if (newMedia && audioRef.current) {
