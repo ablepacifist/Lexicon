@@ -18,7 +18,6 @@ const Navbar = () => {
     { path: '/blog', label: 'Blog' },
     { path: '/projects', label: 'Projects' },
     { path: '/dnd', label: 'D&D' },
-    { path: '/alchemy-dashboard', label: 'Alchemy', requiresAuth: true },
     { path: '/lexicon-dashboard', label: 'Lexicon', requiresAuth: true },
     { path: '#voice', label: '🎙️ Voice', requiresAuth: true, external: true },
   ];

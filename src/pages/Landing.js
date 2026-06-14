@@ -168,10 +168,16 @@ const Landing = () => {
               icon="🐉"
             />
             <QuickLinkCard
-              to="/login"
-              title="Alchemy & Lexicon"
-              description="Log in to access the Alchemy game and Lexicon media apps."
+              to="/alchemy-dashboard"
+              title="Alchemy Lab"
+              description="Brew potions, manage ingredients, and track crafting progress."
               icon="⚗️"
+            />
+            <QuickLinkCard
+              to="/holdfast"
+              title="Holdfast Manager"
+              description="Build your settlement, advance time, and defend against raiders."
+              icon="🏰"
             />
             <QuickLinkCard
               to="https://voice.alex-dyakin.com"

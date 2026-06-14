@@ -30,6 +30,7 @@ import Recipes from './pages/Recipes';
 import Blog from './pages/Blog';
 import Projects from './pages/Projects';
 import DndCampaigns from './pages/DndCampaigns';
+import HoldfastManager from './pages/HoldfastManager';
 
 import { getApiUrls } from './utils/apiUrls';
 const { lexiconApiUrl: API_URL } = getApiUrls();
@@ -141,6 +142,9 @@ function AppRoutes() {
       <Route path="/blog" element={<Blog />} />
       <Route path="/projects" element={<Projects />} />
       <Route path="/dnd" element={<DndCampaigns />} />
+      <Route path="/holdfast" element={
+        <PrivateRoute><HoldfastManager /></PrivateRoute>
+      } />
 
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
