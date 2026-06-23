@@ -1,0 +1,520 @@
+/* ── Catch Screen ─────────────────────────────────────────────────────────── */
+
+.catch-screen {
+    position: absolute;
+    inset: 0;
+    z-index: 3000;
+    background: linear-gradient(180deg,
+        #5ba8f5 0%,
+        #87ceeb 22%,
+        #b5e8b5 56%,
+        #4caf50 68%,
+        #2e7d32 80%,
+        #1b5e20 90%,
+        #0d3b14 100%
+    );
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    touch-action: none;
+    overflow: hidden;
+    overscroll-behavior: none;
+}
+
+/* Clouds in sky area */
+.catch-screen::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+        radial-gradient(ellipse 130px 42px at 18% 12%, rgba(255,255,255,0.38) 0%, transparent 100%),
+        radial-gradient(ellipse  90px 32px at 55%  7%, rgba(255,255,255,0.30) 0%, transparent 100%),
+        radial-gradient(ellipse 160px 48px at 78% 20%, rgba(255,255,255,0.24) 0%, transparent 100%),
+        radial-gradient(ellipse  70px 28px at 38% 30%, rgba(255,255,255,0.18) 0%, transparent 100%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* Ground scene — subtle darkening for depth, background gradient does the heavy lifting */
+.catch-scene-ground {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 38%;
+    background: linear-gradient(180deg,
+        transparent 0%,
+        rgba(0,0,0,0.08) 45%,
+        rgba(0,0,0,0.28) 75%,
+        rgba(0,0,0,0.50) 100%);
+    z-index: 1;
+    pointer-events: none;
+}
+/* Subtle grass texture strips */
+.catch-scene-ground::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 36px;
+    background: repeating-linear-gradient(
+        90deg,
+        transparent 0px,
+        transparent 7px,
+        rgba(34,139,34,0.22) 7px,
+        rgba(34,139,34,0.22) 9px
+    );
+    mask-image: linear-gradient(180deg, rgba(0,0,0,0.55) 0%, transparent 100%);
+    -webkit-mask-image: linear-gradient(180deg, rgba(0,0,0,0.55) 0%, transparent 100%);
+}
+
+.catch-run {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background: rgba(255,255,255,0.08);
+    color: #cbd5e1;
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 20px;
+    padding: 8px 18px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.15s;
+    z-index: 10;
+}
+.catch-run:hover { background: rgba(255,255,255,0.16); }
+
+.catch-name {
+    color: white;
+    font-size: 18px;
+    font-weight: 700;
+    text-shadow: 0 1px 6px rgba(0,0,0,0.7);
+    letter-spacing: 0.4px;
+    position: relative;
+    z-index: 5;
+}
+
+/* Throw tier label — Nice / Great / Excellent */
+.catch-throw-tier {
+    position: absolute;
+    top: 16%;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 34px;
+    font-weight: 900;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    text-shadow: 0 2px 18px rgba(0,0,0,0.95);
+    animation: tierPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    pointer-events: none;
+    z-index: 20;
+}
+.catch-throw-tier--Nice      { color: #86efac; }
+.catch-throw-tier--Great     { color: #93c5fd; }
+.catch-throw-tier--Excellent {
+    color: #fde047;
+    text-shadow: 0 2px 18px rgba(0,0,0,0.95), 0 0 36px rgba(253,224,71,0.55);
+}
+
+/* "Deflected!" message during Pokemon attack */
+.catch-blocked-msg {
+    position: absolute;
+    top: 22%;
+    left: 0;
+    right: 0;
+    text-align: center;
+    color: #fbbf24;
+    font-size: 26px;
+    font-weight: 900;
+    letter-spacing: 2px;
+    text-shadow: 0 2px 14px rgba(0,0,0,0.9);
+    animation: tierPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    pointer-events: none;
+    z-index: 20;
+}
+
+/* Arena */
+.catch-arena {
+    position: relative;
+    width: 230px;
+    height: 230px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    z-index: 5;
+}
+
+/* Shadow ellipse under Pokemon */
+.catch-arena-shadow {
+    position: absolute;
+    bottom: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 120px;
+    height: 20px;
+    background: radial-gradient(ellipse, rgba(0,0,0,0.55) 0%, transparent 72%);
+    z-index: 1;
+    pointer-events: none;
+}
+
+/* ONE-DIRECTIONAL shrinking ring: large→tiny then snap back */
+.catch-ring {
+    position: absolute;
+    inset: 0;
+    border: 5px solid #ef4444;
+    border-radius: 50%;
+    pointer-events: none;
+    will-change: transform;
+    animation: ringShrink 2.8s ease-in infinite;
+    z-index: 4;
+}
+
+/* Rest ball — fixed at bottom-center, large like Pokemon GO */
+.catch-rest-ball {
+    position: absolute;
+    bottom: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 95px;
+    height: 95px;
+    pointer-events: none;
+    z-index: 100;
+    filter: drop-shadow(0 4px 18px rgba(0,0,0,.65));
+    transition: filter 0.15s;
+}
+.catch-rest-ball img { width: 95px; height: 95px; object-fit: contain; display: block; }
+.catch-rest-ball--spinning {
+    filter: drop-shadow(0 0 10px #fde047) drop-shadow(0 0 22px #f59e0b) drop-shadow(0 3px 12px rgba(0,0,0,.7));
+    animation: spinGlowPulse 0.4s ease-in-out infinite alternate;
+}
+@keyframes spinGlowPulse {
+    from { filter: drop-shadow(0 0 8px  #fde047) drop-shadow(0 3px 12px rgba(0,0,0,.7)); }
+    to   { filter: drop-shadow(0 0 20px #f59e0b) drop-shadow(0 0 36px rgba(245,158,11,.5)) drop-shadow(0 3px 12px rgba(0,0,0,.7)); }
+}
+
+/* Drag pokeball — follows finger during drag */
+.catch-drag-ball {
+    position: absolute;
+    display: none;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 100;
+    filter: drop-shadow(0 2px 8px rgba(0,0,0,.6));
+}
+.catch-drag-ball img { width: 44px; height: 44px; object-fit: contain; }
+
+/* Pokemon sprite */
+.catch-pokemon {
+    width: 170px;
+    height: 170px;
+    object-fit: contain;
+    animation: pokeBounce 2.4s ease-in-out infinite;
+    pointer-events: none;
+    filter: drop-shadow(0 6px 20px rgba(0,0,0,0.7));
+    position: relative;
+    z-index: 2;
+}
+.catch-pokemon--attack {
+    animation: pokeLunge 1.3s ease-out forwards !important;
+    filter: drop-shadow(0 0 22px rgba(239,68,68,0.85)) drop-shadow(0 6px 20px rgba(0,0,0,0.7)) !important;
+}
+
+/* ── Shake phase (ball in arena, Pokemon dimmed) ─────────────────────────── */
+
+.catch-arena--shaking .catch-pokemon {
+    opacity: 0.08;
+    animation: none !important;
+    filter: none !important;
+}
+
+.catch-shake-ball {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 64px;
+    height: 64px;
+    /* transform set per-shake via CSS animation — translate is baked in */
+    z-index: 8;
+    pointer-events: none;
+    animation: ballShake 0.7s ease-in-out 3;
+    transform-origin: center bottom;
+}
+.catch-shake-ball img {
+    width: 64px;
+    height: 64px;
+    object-fit: contain;
+    display: block;
+    /* centre relative to absolute positioning */
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+/* Physics ball — starts large so the shrink-to-distance effect is clearly visible */
+.catch-flying-ball {
+    position: absolute;
+    width: 90px;
+    height: 90px;
+    pointer-events: none;
+    z-index: 6;
+    filter: drop-shadow(0 4px 14px rgba(0,0,0,.65));
+}
+.catch-flying-ball img { width: 90px; height: 90px; object-fit: contain; display: block; }
+
+/* Result overlay inside arena */
+.catch-result-overlay {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 6;
+    animation: resultPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.catch-result-overlay--success {
+    background: radial-gradient(circle, rgba(34,197,94,0.28) 0%, transparent 70%);
+}
+.catch-result-overlay--fail {
+    background: radial-gradient(circle, rgba(239,68,68,0.28) 0%, transparent 70%);
+}
+
+.catch-result-emoji {
+    font-size: 64px;
+    animation: resultPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    display: block;
+}
+
+.catch-result-text {
+    font-size: 21px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    text-align: center;
+    animation: resultPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    letter-spacing: 0.3px;
+    position: relative;
+    z-index: 5;
+}
+.catch-result-text--success { color: #4ade80; text-shadow: 0 0 20px rgba(74,222,128,0.5); }
+.catch-result-text--fail    { color: #f87171; text-shadow: 0 0 20px rgba(248,113,113,0.5); }
+
+.catch-hint {
+    color: #94a3b8;
+    font-size: 14px;
+    margin-bottom: 20px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    position: relative;
+    z-index: 5;
+}
+.catch-hint-arrow {
+    font-size: 26px;
+    animation: hintBounce 1.2s ease-in-out infinite;
+    color: #22c55e;
+}
+
+/* ── Bag toggle / ball selector ───────────────────────────────────────────── */
+
+.catch-bag-area {
+    position: absolute;
+    bottom: 20px;
+    left: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.catch-bag-panel {
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    transition: max-height 0.28s ease, opacity 0.22s ease;
+    pointer-events: none;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}
+.catch-bag-panel--open {
+    max-height: 160px;
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.catch-balls { display: flex; gap: 12px; padding: 12px 16px 4px; }
+
+.catch-ball-btn {
+    background: rgba(255,255,255,0.04);
+    border: 2px solid rgba(255,255,255,0.15);
+    border-radius: 14px;
+    padding: 10px 14px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    transition: background 0.15s, border-color 0.15s;
+    min-width: 76px;
+}
+.catch-ball-btn img { width: 46px; height: 46px; object-fit: contain; }
+.catch-ball-btn:disabled { opacity: 0.35; cursor: default; }
+.catch-ball-btn--selected { background: rgba(255,255,255,0.1); }
+.catch-ball-btn:not(:disabled):hover { background: rgba(255,255,255,0.12); }
+.catch-ball-label { color: #94a3b8; font-size: 10px; text-align: center; white-space: nowrap; }
+.catch-ball-count { font-size: 15px; font-weight: 700; }
+
+.catch-bag-btn {
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(15,23,42,0.85);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 28px;
+    padding: 8px 18px 8px 10px;
+    color: white;
+    cursor: pointer;
+    font-size: 14px;
+    margin-top: 6px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transition: background 0.15s;
+}
+.catch-bag-btn:hover:not(:disabled) { background: rgba(30,41,59,0.9); }
+.catch-bag-btn:disabled { opacity: 0.5; cursor: default; }
+.catch-bag-btn img { width: 30px; height: 30px; object-fit: contain; }
+.catch-bag-count { font-weight: 700; font-size: 16px; }
+.catch-bag-name  { color: #94a3b8; font-size: 12px; }
+.catch-bag-arrow { font-size: 10px; opacity: 0.55; margin-left: 2px; }
+
+/* Main action button */
+.catch-action-btn {
+    border: none;
+    border-radius: 14px;
+    padding: 14px 44px;
+    font-size: 17px;
+    cursor: pointer;
+    font-weight: 700;
+    transition: opacity 0.15s, transform 0.1s;
+    letter-spacing: 0.3px;
+    position: relative;
+    z-index: 5;
+}
+.catch-action-btn--done {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    box-shadow: 0 4px 20px rgba(59,130,246,0.45);
+}
+.catch-action-btn:disabled { opacity: 0.45; cursor: default; }
+.catch-action-btn:not(:disabled):hover  { opacity: 0.88; }
+.catch-action-btn:not(:disabled):active { transform: scale(0.97); }
+
+/* ── Keyframe animations ──────────────────────────────────────────────────── */
+
+/* Ring shrinks one direction then SNAPS back (infinite restart = snap-back) */
+@keyframes ringShrink {
+    0%   { transform: scale(1.00); border-color: #ef4444; box-shadow: 0 0 8px #ef4444,  inset 0 0 4px rgba(239,68,68,0.30); }
+    42%  { transform: scale(0.58); border-color: #f97316; box-shadow: 0 0 12px #f97316, inset 0 0 6px rgba(249,115,22,0.35); }
+    72%  { transform: scale(0.24); border-color: #eab308; box-shadow: 0 0 18px #eab308, inset 0 0 8px rgba(234,179,8,0.40); }
+    92%  { transform: scale(0.08); border-color: #22c55e; box-shadow: 0 0 26px #22c55e, inset 0 0 12px rgba(34,197,94,0.55); }
+    100% { transform: scale(0.03); border-color: #22c55e; box-shadow: 0 0 32px #22c55e, inset 0 0 16px rgba(34,197,94,0.70); }
+}
+
+@keyframes hintBounce {
+    0%, 100% { transform: translateY(0); }
+    50%       { transform: translateY(-6px); }
+}
+
+/* Idle Pokemon bob */
+@keyframes pokeBounce {
+    0%, 100% { transform: translateY(0px); }
+    50%       { transform: translateY(-16px); }
+}
+
+/* Pokemon attack lunge toward player */
+@keyframes pokeLunge {
+    0%   { transform: scale(1.00) translateY(0px)  rotate(0deg); }
+    20%  { transform: scale(1.28) translateY(36px)  rotate(-4deg); }
+    45%  { transform: scale(1.18) translateY(22px)  rotate(3deg); }
+    70%  { transform: scale(1.06) translateY(8px)   rotate(-1deg); }
+    100% { transform: scale(1.00) translateY(0px)  rotate(0deg); }
+}
+
+/* Ball tilt shake (after hit) */
+@keyframes ballShake {
+    0%   { transform: translate(-50%, -50%) rotate(0deg); }
+    12%  { transform: translate(-50%, -50%) rotate(-24deg); }
+    28%  { transform: translate(-50%, -50%) rotate(24deg); }
+    44%  { transform: translate(-50%, -50%) rotate(-20deg); }
+    60%  { transform: translate(-50%, -50%) rotate(20deg); }
+    76%  { transform: translate(-50%, -50%) rotate(-10deg); }
+    88%  { transform: translate(-50%, -50%) rotate(10deg); }
+    100% { transform: translate(-50%, -50%) rotate(0deg); }
+}
+
+/* Nice/Great/Excellent pop */
+@keyframes tierPop {
+    0%   { transform: scale(0.35) translateY(12px); opacity: 0; }
+    55%  { transform: scale(1.18) translateY(-5px); opacity: 1; }
+    100% { transform: scale(1.00) translateY(0px);  opacity: 1; }
+}
+
+@keyframes resultPop {
+    0%   { transform: scale(0.4); opacity: 0; }
+    60%  { transform: scale(1.15); }
+    100% { transform: scale(1);   opacity: 1; }
+}
+
+/* Ball landing impact marker */
+.catch-impact {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    border-radius: 50%;
+    z-index: 30;
+}
+.catch-impact--hit {
+    width: 28px;
+    height: 28px;
+    background: radial-gradient(circle, rgba(253,224,71,0.9) 20%, rgba(251,146,60,0.6) 60%, transparent 100%);
+    animation: impactHit 0.55s ease-out forwards;
+}
+.catch-impact--miss {
+    width: 22px;
+    height: 22px;
+    background: radial-gradient(circle, rgba(148,163,184,0.8) 20%, rgba(100,116,139,0.4) 60%, transparent 100%);
+    animation: impactMiss 0.45s ease-out forwards;
+}
+
+@keyframes impactHit {
+    0%   { transform: translate(-50%, -50%) scale(0.2); opacity: 1; }
+    50%  { transform: translate(-50%, -50%) scale(1.8); opacity: 0.9; }
+    100% { transform: translate(-50%, -50%) scale(2.5); opacity: 0; }
+}
+@keyframes impactMiss {
+    0%   { transform: translate(-50%, -50%) scale(0.2); opacity: 0.8; }
+    100% { transform: translate(-50%, -50%) scale(2.0); opacity: 0; }
+}
+
+/* Arena lateral sway — moves the entire arena div so getArenaCenter() tracks it for hit detection.
+   Far Pokemon sway faster and wider, making the target harder to lead. */
+@keyframes arenaSwayFar  { 0%,100%{ margin-left:0 } 25%{ margin-left:20px } 75%{ margin-left:-20px } }
+@keyframes arenaSwayMid  { 0%,100%{ margin-left:0 } 30%{ margin-left:12px } 70%{ margin-left:-12px } }
+@keyframes arenaSwayNear { 0%,100%{ margin-left:0 } 35%{ margin-left:5px }  65%{ margin-left:-5px } }
+.catch-arena--swaying-fast { animation: arenaSwayFar  2.2s ease-in-out infinite; }
+.catch-arena--swaying-mid  { animation: arenaSwayMid  3.2s ease-in-out infinite; }
+.catch-arena--swaying-slow { animation: arenaSwayNear 4.5s ease-in-out infinite; }
