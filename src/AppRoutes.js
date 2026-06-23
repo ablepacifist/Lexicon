@@ -31,6 +31,12 @@ import Blog from './pages/Blog';
 import Projects from './pages/Projects';
 import DndCampaigns from './pages/DndCampaigns';
 import HoldfastManager from './pages/HoldfastManager';
+import PokemonMap from './pages/PokemonMap';
+import Pokedex from './pages/Pokedex';
+import PokemonDetail from './pages/PokemonDetail';
+import PokemonShop from './pages/PokemonShop';
+import PokemonItems from './pages/PokemonItems';
+import MyPokemon from './pages/MyPokemon';
 
 import { getApiUrls } from './utils/apiUrls';
 const { lexiconApiUrl: API_URL } = getApiUrls();
@@ -144,6 +150,26 @@ function AppRoutes() {
       <Route path="/dnd" element={<DndCampaigns />} />
       <Route path="/holdfast" element={
         <PrivateRoute><HoldfastManager /></PrivateRoute>
+      } />
+
+      {/* Pokemon Go */}
+      <Route path="/pokemon" element={
+        <PrivateRoute><PokemonMap /></PrivateRoute>
+      } />
+      <Route path="/pokemon/pokedex" element={
+        <PrivateRoute><Pokedex /></PrivateRoute>
+      } />
+      <Route path="/pokemon/pokemon" element={
+        <PrivateRoute><MyPokemon /></PrivateRoute>
+      } />
+      <Route path="/pokemon/shop" element={
+        <PrivateRoute><PokemonShop /></PrivateRoute>
+      } />
+      <Route path="/pokemon/items" element={
+        <PrivateRoute><PokemonItems /></PrivateRoute>
+      } />
+      <Route path="/pokemon/:id" element={
+        <PrivateRoute><PokemonDetail /></PrivateRoute>
       } />
 
       <Route path="*" element={<Navigate to="/" />} />
