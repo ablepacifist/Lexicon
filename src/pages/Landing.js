@@ -25,14 +25,14 @@ const Landing = () => {
           <div className="hero-intro">
             <h1 className="hero-name">Alex Dyakin</h1>
             <p className="hero-tagline">
-              Field Operations Supervisor &bull; Developer &bull; Baker &bull; Adventurer
+              Developer &bull; Baker &bull; Dungeon Master &bull; Explorer
             </p>
             <div className="hero-cta-row">
-              <a href="https://ablepacifist.github.io/" target="_blank" rel="noopener noreferrer" className="btn btn-primary">
-                View Resume
+              <a href="#my-world" className="btn btn-primary">
+                My World
               </a>
               <a href="#about" className="btn btn-outline">
-                Learn More
+                About Me
               </a>
             </div>
           </div>
@@ -55,21 +55,19 @@ const Landing = () => {
               <h2 className="section-title">About Me</h2>
               <div className="section-divider"></div>
               <p className="about-text">
-                Hi, I'm Alex — a Field Operations Supervisor at the Metropolitan Mosquito Control District (MMCD),
-                a government agency dedicated to mosquito disease prevention in Minnesota. My day-to-day involves
-                supervising field operations, but I also spend a significant amount of time helping the district
-                leverage technology — writing programs to streamline day-to-day activities and building tools for
-                metrics tracking.
+                Hi, I'm Alex — a software developer, enthusiastic baker, dedicated dungeon master, and outdoor
+                explorer. I build software because I love creating things, I bake elaborate
+                cakes because I love feeding people, and I run D&amp;D campaigns because I love collaborative
+                storytelling.
               </p>
               <p className="about-text">
-                Outside of work, I'm deeply passionate about software development, baking and cooking,
-                tabletop gaming (D&D), and exploring the outdoors. I built this site as a personal hub
-                to showcase my projects, share recipes, and document adventures.
+                This site is my personal hub — a place to share recipes, log D&amp;D adventures, showcase
+                software projects, and document life along the way. Pull up a chair.
               </p>
               <div className="about-stats">
                 <div className="stat-item">
-                  <span className="stat-number">FOS</span>
-                  <span className="stat-label">at MMCD</span>
+                  <span className="stat-number">MN</span>
+                  <span className="stat-label">Explorer</span>
                 </div>
                 <div className="stat-item">
                   <span className="stat-number">Dev</span>
@@ -85,6 +83,37 @@ const Landing = () => {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* My World — Featured Apps Section */}
+      <section id="my-world" className="section featured-section">
+        <div className="section-container">
+          <h2 className="section-title center">My World</h2>
+          <div className="section-divider center"></div>
+          <div className="feature-grid">
+            <a href="/lexicon-dashboard" className="feature-card lexicon">
+              <div className="feature-tag">Knowledge</div>
+              <div className="feature-icon">📖</div>
+              <h3>Lexicon</h3>
+              <p>My personal knowledge base and wiki — a living library of notes, lore, and everything worth remembering.</p>
+              <span className="feature-enter">Enter →</span>
+            </a>
+            <a href="/dnd" className="feature-card dnd">
+              <div className="feature-tag">Adventure</div>
+              <div className="feature-icon">🐉</div>
+              <h3>D&amp;D Campaigns</h3>
+              <p>Campaign worlds, homebrew lore, session logs, and maps from the tabletop adventures I dungeon master.</p>
+              <span className="feature-enter">Enter →</span>
+            </a>
+            <a href="/pokemon" className="feature-card pokemon">
+              <div className="feature-tag">Gaming</div>
+              <div className="feature-icon">⚡</div>
+              <h3>PokéWorld</h3>
+              <p>A custom Pokémon-style game — catch Pokémon on a live map, battle, shop, and build your collection.</p>
+              <span className="feature-enter">Enter →</span>
+            </a>
           </div>
         </div>
       </section>
@@ -138,10 +167,34 @@ const Landing = () => {
           <div className="section-divider center"></div>
           <div className="quicklinks-grid">
             <QuickLinkCard
-              to="/career"
-              title="Career"
-              description="My work at MMCD, tech projects, and professional journey."
-              icon="💼"
+              to="/lexicon-dashboard"
+              title="Lexicon"
+              description="My personal knowledge base — notes, lore, and everything worth remembering."
+              icon="📖"
+            />
+            <QuickLinkCard
+              to="/dnd"
+              title="D&D Campaigns"
+              description="Campaign worlds, maps, and adventure logs."
+              icon="🐉"
+            />
+            <QuickLinkCard
+              to="/pokemon"
+              title="PokéWorld"
+              description="Catch Pokémon on a live map, battle, shop, and build your collection."
+              icon="⚡"
+            />
+            <QuickLinkCard
+              to="/alchemy-dashboard"
+              title="Alchemy Lab"
+              description="Brew potions, manage ingredients, and track crafting progress."
+              icon="⚗️"
+            />
+            <QuickLinkCard
+              to="/holdfast"
+              title="Holdfast Manager"
+              description="Build your settlement, advance time, and defend against raiders."
+              icon="🏰"
             />
             <QuickLinkCard
               to="/recipes"
@@ -160,24 +213,6 @@ const Landing = () => {
               title="Projects"
               description="Software projects, tools, and experiments."
               icon="🛠️"
-            />
-            <QuickLinkCard
-              to="/dnd"
-              title="D&D Campaigns"
-              description="Campaign worlds, maps, and adventure logs."
-              icon="🐉"
-            />
-            <QuickLinkCard
-              to="/alchemy-dashboard"
-              title="Alchemy Lab"
-              description="Brew potions, manage ingredients, and track crafting progress."
-              icon="⚗️"
-            />
-            <QuickLinkCard
-              to="/holdfast"
-              title="Holdfast Manager"
-              description="Build your settlement, advance time, and defend against raiders."
-              icon="🏰"
             />
             <QuickLinkCard
               to="https://voice.alex-dyakin.com"
