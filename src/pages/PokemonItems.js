@@ -6,21 +6,36 @@ import { getApiUrls } from '../utils/apiUrls';
 const { pokemonApiUrl } = getApiUrls();
 
 const ITEM_META = {
-    POKEBALL:      { label: 'Poké Ball',     sprite: 'pokeball_sprite.png',  desc: 'Catch Pokémon',         group: 'balls' },
-    GREAT_BALL:    { label: 'Great Ball',    sprite: 'greatball_sprite.png', desc: '1.5× catch rate',       group: 'balls' },
-    ULTRA_BALL:    { label: 'Ultra Ball',    sprite: 'ultraball_sprite.png', desc: '2× catch rate',         group: 'balls' },
-    POTION:        { label: 'Potion',        sprite: 'Item_0101.png',         desc: 'Restores 20 HP',        group: 'medicine' },
-    REVIVE:        { label: 'Revive',        sprite: 'Item_0201.png',         desc: 'Revives fainted Pokémon', group: 'medicine' },
-    THUNDER_STONE: { label: 'Thunder Stone', sprite: 'thunder_stone.png',    desc: 'Evolves Pikachu, Eevee→Jolteon', group: 'stones' },
-    WATER_STONE:   { label: 'Water Stone',   sprite: 'water_stone.png',      desc: 'Evolves Shellder, Staryu, Eevee→Vaporeon', group: 'stones' },
-    FIRE_STONE:    { label: 'Fire Stone',    sprite: 'fire_stone.png',       desc: 'Evolves Vulpix, Growlithe, Eevee→Flareon', group: 'stones' },
-    LEAF_STONE:    { label: 'Leaf Stone',    sprite: 'leaf_stone.png',       desc: 'Evolves Oddish, Weepinbell, Exeggcute', group: 'stones' },
-    MOON_STONE:    { label: 'Moon Stone',    sprite: 'moon_stone.png',       desc: 'Evolves Nidorina, Nidorino, Clefairy, Jigglypuff', group: 'stones' },
-    LINK_CABLE:    { label: 'Link Cable',    sprite: 'link_cable.png',       desc: 'Evolves Kadabra, Machoke, Graveler, Haunter', group: 'stones' },
+    POKEBALL:      { label: 'Poké Ball',     sprite: 'pokeball_sprite.png',         desc: 'Catch Pokémon',                                      group: 'balls'    },
+    GREAT_BALL:    { label: 'Great Ball',    sprite: 'greatball_sprite.png',        desc: '1.5× catch rate',                                    group: 'balls'    },
+    ULTRA_BALL:    { label: 'Ultra Ball',    sprite: 'ultraball_sprite.png',        desc: '2× catch rate',                                      group: 'balls'    },
+    POTION:        { label: 'Potion',        sprite: 'Item_0101.png',               desc: 'Restores 20 HP',                                     group: 'medicine' },
+    REVIVE:        { label: 'Revive',        sprite: 'Item_0201.png',               desc: 'Revives fainted Pokémon',                            group: 'medicine' },
+    RAZZ_BERRY:    { label: 'Razz Berry',    sprite: 'berry/razz.png',              desc: '1.5× catch rate on next throw',                      group: 'berries'  },
+    NANAB_BERRY:   { label: 'Nanab Berry',   sprite: 'berry/nanab.png',             desc: 'Pokémon stops dodging',                              group: 'berries'  },
+    PINAP_BERRY:   { label: 'Pinap Berry',   sprite: 'berry/pinap.png',             desc: '2× candy if caught',                                 group: 'berries'  },
+    CANDY_XS:      { label: 'Candy XS',      sprite: 'exp-candy/xs.png',            desc: 'Generic candy earned by catching Pokémon',           group: 'candy'    },
+    LURE_MODULE:   { label: 'Lure Module',   sprite: 'incense/odd.png',             desc: 'Attracts Pokémon to a Pokéstop for 30 min',          group: 'modules'  },
+    THUNDER_STONE: { label: 'Thunder Stone', sprite: 'evo-item/thunder-stone.png',  desc: 'Evolves Pikachu, Eevee→Jolteon',                     group: 'stones'   },
+    WATER_STONE:   { label: 'Water Stone',   sprite: 'evo-item/water-stone.png',    desc: 'Evolves Shellder, Staryu, Eevee→Vaporeon',           group: 'stones'   },
+    FIRE_STONE:    { label: 'Fire Stone',    sprite: 'evo-item/fire-stone.png',     desc: 'Evolves Vulpix, Growlithe, Eevee→Flareon',           group: 'stones'   },
+    LEAF_STONE:    { label: 'Leaf Stone',    sprite: 'evo-item/leaf-stone.png',     desc: 'Evolves Oddish, Weepinbell, Exeggcute',              group: 'stones'   },
+    MOON_STONE:    { label: 'Moon Stone',    sprite: 'evo-item/moon-stone.png',     desc: 'Evolves Nidorina, Nidorino, Clefairy, Jigglypuff',   group: 'stones'   },
+    LINK_CABLE:    { label: 'Link Cable',    sprite: 'evo-item/up-grade.png',       desc: 'Evolves Kadabra, Machoke, Graveler, Haunter',         group: 'stones'   },
 };
 
 const BALL_ORDER     = ['POKEBALL','GREAT_BALL','ULTRA_BALL'];
 const MEDICINE_ORDER = ['POTION','REVIVE'];
+const BERRY_ORDER    = ['RAZZ_BERRY','NANAB_BERRY','PINAP_BERRY'];
+const EXP_CANDY_ORDER = ['EXP_CANDY_XS','EXP_CANDY_S','EXP_CANDY_M','EXP_CANDY_L','EXP_CANDY_XL'];
+const EXP_CANDY_META  = {
+    EXP_CANDY_XS: { label: 'Candy XS', sprite: 'exp-candy/xs.png', desc: '+100 EXP' },
+    EXP_CANDY_S:  { label: 'Candy S',  sprite: 'exp-candy/s.png',  desc: '+800 EXP' },
+    EXP_CANDY_M:  { label: 'Candy M',  sprite: 'exp-candy/m.png',  desc: '+3,000 EXP' },
+    EXP_CANDY_L:  { label: 'Candy L',  sprite: 'exp-candy/l.png',  desc: '+10,000 EXP' },
+    EXP_CANDY_XL: { label: 'Candy XL', sprite: 'exp-candy/xl.png', desc: '+30,000 EXP' },
+};
+const MODULE_ORDER   = ['LURE_MODULE'];
 const STONE_ORDER    = ['THUNDER_STONE','WATER_STONE','FIRE_STONE','LEAF_STONE','MOON_STONE','LINK_CABLE'];
 
 export default function PokemonItems() {
@@ -28,7 +43,7 @@ export default function PokemonItems() {
     const [items,    setItems]    = useState({});
     const [stats,    setStats]    = useState(null);
     const [loading,  setLoading]  = useState(true);
-    const [candyTab, setCandyTab] = useState(false);
+    const [tab,      setTab]      = useState('items'); // 'items' | 'candy'
 
     useEffect(() => {
         Promise.all([
@@ -46,20 +61,15 @@ export default function PokemonItems() {
         });
     }, [navigate]);
 
-    const candyItems = Object.entries(items)
-        .filter(([k]) => k.startsWith('CANDY_') && !k.startsWith('EXP_CANDY'))
-        .map(([k, qty]) => ({ type: k, qty, speciesId: parseInt(k.replace('CANDY_', '')) }))
-        .filter(c => c.qty > 0)
-        .sort((a, b) => a.speciesId - b.speciesId);
-
-    const expCandyItems = Object.entries(items)
-        .filter(([k]) => k.startsWith('EXP_CANDY'))
-        .map(([k, qty]) => ({ type: k, qty }))
-        .filter(c => c.qty > 0);
-
     if (loading) return (
         <div style={s.center}><div>Loading items…</div><PokeNavBar /></div>
     );
+
+    // All candy types in one flat list — no per-species grouping
+    const allCandy = [
+        { type: 'CANDY_XS', qty: items['CANDY_XS'] || 0, ...ITEM_META['CANDY_XS'] },
+        ...EXP_CANDY_ORDER.map(t => ({ type: t, qty: items[t] || 0, ...EXP_CANDY_META[t] })),
+    ];
 
     return (
         <div style={s.page}>
@@ -68,7 +78,6 @@ export default function PokemonItems() {
                 <h1 style={s.title}>Items</h1>
             </div>
 
-            {/* Stardust banner */}
             {stats && (
                 <div style={s.stardustBanner}>
                     <span style={{ fontSize: 20 }}>✨</span>
@@ -77,42 +86,21 @@ export default function PokemonItems() {
                 </div>
             )}
 
-            {/* Tabs */}
             <div style={s.tabs}>
-                <button style={{ ...s.tab, ...(candyTab ? {} : s.tabActive) }} onClick={() => setCandyTab(false)}>Items</button>
-                <button style={{ ...s.tab, ...(candyTab ? s.tabActive : {}) }} onClick={() => setCandyTab(true)}>
-                    Candy {candyItems.length > 0 ? `(${candyItems.length})` : ''}
-                </button>
+                <button style={{ ...s.tab, ...(tab === 'items' ? s.tabActive : {}) }} onClick={() => setTab('items')}>Items</button>
+                <button style={{ ...s.tab, ...(tab === 'candy' ? s.tabActive : {}) }} onClick={() => setTab('candy')}>Candy</button>
             </div>
 
-            {!candyTab ? (
+            {tab === 'items' ? (
                 <>
-                    <Section title="Pokéballs" items={BALL_ORDER.map(t => ({ type: t, qty: items[t] || 0, ...ITEM_META[t] }))} />
-                    <Section title="Medicine"  items={MEDICINE_ORDER.map(t => ({ type: t, qty: items[t] || 0, ...ITEM_META[t] }))} />
+                    <Section title="Pokéballs"        items={BALL_ORDER.map(t => ({ type: t, qty: items[t] || 0, ...ITEM_META[t] }))} />
+                    <Section title="Medicine"         items={MEDICINE_ORDER.map(t => ({ type: t, qty: items[t] || 0, ...ITEM_META[t] }))} />
+                    <Section title="Berries"          items={BERRY_ORDER.map(t => ({ type: t, qty: items[t] || 0, ...ITEM_META[t] }))} />
+                    <Section title="Modules"          items={MODULE_ORDER.map(t => ({ type: t, qty: items[t] || 0, ...ITEM_META[t] })).filter(i => i.qty > 0)} />
                     <Section title="Evolution Stones" items={STONE_ORDER.map(t => ({ type: t, qty: items[t] || 0, ...ITEM_META[t] })).filter(i => i.qty > 0)} />
-                    {expCandyItems.length > 0 && (
-                        <Section title="EXP Candy" items={expCandyItems.map(c => ({ ...c, label: c.type.replace('EXP_CANDY_', 'Candy '), sprite: '', desc: 'Grants EXP to a Pokémon' }))} />
-                    )}
                 </>
             ) : (
-                <div>
-                    <div style={{ color: '#6b7280', fontSize: 13, marginBottom: 12 }}>
-                        Species candy is earned by catching and grinding Pokémon.
-                    </div>
-                    {candyItems.length === 0 ? (
-                        <div style={s.empty}>No species candy yet. Go catch some Pokémon!</div>
-                    ) : (
-                        <div style={s.grid}>
-                            {candyItems.map(c => (
-                                <div key={c.type} style={s.card}>
-                                    <div style={{ fontSize: 32 }}>🍬</div>
-                                    <div style={{ fontSize: 22, fontWeight: 800, color: '#111827' }}>×{c.qty}</div>
-                                    <div style={{ fontSize: 11, color: '#6b7280' }}>#{c.speciesId} Candy</div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
+                <Section title="Candy" items={allCandy} />
             )}
 
             <div style={s.shopNote}>
