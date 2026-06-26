@@ -24,12 +24,24 @@ function TypeBadge({ type }) {
     );
 }
 
+const GEN_RANGES = [
+    { label: 'All',   min: 1,   max: 809 },
+    { label: 'Gen 1', min: 1,   max: 151 },
+    { label: 'Gen 2', min: 152, max: 251 },
+    { label: 'Gen 3', min: 252, max: 386 },
+    { label: 'Gen 4', min: 387, max: 493 },
+    { label: 'Gen 5', min: 494, max: 649 },
+    { label: 'Gen 6', min: 650, max: 721 },
+    { label: 'Gen 7', min: 722, max: 809 },
+];
+
 export default function Pokedex() {
     const [species, setSpecies] = useState([]);
     const [caughtIds, setCaughtIds] = useState(new Set());
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
-    const [filter, setFilter] = useState('all'); // 'all' | 'caught' | 'unseen'
+    const [filter, setFilter] = useState('all');    // 'all' | 'caught' | 'unseen'
+    const [genFilter, setGenFilter] = useState(0);  // index into GEN_RANGES
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -46,7 +58,10 @@ export default function Pokedex() {
             .catch(() => setLoading(false));
     }, []);
 
-    const filtered = species.filter(s => {
+    const genRange  = GEN_RANGES[genFilter];
+    const genSlice  = species.filter(s => s.id >= genRange.min && s.id <= genRange.max);
+
+    const filtered = genSlice.filter(s => {
         const nameMatch = s.name.toLowerCase().includes(search.toLowerCase());
         if (!nameMatch) return false;
         if (filter === 'caught') return caughtIds.has(s.id);
@@ -56,13 +71,26 @@ export default function Pokedex() {
 
     if (loading) return <div style={styles.center}>Loading Pokédex…</div>;
 
-    const caughtCount = species.filter(s => caughtIds.has(s.id)).length;
+    const caughtCount = genSlice.filter(s => caughtIds.has(s.id)).length;
 
     return (
         <div style={styles.page}>
             <div style={styles.header}>
                 <h1 style={styles.title}>Pokédex</h1>
-                <span style={styles.progress}>{caughtCount} / {species.length}</span>
+                <span style={styles.progress}>{caughtCount} / {genSlice.length}</span>
+            </div>
+
+            {/* Generation filter — horizontally scrollable */}
+            <div style={{ display: 'flex', gap: 6, overflowX: 'auto', marginBottom: 10, paddingBottom: 4, scrollbarWidth: 'none' }}>
+                {GEN_RANGES.map((g, i) => (
+                    <button key={g.label}
+                        onClick={() => setGenFilter(i)}
+                        style={{ flexShrink: 0, padding: '5px 12px', borderRadius: 20, border: 'none', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                            background: genFilter === i ? '#ef4444' : '#f1f5f9',
+                            color:      genFilter === i ? 'white'   : '#374151' }}>
+                        {g.label}
+                    </button>
+                ))}
             </div>
 
             <div style={styles.filterRow}>
