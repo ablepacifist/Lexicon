@@ -75,7 +75,15 @@ function spawnIcon(spriteKey) {
     return spawnIconCache[spriteKey];
 }
 
-function stopIcon(canSpin) {
+function stopIcon(canSpin, isLured) {
+    if (isLured) {
+        return L.divIcon({
+            className: '',
+            html: `<div style="width:36px;height:36px;background:#ec4899;border:3px solid white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;animation:lurePulse 1.5s ease-out infinite">🌸</div>`,
+            iconSize: [36, 36],
+            iconAnchor: [18, 18],
+        });
+    }
     const bg = canSpin ? '#3b82f6' : '#6b7280';
     return L.divIcon({
         className: '',
@@ -642,10 +650,11 @@ export default function PokemonMap() {
     const [catchResult,  setCatchResult]  = useState(null);
 
     // Pokestop placement
-    const [placingStop,  setPlacingStop]  = useState(false);
-    const [pendingStop,  setPendingStop]  = useState(null);
-    const [stopName,     setStopName]     = useState('');
-    const [savingStop,   setSavingStop]   = useState(false);
+    const [placingStop,    setPlacingStop]    = useState(false);
+    const [pendingStop,    setPendingStop]    = useState(null);
+    const [stopName,       setStopName]       = useState('');
+    const [savingStop,     setSavingStop]     = useState(false);
+    const [spinningStopId, setSpinningStopId] = useState(null);
 
     const [playerStats,      setPlayerStats]      = useState(null);
     const [fabOpen,          setFabOpen]          = useState(false);
@@ -795,7 +804,7 @@ export default function PokemonMap() {
     }
 
     // ── Throw (hit — ball reached the Pokemon) ────────────────────────────────
-    async function handleThrow(ringBonus) {
+    async function handleThrow(ringBonus, berry) {
         if (throwing || !catchTarget || catchResult) return;
         if ((playerItems[selectedBall] || 0) === 0) {
             showToast('No ' + selectedBall.replace('_', ' ') + ' left!');
@@ -814,6 +823,7 @@ export default function PokemonMap() {
                     lat:      playerPos ? playerPos[0] : 0,
                     lng:      playerPos ? playerPos[1] : 0,
                     ballType: selectedBall,
+                    berry:    berry || null,
                 }),
             });
 
@@ -825,6 +835,10 @@ export default function PokemonMap() {
                 ...prev,
                 [selectedBall]: Math.max(0, (prev[selectedBall] || 0) - 1),
             }));
+            // Deduct berry locally if one was used
+            if (berry) {
+                setPlayerItems(prev => ({ ...prev, [berry]: Math.max(0, (prev[berry] || 0) - 1) }));
+            }
 
             const res = await fetchPromise;
             if (!res.ok) {
@@ -872,6 +886,8 @@ export default function PokemonMap() {
     // ── Pokestop spin ─────────────────────────────────────────────────────────
     async function spinStop(stop) {
         if (!playerPos) return showToast('No GPS signal');
+        setSpinningStopId(stop.id);
+        setTimeout(() => setSpinningStopId(null), 1200);
         try {
             const res  = await fetch(`${pokemonApiUrl}/api/pokemon/pokestop/spin`, {
                 method: 'POST', credentials: 'include',
@@ -882,6 +898,20 @@ export default function PokemonMap() {
             showToast(typeof data === 'string' ? data : (data.message || 'Spun!'), 4000);
             fetchNearby();
         } catch { showToast('Spin failed'); }
+    }
+
+    async function lurePokestop(stop) {
+        try {
+            const res = await fetch(`${pokemonApiUrl}/api/pokemon/pokestop/lure`, {
+                method: 'POST', credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ stopId: stop.id }),
+            });
+            const data = await res.json();
+            showToast(data.message || 'Lure activated!', 5000);
+            setPlayerItems(prev => ({ ...prev, LURE_MODULE: Math.max(0, (prev.LURE_MODULE || 0) - 1) }));
+            fetchNearby();
+        } catch { showToast('Failed to activate lure'); }
     }
 
     // ── Pokestop placement ────────────────────────────────────────────────────
@@ -998,15 +1028,24 @@ export default function PokemonMap() {
                 })}
 
                 {stops.map(stop => (
-                    <Marker key={stop.id} position={[stop.lat, stop.lng]} icon={stopIcon(stop.canSpin)}>
+                    <Marker key={stop.id} position={[stop.lat, stop.lng]} icon={stopIcon(stop.canSpin, stop.lured)}>
                         <Popup>
-                            <div style={{ textAlign: 'center', minWidth: 120 }}>
+                            <div style={{ textAlign: 'center', minWidth: 145 }}>
                                 <div style={{ fontWeight: 'bold', marginBottom: 2 }}>{stop.name}</div>
-                                <div style={{ color: '#6b7280', fontSize: 12, marginBottom: 8 }}>Pokéstop</div>
-                                <button style={{ ...s.catchBtn, background: stop.canSpin ? '#3b82f6' : '#9ca3af', cursor: stop.canSpin ? 'pointer' : 'default' }}
+                                <div style={{ color: '#6b7280', fontSize: 11, marginBottom: 6 }}>
+                                    {stop.lured ? '🌸 Lured! ' : ''}Pokéstop{stop.biome && stop.biome !== 'NORMAL' ? ` · ${stop.biome}` : ''}
+                                </div>
+                                <button style={{ ...s.catchBtn, background: stop.canSpin ? '#3b82f6' : '#9ca3af', cursor: stop.canSpin ? 'pointer' : 'default', marginBottom: 5 }}
                                     disabled={!stop.canSpin} onClick={() => spinStop(stop)}>
-                                    {stop.canSpin ? '📦 Spin!' : '⏳ Cooldown'}
+                                    <span style={spinningStopId === stop.id ? { display: 'inline-block', animation: 'stopDiscSpin 0.4s linear infinite' } : {}}>📦</span>
+                                    {' '}{stop.canSpin ? 'Spin!' : '⏳ Cooldown'}
                                 </button>
+                                {!stop.lured && (playerItems.LURE_MODULE || 0) > 0 && (
+                                    <button style={{ ...s.catchBtn, background: '#ec4899' }}
+                                        onClick={() => lurePokestop(stop)}>
+                                        🌸 Use Lure ({playerItems.LURE_MODULE})
+                                    </button>
+                                )}
                             </div>
                         </Popup>
                     </Marker>
@@ -1025,10 +1064,10 @@ export default function PokemonMap() {
                 }} />
             )}
 
-            {/* Level + coins badge */}
+            {/* Level + coins + stardust badge */}
             {playerStats && (
                 <div style={s.levelBadge}>
-                    ⭐ Lv.{playerStats.level} &nbsp;💰{playerStats.coins}
+                    ⭐ Lv.{playerStats.level} &nbsp;💰{playerStats.coins} &nbsp;✨{(playerStats.stardust || 0).toLocaleString()}
                 </div>
             )}
 
