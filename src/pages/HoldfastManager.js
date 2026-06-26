@@ -28,6 +28,9 @@ function HoldfastManager() {
   const [depositAmount, setDepositAmount] = useState('');
   const [withdrawForm, setWithdrawForm] = useState({ gold: '', beer: '', wine: '', grain: '', tools: '' });
 
+  // Farming
+  const [replanting, setReplanting] = useState(false);
+
   const fetchAll = useCallback(async () => {
     try {
       const res = await fetch(`${API_URL}/api/holdfast/all`, { credentials: 'include' });
@@ -230,6 +233,48 @@ function HoldfastManager() {
     }
   };
 
+  const handleReplant = async (fieldType) => {
+    if (!selected) return;
+    setReplanting(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API_URL}/api/holdfast/replant`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ groupName: selected.groupName, fieldType }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.message || 'Replant failed');
+      await fetchStatus(selected.groupName);
+      await fetchAll();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setReplanting(false);
+    }
+  };
+
+  const handleToggleFoodMarket = async () => {
+    if (!selected) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API_URL}/api/holdfast/toggle-food-market`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ groupName: selected.groupName }),
+      });
+      if (!res.ok) throw new Error('Toggle failed');
+      await fetchStatus(selected.groupName);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const h = status?.holdfast;
   const buildings = status?.buildingMenu || [];
   const availableBuildings = buildings.filter(b => b.status === 'available');
@@ -342,7 +387,17 @@ function HoldfastManager() {
                     </div>
                     <div className="stat-card">
                       <div className="stat-label">Population</div>
-                      <div className="stat-value">{h.population}</div>
+                      <div className="stat-value">
+                        {h.population}
+                        {(() => {
+                          const hist = status.populationHistory;
+                          const rate = status.avgDailyGrowth;
+                          if (!hist || hist.length < 2) return <span className="stat-sub"> tracking…</span>;
+                          if (rate > 0.05)  return <span className="pop-trend up">↑ +{rate.toFixed(1)}/day</span>;
+                          if (rate < -0.05) return <span className="pop-trend down">↓ {rate.toFixed(1)}/day</span>;
+                          return <span className="pop-trend stable">→ stable</span>;
+                        })()}
+                      </div>
                     </div>
                     <div className="stat-card">
                       <div className="stat-label">Happiness</div>
@@ -363,7 +418,12 @@ function HoldfastManager() {
                   <div className="resources-row">
                     <div className="resource-chip">💰 {h.gold?.toFixed(1)}g</div>
                     <div className={`resource-chip ${h.food === 0 ? 'resource-danger' : h.food < h.population * 2 ? 'resource-warn' : ''}`}>
-                      🍞 {h.food} food <span className="resource-rate">(-{Math.ceil(h.population * 0.2)}/day)</span>
+                      🍞 {h.food} food
+                      <span className="resource-rate">(-{Math.ceil(h.population * 0.2)}/day)</span>
+                      {status.daysOfFood < 999 && <span className="food-days"> ≈{status.daysOfFood}d</span>}
+                      {status.nextSpoilIn >= 0 && status.nextSpoilIn <= 7 && (
+                        <span className="spoil-warn"> ⚠️ spoils in {status.nextSpoilIn}d</span>
+                      )}
                     </div>
                     <div className="resource-chip">🪵 {h.wood} wood</div>
                     <div className="resource-chip">🪨 {h.stone} stone</div>
@@ -386,34 +446,69 @@ function HoldfastManager() {
                     </>
                   )}
 
-                  {(h.wheatFieldPlantDays?.length > 0 || h.vegetableGardenPlantDays?.length > 0 ||
-                    h.orchardPlantDays?.length > 0 || h.vineyardPlantDays?.length > 0) && (
-                    <>
-                      <div className="section-title">Growing Crops</div>
-                      <div className="crops-grid">
-                        {[
-                          { label: 'Wheat Fields (+20 food)', days: h.wheatFieldPlantDays, harvest: 14 },
-                          { label: 'Vegetable Gardens (+10 food)', days: h.vegetableGardenPlantDays, harvest: 10 },
-                          { label: 'Orchards (+8 food +40g)', days: h.orchardPlantDays, harvest: 30 },
-                          { label: 'Vineyards (wine)', days: h.vineyardPlantDays, harvest: 90 },
-                        ].filter(c => c.days?.length > 0).map(({ label, days, harvest }) => (
-                          <div key={label} className="crop-section">
-                            <div className="crop-label">{label}</div>
-                            {days.map((plantDay, i) => {
-                              const grown = h.daysElapsed - plantDay;
-                              const pct = Math.min(100, Math.round((grown / harvest) * 100));
-                              return (
-                                <div key={i} className="crop-bar">
-                                  <div className="crop-bar-fill" style={{ width: pct + '%' }} />
-                                  <span className="crop-bar-text">Field {i + 1}: {grown}/{harvest}d ({pct}%)</span>
+                  {(() => {
+                    const allCrops = [
+                      { label: 'Wheat Fields (+20 food)',      days: h.wheatFieldPlantDays,     harvest: 14 },
+                      { label: 'Rye Fields (+40 food)',        days: h.ryeFieldPlantDays,        harvest: 28 },
+                      { label: 'Vegetable Gardens (+10 food)', days: h.vegetableGardenPlantDays, harvest: 10 },
+                      { label: 'Berry Patches (+8 food)',      days: h.berryPatchPlantDays,      harvest: 7  },
+                      { label: 'Mushroom Caves (+25 food)',    days: h.mushroomCavePlantDays,    harvest: 21 },
+                      { label: 'Orchards (+8 food +40g)',      days: h.orchardPlantDays,         harvest: 30 },
+                      { label: 'Vineyards (wine)',             days: h.vineyardPlantDays,        harvest: 90 },
+                    ];
+                    const growing = allCrops.filter(c => c.days?.length > 0);
+                    const SEED_COSTS = { wheat_field: 10, rye_field: 12, vegetable_garden: 8 };
+                    const fallowCrops = [
+                      { type: 'wheat_field',      label: 'Wheat Fields',      seedCost: 10, built: h.buildings?.wheat_field || 0,      planted: h.wheatFieldPlantDays?.length || 0 },
+                      { type: 'rye_field',        label: 'Rye Fields',        seedCost: 12, built: h.buildings?.rye_field || 0,        planted: h.ryeFieldPlantDays?.length || 0 },
+                      { type: 'vegetable_garden', label: 'Vegetable Gardens', seedCost: 8,  built: h.buildings?.vegetable_garden || 0, planted: h.vegetableGardenPlantDays?.length || 0 },
+                    ].filter(c => c.built - c.planted > 0);
+                    return (
+                      <>
+                        {growing.length > 0 && (
+                          <>
+                            <div className="section-title">Growing Crops</div>
+                            <div className="crops-grid">
+                              {growing.map(({ label, days, harvest }) => (
+                                <div key={label} className="crop-section">
+                                  <div className="crop-label">{label}</div>
+                                  {days.map((plantDay, i) => {
+                                    const grown = h.daysElapsed - plantDay;
+                                    const pct = Math.min(100, Math.round((grown / harvest) * 100));
+                                    return (
+                                      <div key={i} className="crop-bar">
+                                        <div className="crop-bar-fill" style={{ width: pct + '%' }} />
+                                        <span className="crop-bar-text">Field {i + 1}: {grown}/{harvest}d ({pct}%)</span>
+                                      </div>
+                                    );
+                                  })}
                                 </div>
-                              );
-                            })}
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  )}
+                              ))}
+                            </div>
+                          </>
+                        )}
+                        {fallowCrops.length > 0 && (
+                          <>
+                            <div className="section-title">Fallow Fields — Need Replanting</div>
+                            <div className="fallow-section">
+                              {fallowCrops.map(c => (
+                                <div key={c.type} className="fallow-item">
+                                  <span>{c.label}: <strong>{c.built - c.planted}</strong> fallow</span>
+                                  <button
+                                    className="btn-replant"
+                                    onClick={() => handleReplant(c.type)}
+                                    disabled={replanting || loading}
+                                  >
+                                    Replant all — {(c.built - c.planted) * c.seedCost}g
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               )}
 
@@ -538,6 +633,26 @@ function HoldfastManager() {
                     <div className="resource-chip">🍷 {h.wine} wine</div>
                     <div className="resource-chip">🔧 {h.tools} tools</div>
                   </div>
+
+                  {h.buildings?.food_market > 0 && (
+                    <div className="market-toggle-section">
+                      <div className="section-title">Food Market</div>
+                      <div className="market-toggle-row">
+                        <span>Status: <strong>{status.foodMarketEnabled ? '🟢 Selling' : '⚫ Off'}</strong></span>
+                        <button
+                          className={`btn-toggle ${status.foodMarketEnabled ? 'active' : ''}`}
+                          onClick={handleToggleFoodMarket}
+                          disabled={loading}
+                        >
+                          {status.foodMarketEnabled ? 'Disable' : 'Enable'}
+                        </button>
+                        <span className="market-rate">
+                          Sells up to {h.buildings.food_market * 5} food/day → {(h.buildings.food_market * 5 * 0.8).toFixed(1)}g/day
+                        </span>
+                      </div>
+                      <p className="market-note">Keeps a 14-day food reserve. Shelf life: {status.foodShelfLife}d.</p>
+                    </div>
+                  )}
 
                   <div className="treasury-sections">
                     <div className="treasury-section">
