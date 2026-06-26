@@ -48,13 +48,24 @@ export default function PokemonDetail() {
     const [flash,       setFlash]       = useState('');
     const [levelUpAnim, setLevelUpAnim] = useState(false);
     const [moves,        setMoves]       = useState([]);
-    const [pendingMove,  setPendingMove] = useState(null); // { id, name, type, ... } waiting for slot choice
-    const [replaceSlot,  setReplaceSlot] = useState(null); // null = prompt, 1-4 = replacing that slot
+    const [pendingMove,  setPendingMove] = useState(null);
+    const [replaceSlot,  setReplaceSlot] = useState(null);
+    const [evolutions,   setEvolutions]  = useState([]);    // possible evolutions with eligibility
+    const [evolveModal,  setEvolveModal] = useState(false);
+    const [evolving,     setEvolving]    = useState(false);
+    const [evolveFlash,  setEvolveFlash] = useState(null);  // { name, spriteKey } on success
 
     const loadMoves = useCallback(() => {
         fetch(`${pokemonApiUrl}/api/pokemon/moves/${id}`, { credentials: 'include' })
             .then(r => r.ok ? r.json() : [])
             .then(data => setMoves(Array.isArray(data) ? data : []))
+            .catch(() => {});
+    }, [id]);
+
+    const loadEvolutions = useCallback(() => {
+        fetch(`${pokemonApiUrl}/api/pokemon/${id}/evolution`, { credentials: 'include' })
+            .then(r => r.ok ? r.json() : [])
+            .then(data => setEvolutions(Array.isArray(data) ? data : []))
             .catch(() => {});
     }, [id]);
 
@@ -71,6 +82,7 @@ export default function PokemonDetail() {
 
     useEffect(() => { loadPokemon(); }, [loadPokemon]);
     useEffect(() => { loadMoves(); }, [loadMoves]);
+    useEffect(() => { loadEvolutions(); }, [loadEvolutions]);
 
     useEffect(() => {
         fetch(`${pokemonApiUrl}/api/pokemon/items`, { credentials: 'include' })
@@ -154,6 +166,44 @@ export default function PokemonDetail() {
         }
     }
 
+    async function toggleFavourite() {
+        const newFav = !pokemon.favourite;
+        try {
+            await fetch(`${pokemonApiUrl}/api/pokemon/favourite`, {
+                method: 'POST', credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ caughtId: parseInt(id), favourite: newFav }),
+            });
+            setPokemon(p => ({ ...p, favourite: newFav }));
+        } catch {}
+    }
+
+    async function confirmEvolve(targetSpeciesId) {
+        setEvolving(true);
+        try {
+            const r = await fetch(`${pokemonApiUrl}/api/pokemon/${id}/evolve`, {
+                method: 'POST', credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ targetSpeciesId }),
+            });
+            if (!r.ok) throw new Error(await r.text());
+            const data = await r.json();
+            setEvolveModal(false);
+            setEvolveFlash(data);
+            setTimeout(() => {
+                setEvolveFlash(null);
+                loadPokemon();
+                loadMoves();
+                loadEvolutions();
+            }, 2500);
+        } catch (e) {
+            setFlash('Evolution failed: ' + e.message);
+            setTimeout(() => setFlash(''), 3000);
+        } finally {
+            setEvolving(false);
+        }
+    }
+
     if (!pokemon) return <div style={styles.center}>Loading…</div>;
 
     const { pct, curr, needed } = expProgress(pokemon.exp || 0, pokemon.pokemonLevel);
@@ -200,7 +250,11 @@ export default function PokemonDetail() {
                             <button onClick={() => setEditing(false)} style={styles.cancelBtn}>✕</button>
                         </div>
                     ) : (
-                        <div style={{ marginBottom: 4 }}>
+                        <div style={{ marginBottom: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                            <button onClick={toggleFavourite} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, lineHeight: 1 }}
+                                title={pokemon.favourite ? 'Remove from favourites' : 'Mark as favourite'}>
+                                {pokemon.favourite ? '⭐' : '☆'}
+                            </button>
                             <span style={styles.name}>{pokemon.nickname || pokemon.speciesName}</span>
                             <button onClick={() => setEditing(true)} style={styles.editBtn}>✏️</button>
                         </div>
@@ -273,22 +327,82 @@ export default function PokemonDetail() {
                 <div style={styles.meta}>Caught {new Date(pokemon.caughtAt).toLocaleDateString()}</div>
 
                 {/* Action buttons */}
-                <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+                <div style={{ display: 'flex', gap: 10, marginTop: 20, flexWrap: 'wrap' }}>
                     <button
                         onClick={() => setCandyModal(true)}
                         disabled={!hasAnyCandy}
-                        style={{ ...styles.actionBtn, background: hasAnyCandy ? 'linear-gradient(135deg,#8b5cf6,#6d28d9)' : '#e5e7eb', color: hasAnyCandy ? 'white' : '#9ca3af', flex: 1 }}
+                        style={{ ...styles.actionBtn, background: hasAnyCandy ? 'linear-gradient(135deg,#8b5cf6,#6d28d9)' : '#e5e7eb', color: hasAnyCandy ? 'white' : '#9ca3af', flex: 1, minWidth: 120 }}
                     >
                         🍬 Use Candy
                     </button>
+                    {evolutions.length > 0 && (
+                        <button
+                            onClick={() => setEvolveModal(true)}
+                            style={{ ...styles.actionBtn, background: 'linear-gradient(135deg,#f59e0b,#d97706)', color: 'white', flex: 1, minWidth: 120 }}
+                        >
+                            ✨ Evolve
+                        </button>
+                    )}
                     <button
                         onClick={() => setGrindModal(true)}
-                        style={{ ...styles.actionBtn, background: 'linear-gradient(135deg,#ef4444,#b91c1c)', color: 'white', flex: 1 }}
+                        style={{ ...styles.actionBtn, background: 'linear-gradient(135deg,#ef4444,#b91c1c)', color: 'white', flex: 1, minWidth: 120 }}
                     >
                         ⚡ Grind Up
                     </button>
                 </div>
             </div>
+
+            {/* ── Evolution success flash ── */}
+            {evolveFlash && (
+                <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(251,191,36,0.92)', animation: 'evolveIn 0.4s ease-out' }}>
+                    <img src={`${pokemonApiUrl}/api/pokemon/sprites/${evolveFlash.newSpriteKey}`}
+                        alt={evolveFlash.newName} style={{ width: 120, height: 120, objectFit: 'contain', filter: 'drop-shadow(0 0 30px white)', marginBottom: 16 }} />
+                    <div style={{ fontSize: 36, fontWeight: 900, color: 'white', textShadow: '0 0 20px #92400e' }}>
+                        {evolveFlash.oldName} evolved!
+                    </div>
+                    <div style={{ fontSize: 24, fontWeight: 700, color: '#1e293b', marginTop: 8 }}>
+                        → {evolveFlash.newName}
+                    </div>
+                </div>
+            )}
+
+            {/* ── Evolve modal ── */}
+            {evolveModal && (
+                <div style={styles.modalOverlay} onClick={() => !evolving && setEvolveModal(false)}>
+                    <div style={styles.modal} onClick={e => e.stopPropagation()}>
+                        <div style={{ fontSize: 32, marginBottom: 8 }}>✨</div>
+                        <h3 style={{ margin: '0 0 4px', color: '#111827' }}>Evolve {pokemon.nickname || pokemon.speciesName}?</h3>
+                        <p style={{ margin: '0 0 16px', color: '#6b7280', fontSize: 13 }}>Choose an evolution path.</p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                            {evolutions.map(opt => (
+                                <button
+                                    key={opt.evolvesToId}
+                                    disabled={!opt.eligible || evolving}
+                                    onClick={() => confirmEvolve(opt.evolvesToId)}
+                                    style={{
+                                        display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
+                                        borderRadius: 14, border: `2px solid ${opt.eligible ? '#f59e0b' : '#e5e7eb'}`,
+                                        background: opt.eligible ? '#fffbeb' : '#f9fafb',
+                                        cursor: opt.eligible ? 'pointer' : 'not-allowed', textAlign: 'left',
+                                        opacity: opt.eligible ? 1 : 0.6,
+                                    }}>
+                                    <img src={`${pokemonApiUrl}/api/pokemon/sprites/pokemon_icon_${String(opt.evolvesToId).padStart(3,'0')}_00.png`}
+                                        alt={opt.evolvesToName}
+                                        style={{ width: 48, height: 48, objectFit: 'contain' }}
+                                        onError={e => { e.target.style.display = 'none'; }} />
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ fontWeight: 700, fontSize: 15, color: '#111827' }}>{opt.evolvesToName}</div>
+                                        <div style={{ fontSize: 12, color: opt.eligible ? '#d97706' : '#9ca3af', marginTop: 2 }}>{opt.reason}</div>
+                                        {opt.itemRequired && <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Uses: {opt.itemRequired.replace(/_/g,' ')}</div>}
+                                    </div>
+                                    {opt.eligible && <span style={{ fontSize: 20 }}>{evolving ? '…' : '→'}</span>}
+                                </button>
+                            ))}
+                        </div>
+                        <button onClick={() => setEvolveModal(false)} style={{ ...styles.cancelBtn2, marginTop: 14, width: '100%' }} disabled={evolving}>Cancel</button>
+                    </div>
+                </div>
+            )}
 
             {/* ── Grind confirmation modal ── */}
             {grindModal && (
@@ -426,6 +540,10 @@ export default function PokemonDetail() {
                     60%  { transform: scale(1.0); opacity: 1; }
                     90%  { transform: scale(1.05); opacity: 1; }
                     100% { transform: scale(1.0); opacity: 0; }
+                }
+                @keyframes evolveIn {
+                    0%   { opacity: 0; transform: scale(0.8); }
+                    100% { opacity: 1; transform: scale(1); }
                 }
             `}</style>
         </div>
