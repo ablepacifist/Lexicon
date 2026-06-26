@@ -45,6 +45,12 @@ const BALL_SPRITE_MAP = {
     POKEBALL: 'pokeball_sprite.png', GREAT_BALL: 'greatball_sprite.png', ULTRA_BALL: 'ultraball_sprite.png'
 };
 
+const BERRIES = [
+    { type: 'RAZZ_BERRY',  emoji: '🍓', label: 'Razz',  desc: '1.5× catch' },
+    { type: 'NANAB_BERRY', emoji: '🍌', label: 'Nanab', desc: 'No dodge'   },
+    { type: 'PINAP_BERRY', emoji: '🍍', label: 'Pinap', desc: '2× candy'   },
+];
+
 /** Map real-world distance (metres) → 3D world Z (metres) */
 function pokemonWorldZ(distM) {
     // Near (0m real) → Z=3, Far (200m real) → Z=28
@@ -71,8 +77,10 @@ export default function CatchScreen3D({
     throwing, shaking, catchResult,
     onThrow, onMiss, onClose, onTryAgain,
 }) {
-    const canvasRef      = useRef(null);
-    const rafRef         = useRef(null);
+    const canvasRef         = useRef(null);
+    const rafRef            = useRef(null);
+    const selectedBerryRef  = useRef(null);
+    const [displayBerry, setDisplayBerry] = useState(null);
 
     // Three.js objects — created once per spawn
     const threeRef = useRef(null); // { renderer, scene, camera, ball, ring, pokemon, shadow }
@@ -341,7 +349,10 @@ export default function CatchScreen3D({
                     const bonus = 1 - phys.ringScale;
                     const tier  = bonus >= 0.90 ? 'Excellent' : bonus >= 0.70 ? 'Great' : bonus >= 0.40 ? 'Nice' : '';
                     if (tier) setThrowTier(tier);
-                    propsRef.current.onThrow(bonus);
+                    const berry = selectedBerryRef.current;
+                    selectedBerryRef.current = null;
+                    setDisplayBerry(null);
+                    propsRef.current.onThrow(bonus, berry);
                     return;
                 }
 
@@ -669,9 +680,30 @@ export default function CatchScreen3D({
             {!catchResult && !shaking && (
                 <div style={{ position:'absolute', bottom:0, left:0, right:0, height:115, display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 28px 12px', zIndex:10, pointerEvents:'none' }}
                      onPointerDown={e => e.stopPropagation()}>
-                    <button style={{ pointerEvents:'auto', width:68, height:68, borderRadius:'50%', background:'rgba(0,0,0,0.40)', border:'2px solid rgba(255,255,255,0.25)', backdropFilter:'blur(6px)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:30, cursor:'pointer' }}>
-                        🍓
-                    </button>
+                    {(() => {
+                        const avail = BERRIES.filter(b => (items[b.type] || 0) > 0);
+                        const active = BERRIES.find(b => b.type === displayBerry);
+                        return (
+                            <button
+                                style={{ pointerEvents:'auto', width:68, height:68, borderRadius:'50%', background: active ? 'rgba(236,72,153,0.55)' : 'rgba(0,0,0,0.40)', border:`2px solid ${active ? '#ec4899' : 'rgba(255,255,255,0.25)'}`, backdropFilter:'blur(6px)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:2, cursor: avail.length > 0 ? 'pointer' : 'default', opacity: avail.length > 0 ? 1 : 0.4 }}
+                                onClick={() => {
+                                    if (!avail.length) return;
+                                    const currIdx = avail.findIndex(b => b.type === displayBerry);
+                                    const next = currIdx === -1 ? avail[0].type
+                                        : (currIdx >= avail.length - 1 ? null : avail[currIdx + 1].type);
+                                    selectedBerryRef.current = next;
+                                    setDisplayBerry(next);
+                                }}
+                            >
+                                <span style={{ fontSize: 26 }}>{active ? active.emoji : '🍓'}</span>
+                                {active ? (
+                                    <span style={{ color:'white', fontSize:9, fontWeight:700 }}>×{items[active.type] || 0}</span>
+                                ) : avail.length > 0 ? (
+                                    <span style={{ color:'rgba(255,255,255,0.5)', fontSize:9 }}>berry</span>
+                                ) : null}
+                            </button>
+                        );
+                    })()}
                     <div style={{ width:90 }} />
                     <button
                         style={{ pointerEvents:'auto', width:68, height:68, borderRadius:'50%', background:'rgba(0,0,0,0.40)', border:`2px solid ${selBallDef.color}88`, backdropFilter:'blur(6px)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:3, cursor:'pointer' }}
