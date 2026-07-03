@@ -1054,6 +1054,9 @@ export default function PokemonMap() {
                                         style={{ width: 80, height: 80, objectFit: 'contain' }}
                                         onError={e => { e.target.style.display = 'none'; }} />
                                     <div style={{ fontWeight: 'bold', margin: '4px 0', fontSize: 14 }}>{spawn.speciesName}</div>
+                                    {spawn.level > 0 && (
+                                        <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4, fontWeight: 700 }}>Lv. {spawn.level}</div>
+                                    )}
                                     {inRange ? (
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                                             <button style={{ ...s.catchBtn, background: '#7c3aed' }} onClick={() => openBattle(spawn)}>
