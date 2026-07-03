@@ -204,10 +204,42 @@ export default function PokemonDetail() {
         }
     }
 
+    async function healItem(item) {
+        if (busy) return;
+        setBusy(true);
+        try {
+            const r = await fetch(`${pokemonApiUrl}/api/pokemon/heal`, {
+                method: 'POST', credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ caughtId: pokemon.id, item }),
+            });
+            const data = await r.json().catch(() => null);
+            if (!r.ok) { setFlash(typeof data === 'string' ? data : (data?.message || 'Cannot use that item')); }
+            else {
+                setPokemon(p => ({ ...p, currentHp: data.currentHp }));
+                setCandyInv(inv => ({ ...inv, [item]: Math.max(0, (inv[item] || 0) - 1) }));
+                setFlash(data.message);
+            }
+            setTimeout(() => setFlash(''), 2500);
+        } catch (e) {
+            setFlash('Heal failed: ' + e.message); setTimeout(() => setFlash(''), 2500);
+        } finally { setBusy(false); }
+    }
+
     if (!pokemon) return <div style={styles.center}>Loading…</div>;
 
     const { pct, curr, needed } = expProgress(pokemon.exp || 0, pokemon.pokemonLevel);
     const hasAnyCandy = CANDY_TYPES.some(t => (candyInv[t] || 0) > 0);
+    const maxHp = pokemon.hp;
+    const curHp = pokemon.currentHp != null ? pokemon.currentHp : pokemon.hp;
+    const fainted = curHp <= 0;
+    const hpPct = maxHp > 0 ? Math.max(0, Math.round((curHp / maxHp) * 100)) : 0;
+    const hpBarColor = hpPct > 50 ? '#22c55e' : hpPct > 20 ? '#eab308' : '#ef4444';
+    const POTIONS = [
+        { key: 'POTION', label: 'Potion' }, { key: 'SUPER_POTION', label: 'Super Potion' },
+        { key: 'HYPER_POTION', label: 'Hyper Potion' }, { key: 'MAX_POTION', label: 'Max Potion' },
+    ];
+    const REVIVES = [{ key: 'REVIVE', label: 'Revive' }, { key: 'MAX_REVIVE', label: 'Max Revive' }];
     const stats = [
         { label: 'HP',      value: pokemon.hp,      max: 200 },
         { label: 'Attack',  value: pokemon.attack,   max: 150 },
@@ -269,6 +301,36 @@ export default function PokemonDetail() {
                 </div>
 
                 <div style={styles.cpBox}>Lv. {pokemon.pokemonLevel}</div>
+
+                {/* HP bar + healing */}
+                <div style={{ margin: '0 0 14px', textAlign: 'left' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#64748b', marginBottom: 4 }}>
+                        <span>HP {fainted && <b style={{ color: '#ef4444' }}>· Fainted</b>}</span>
+                        <span>{Math.max(0, curHp)} / {maxHp}</span>
+                    </div>
+                    <div style={styles.barBg}>
+                        <div style={{ ...styles.barFill, width: `${hpPct}%`, background: hpBarColor }} />
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                        {!fainted && curHp < maxHp && POTIONS.filter(p => (candyInv[p.key] || 0) > 0).map(p => (
+                            <button key={p.key} disabled={busy} onClick={() => healItem(p.key)} style={styles.healBtn}>
+                                {p.label} ×{candyInv[p.key]}
+                            </button>
+                        ))}
+                        {fainted && REVIVES.filter(p => (candyInv[p.key] || 0) > 0).map(p => (
+                            <button key={p.key} disabled={busy} onClick={() => healItem(p.key)} style={{ ...styles.healBtn, background: '#7c3aed' }}>
+                                {p.label} ×{candyInv[p.key]}
+                            </button>
+                        ))}
+                        {!fainted && curHp >= maxHp && <span style={{ fontSize: 12, color: '#94a3b8' }}>Full HP</span>}
+                        {fainted && !REVIVES.some(p => (candyInv[p.key] || 0) > 0) && (
+                            <span style={{ fontSize: 12, color: '#ef4444' }}>No Revive — get one from a Pokéstop</span>
+                        )}
+                        {!fainted && curHp < maxHp && !POTIONS.some(p => (candyInv[p.key] || 0) > 0) && (
+                            <span style={{ fontSize: 12, color: '#94a3b8' }}>No potions in your bag</span>
+                        )}
+                    </div>
+                </div>
 
                 {/* EXP Bar */}
                 <div style={{ margin: '0 0 18px', textAlign: 'left' }}>
@@ -622,6 +684,7 @@ const styles = {
     stats: { textAlign: 'left', marginBottom: 16 },
     barBg: { background: '#e5e7eb', borderRadius: 4, height: 8, overflow: 'hidden' },
     barFill: { background: '#ef4444', height: '100%', borderRadius: 4, transition: 'width .3s' },
+    healBtn: { padding: '6px 12px', background: '#22c55e', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 },
     expBarFill: { background: 'linear-gradient(90deg,#8b5cf6,#6d28d9)', height: '100%', borderRadius: 4, transition: 'width .5s' },
     meta: { color: '#9ca3af', fontSize: 12, marginTop: 8 },
     actionBtn: { padding: '12px 16px', border: 'none', borderRadius: 12, cursor: 'pointer', fontSize: 15, fontWeight: 700, transition: 'opacity .15s' },

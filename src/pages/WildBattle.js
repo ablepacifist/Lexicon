@@ -195,20 +195,34 @@ export default function WildBattle({ spawn, playerPos, onRequestCatch, onClose }
                         <div style={s.dim}>You have no Pokémon to battle with!</div>
                     ) : (
                         <div style={s.partyList}>
-                            {party.map(p => (
-                                <button key={p.id} style={s.partyRow} disabled={busy}
-                                    onClick={() => switching ? switchTo(p) : startWith(p)}>
-                                    <img src={spriteUrl(p.spriteKey)} alt={p.speciesName} style={{ width: 44, height: 44, objectFit: 'contain' }}
-                                        onError={e => { e.target.style.display = 'none'; }} />
-                                    <div style={{ flex: 1, textAlign: 'left' }}>
-                                        <div style={{ fontWeight: 700, fontSize: 14 }}>{p.nickname || p.speciesName}</div>
-                                        <div style={{ fontSize: 11, color: '#64748b' }}>
-                                            Lv.{p.pokemonLevel} · HP {p.hp}
-                                            <TypeChip type={p.type1} /><TypeChip type={p.type2} />
+                            {party.map(p => {
+                                const cur = p.currentHp != null ? p.currentHp : p.hp;
+                                const fainted = cur <= 0;
+                                const pct = p.hp > 0 ? Math.max(0, Math.round((cur / p.hp) * 100)) : 0;
+                                return (
+                                    <button key={p.id} style={{ ...s.partyRow, opacity: fainted ? 0.5 : 1, cursor: fainted ? 'not-allowed' : 'pointer' }}
+                                        disabled={busy || fainted}
+                                        onClick={() => fainted ? null : (switching ? switchTo(p) : startWith(p))}>
+                                        <img src={spriteUrl(p.spriteKey)} alt={p.speciesName}
+                                            style={{ width: 44, height: 44, objectFit: 'contain', filter: fainted ? 'grayscale(1)' : 'none' }}
+                                            onError={e => { e.target.style.display = 'none'; }} />
+                                        <div style={{ flex: 1, textAlign: 'left' }}>
+                                            <div style={{ fontWeight: 700, fontSize: 14 }}>
+                                                {p.nickname || p.speciesName}
+                                                {fainted && <span style={{ color: '#ef4444', fontSize: 11, marginLeft: 6 }}>FNT</span>}
+                                            </div>
+                                            <div style={{ fontSize: 11, color: '#64748b', marginBottom: 3 }}>
+                                                Lv.{p.pokemonLevel}
+                                                <TypeChip type={p.type1} /><TypeChip type={p.type2} />
+                                            </div>
+                                            <div style={{ height: 5, background: '#e5e7eb', borderRadius: 4, overflow: 'hidden' }}>
+                                                <div style={{ width: `${pct}%`, height: '100%', background: hpColor(pct) }} />
+                                            </div>
+                                            <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 1 }}>{Math.max(0, cur)} / {p.hp} HP</div>
                                         </div>
-                                    </div>
-                                </button>
-                            ))}
+                                    </button>
+                                );
+                            })}
                         </div>
                     )}
                     <button style={s.closeBtn} onClick={() => onClose(false, false)}>Leave</button>
