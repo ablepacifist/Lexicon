@@ -141,6 +141,15 @@ export default function MyPokemon() {
                             <TypeBadge type={p.type2} />
                         </div>
                         <div style={styles.level}>Lv. {p.pokemonLevel}</div>
+                        {p.moves && p.moves.length > 0 && (
+                            <div style={styles.moveList}>
+                                {p.moves.map(m => (
+                                    <span key={m.slot || m.id} style={{ ...styles.moveChip, background: TYPE_COLORS[m.type] || '#9ca3af' }}>
+                                        {m.name}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 ))}
             </div>
@@ -165,4 +174,6 @@ const styles = {
     cardName:   { fontWeight: 'bold', fontSize: 13, marginTop: 4 },
     cardSub:    { color: '#9ca3af', fontSize: 11 },
     level:      { marginTop: 6, color: '#ef4444', fontWeight: 'bold', fontSize: 12 },
+    moveList:   { display: 'flex', flexWrap: 'wrap', gap: 3, justifyContent: 'center', marginTop: 6 },
+    moveChip:   { color: 'white', fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 8, lineHeight: 1.3 },
 };
