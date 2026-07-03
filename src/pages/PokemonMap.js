@@ -7,6 +7,7 @@ import './PokemonMap.css';
 import { getApiUrls } from '../utils/apiUrls';
 import { useAvatar } from '../hooks/useAvatar';
 import CatchScreen3D from './CatchScreen3D';
+import WildBattle from './WildBattle';
 
 // Fix Leaflet default icon broken by webpack
 delete L.Icon.Default.prototype._getIconUrl;
@@ -648,6 +649,8 @@ export default function PokemonMap() {
     const [throwing,     setThrowing]     = useState(false);
     const [shaking,      setShaking]      = useState(false);
     const [catchResult,  setCatchResult]  = useState(null);
+    const [battleTarget, setBattleTarget] = useState(null);  // wild spawn we're battling
+    const [battleCatchId,setBattleCatchId]= useState(null);  // battleId carried into the throw screen
 
     // Pokestop placement
     const [placingStop,    setPlacingStop]    = useState(false);
@@ -699,13 +702,17 @@ export default function PokemonMap() {
     }, [authState]);
 
     // ── Player stats ─────────────────────────────────────────────────────────
-    useEffect(() => {
-        if (authState !== 'authed') return;
+    const loadPlayerStats = useCallback(() => {
         fetch(`${pokemonApiUrl}/api/pokemon/player/stats`, { credentials: 'include' })
             .then(r => r.ok ? r.json() : null)
             .then(data => { if (data) setPlayerStats(data); })
             .catch(() => {});
-    }, [authState]);
+    }, []);
+
+    useEffect(() => {
+        if (authState !== 'authed') return;
+        loadPlayerStats();
+    }, [authState, loadPlayerStats]);
 
     // ── GPS ───────────────────────────────────────────────────────────────────
     // Call getCurrentPosition first — this is the call that actually triggers the
@@ -778,10 +785,43 @@ export default function PokemonMap() {
     }
 
     function closeCatchScreen() {
+        // If this throw screen was opened from a battle and we leave without catching,
+        // tell the server to drop the battle session.
+        if (battleCatchId && catchTarget) {
+            fetch(`${pokemonApiUrl}/api/pokemon/battle/end`, {
+                method: 'POST', credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ battleId: battleCatchId }),
+            }).catch(() => {});
+        }
+        setBattleCatchId(null);
         setCatchTarget(null);
         setCatchResult(null);
         setThrowing(false);
         setShaking(false);
+    }
+
+    // ── Battle screen ─────────────────────────────────────────────────────────
+    function openBattle(spawn) {
+        setBattleTarget(spawn);
+    }
+
+    function closeBattle(refresh, consumed) {
+        // A won battle consumes the spawn server-side — drop it locally too so it
+        // disappears immediately. A loss/flee leaves the spawn on the map.
+        if (consumed && battleTarget) {
+            setSpawns(prev => prev.filter(s => s.id !== battleTarget.id));
+        }
+        setBattleTarget(null);
+        if (refresh) { fetchNearby(); loadPlayerStats(); }
+    }
+
+    // Player chose "Catch" inside a battle → open the throw screen carrying the battleId.
+    async function catchFromBattle(battleId) {
+        const spawn = battleTarget;
+        setBattleTarget(null);
+        setBattleCatchId(battleId);
+        await openCatchScreen(spawn);
     }
 
     function resetCatch() {
@@ -824,6 +864,7 @@ export default function PokemonMap() {
                     lng:      playerPos ? playerPos[1] : 0,
                     ballType: selectedBall,
                     berry:    berry || null,
+                    battleId: battleCatchId || null,
                 }),
             });
 
@@ -857,6 +898,7 @@ export default function PokemonMap() {
             if (data.success) {
                 setCatchResult({ success: true, message: `${catchTarget.speciesName} was caught!`, pokemon: data.pokemon });
                 setSpawns(prev => prev.filter(s => s.id !== catchTarget.id));
+                setBattleCatchId(null); // battle session already closed server-side on a catch
             } else {
                 setCatchResult({ success: false, message: data.message || 'It broke free!' });
             }
@@ -1013,9 +1055,14 @@ export default function PokemonMap() {
                                         onError={e => { e.target.style.display = 'none'; }} />
                                     <div style={{ fontWeight: 'bold', margin: '4px 0', fontSize: 14 }}>{spawn.speciesName}</div>
                                     {inRange ? (
-                                        <button style={s.catchBtn} onClick={() => openCatchScreen(spawn)}>
-                                            ⚔️ Encounter!
-                                        </button>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                                            <button style={{ ...s.catchBtn, background: '#7c3aed' }} onClick={() => openBattle(spawn)}>
+                                                ⚔️ Battle
+                                            </button>
+                                            <button style={{ ...s.catchBtn, background: '#22c55e' }} onClick={() => openCatchScreen(spawn)}>
+                                                🎯 Catch
+                                            </button>
+                                        </div>
                                     ) : (
                                         <div style={{ color: '#6b7280', fontSize: 12, marginTop: 4 }}>
                                             🚶 {dist < 1000 ? `${dist}m` : `${(dist/1000).toFixed(1)}km`} away
@@ -1224,6 +1271,15 @@ export default function PokemonMap() {
                 onClose={closeCatchScreen}
                 onTryAgain={resetCatch}
             />
+
+            {battleTarget && (
+                <WildBattle
+                    spawn={battleTarget}
+                    playerPos={playerPos}
+                    onRequestCatch={catchFromBattle}
+                    onClose={closeBattle}
+                />
+            )}
 
         </div>
     );
