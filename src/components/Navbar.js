@@ -3,6 +3,9 @@ import { Link, useLocation } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
 import { useAvatar } from '../hooks/useAvatar';
 import { navigateToVoice } from '../utils/voiceNavigation';
+import NotificationBell from './NotificationBell';
+import NotificationToasts from './NotificationToasts';
+import { useNotifications } from '../hooks/useNotifications';
 import './Navbar.css';
 
 const Navbar = () => {
@@ -10,6 +13,7 @@ const Navbar = () => {
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const { avatarUrl } = useAvatar(user?.username);
+  const notif = useNotifications(user);
 
   const navItems = [
     { path: '/', label: 'About Me' },
@@ -19,6 +23,7 @@ const Navbar = () => {
     { path: '/projects', label: 'Projects' },
     { path: '/dnd', label: 'D&D' },
     { path: '/lexicon-dashboard', label: 'Lexicon', requiresAuth: true },
+    { path: '/events', label: 'Events', requiresAuth: true },
     { path: '/pokemon', label: 'PokeWorld', requiresAuth: true },
     { path: '#voice', label: '🎙️ Voice', requiresAuth: true, external: true },
   ];
@@ -34,6 +39,12 @@ const Navbar = () => {
             <span className="brand-icon">AD</span>
             <span className="brand-text">Alex Dyakin</span>
           </Link>
+
+          {user && (
+            <div className="navbar-mobile-bell">
+              <NotificationBell userId={user.id} {...notif} />
+            </div>
+          )}
 
           <button
             className={`navbar-toggle ${menuOpen ? 'open' : ''}`}
@@ -74,10 +85,13 @@ const Navbar = () => {
             })}
             <div className="navbar-auth">
               {user ? (
-                <Link to="/profile" className="navbar-link auth-link" onClick={close} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <img src={avatarUrl} alt="" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', border: '1.5px solid rgba(139,139,245,0.5)' }} />
-                  {user.username}
-                </Link>
+                <>
+                  <NotificationBell userId={user.id} {...notif} />
+                  <Link to="/profile" className="navbar-link auth-link" onClick={close} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <img src={avatarUrl} alt="" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', border: '1.5px solid rgba(139,139,245,0.5)' }} />
+                    {user.username}
+                  </Link>
+                </>
               ) : (
                 <Link to="/login" className="navbar-link auth-link" onClick={close}>Login</Link>
               )}
@@ -125,6 +139,8 @@ const Navbar = () => {
           </div>
         </div>
       )}
+
+      {user && <NotificationToasts toasts={notif.toasts} dismissToast={notif.dismissToast} />}
     </>
   );
 };

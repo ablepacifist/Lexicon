@@ -76,6 +76,53 @@
   background: rgba(255, 255, 255, 0.1);
 }
 
+/* ── Storage bar ── */
+.storage-bar-section {
+  padding: 0.75rem 6%;
+  background: rgba(8, 8, 14, 0.75);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.storage-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.storage-label {
+  color: #888;
+  font-size: 0.8rem;
+  min-width: 100px;
+  white-space: nowrap;
+}
+
+.storage-bar-track {
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.storage-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
+.fill-green  { background: #4caf50; }
+.fill-yellow { background: #ffc107; }
+.fill-red    { background: #f44336; }
+
+.storage-text {
+  min-width: 120px;
+  text-align: right;
+  font-size: 0.82rem;
+  color: #aaa;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 /* ── Content container ── */
 .lex-content {
   max-width: min(96%, 72rem);

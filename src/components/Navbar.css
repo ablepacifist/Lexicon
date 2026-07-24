@@ -95,6 +95,14 @@
   color: #a5a5ff !important;
 }
 
+/* ── Mobile-only bell (top bar, next to hamburger) ── */
+.navbar-mobile-bell {
+  display: none;
+  align-items: center;
+  margin-left: auto;
+  margin-right: 0.6rem;
+}
+
 /* ── Hamburger button ── */
 .navbar-toggle {
   display: none;
@@ -183,6 +191,10 @@
 
   .navbar-links-desktop {
     display: none;
+  }
+
+  .navbar-mobile-bell {
+    display: flex;
   }
 
   .navbar-mobile-menu {

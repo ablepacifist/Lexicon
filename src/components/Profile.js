@@ -1,9 +1,11 @@
-import React, { useContext, useState, useEffect, useRef } from 'react';
+import React, { useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
 import { useAvatar } from '../hooks/useAvatar';
 import { getApiUrls } from '../utils/apiUrls';
+import NotificationSettings from './NotificationSettings';
 import background from '../assets/images/lexicon_room.jpg';
+import './NotificationBell.css';
 import './Profile.css';
 
 const Profile = () => {
@@ -18,6 +20,7 @@ const Profile = () => {
   const [avatarMsg, setAvatarMsg] = useState('');
   const [secretPassword, setSecretPassword] = useState('');
   const [levelUpMsg, setLevelUpMsg] = useState('');
+  const [notifPrefs, setNotifPrefs] = useState(null);
   const fileInputRef = useRef(null);
 
   const { avatarUrl, uploadAvatar, removeAvatar } = useAvatar(user?.username);
@@ -55,10 +58,33 @@ const Profile = () => {
       }
     };
 
+    const fetchNotifPrefs = async () => {
+      try {
+        const res = await fetch(`${lexiconApiUrl}/api/notifications/prefs?userId=${user.id}`);
+        if (res.ok) setNotifPrefs(await res.json());
+      } catch (err) {
+        console.error('Error fetching notification prefs:', err);
+      }
+    };
+
     fetchPlayerStats();
     fetchAlchemyPlayer();
     fetchPokeStats();
+    fetchNotifPrefs();
   }, [user, navigate, lexiconApiUrl, alchemyApiUrl, pokemonApiUrl]);
+
+  const updateNotifPrefs = useCallback(async (next) => {
+    setNotifPrefs(next);
+    try {
+      await fetch(`${lexiconApiUrl}/api/notifications/prefs?userId=${user.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(next),
+      });
+    } catch (err) {
+      console.error('Error saving notification prefs:', err);
+    }
+  }, [lexiconApiUrl, user]);
 
   const handleLevelUp = async () => {
     if (!user) return;
@@ -223,6 +249,18 @@ const Profile = () => {
                   </div>
                 ))}
               </div>
+
+              {/* Notification Settings */}
+              {notifPrefs && (
+                <div className="profile-notif-section">
+                  <h3 className="levelup-title">🔔 Notification Settings</h3>
+                  <NotificationSettings
+                    userId={user.id}
+                    prefs={notifPrefs}
+                    updatePrefs={updateNotifPrefs}
+                  />
+                </div>
+              )}
 
               {/* Level Up */}
               <div className="levelup-section">

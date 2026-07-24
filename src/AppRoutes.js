@@ -37,6 +37,9 @@ import PokemonDetail from './pages/PokemonDetail';
 import PokemonShop from './pages/PokemonShop';
 import PokemonItems from './pages/PokemonItems';
 import MyPokemon from './pages/MyPokemon';
+import Events from './pages/Events';
+import EventVote from './pages/EventVote';
+import PollVote from './pages/PollVote';
 
 import { getApiUrls } from './utils/apiUrls';
 const { lexiconApiUrl: API_URL } = getApiUrls();
@@ -171,6 +174,13 @@ function AppRoutes() {
       <Route path="/pokemon/:id" element={
         <PrivateRoute><PokemonDetail /></PrivateRoute>
       } />
+
+      {/* Events & Polls */}
+      <Route path="/events" element={
+        <PrivateRoute><Events /></PrivateRoute>
+      } />
+      <Route path="/events/:eventId" element={<EventVote />} />
+      <Route path="/events/:eventId/polls/:pollId" element={<PollVote />} />
 
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>

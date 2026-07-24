@@ -1,7 +1,8 @@
-import React, { useContext } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
 import { useAvatar } from '../hooks/useAvatar';
+import { getApiUrls } from '../utils/apiUrls';
 import Navbar from '../components/Navbar';
 import background from '../assets/images/lexicon_room.jpg';
 import './LexiconDashboard.css';
@@ -50,9 +51,20 @@ const FeatureCard = ({ to, icon, title, desc, theme }) => (
   </Link>
 );
 
+const toGB = bytes => (bytes / 1e9).toFixed(1);
+
 const LexiconDashboard = () => {
   const { user } = useContext(UserContext);
   const { avatarUrl } = useAvatar(user?.username);
+  const [storageInfo, setStorageInfo] = useState(null);
+
+  useEffect(() => {
+    const { lexiconApiUrl } = getApiUrls();
+    fetch(`${lexiconApiUrl}/api/media/storage-info`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setStorageInfo(data); })
+      .catch(() => {});
+  }, []);
 
   return (
     <div
@@ -75,6 +87,25 @@ const LexiconDashboard = () => {
           <Link to="/app-selector" className="lex-hero-link">← Apps</Link>
         </div>
       </div>
+
+      {/* Storage bar */}
+      {storageInfo && (
+        <div className="storage-bar-section">
+          {storageInfo.volumes.map((v, idx) => {
+            const pct = (v.usedBytes / v.totalBytes) * 100;
+            const colorClass = pct > 90 ? 'fill-red' : pct > 70 ? 'fill-yellow' : 'fill-green';
+            return (
+              <div key={idx} className="storage-bar-row">
+                <span className="storage-label">{v.label}</span>
+                <div className="storage-bar-track">
+                  <div className={`storage-bar-fill ${colorClass}`} style={{ width: `${Math.min(100, pct).toFixed(1)}%` }} />
+                </div>
+                <span className="storage-text">{toGB(v.usedBytes)} / {toGB(v.totalBytes)} GB</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Feature sections */}
       <div className="lex-content">
