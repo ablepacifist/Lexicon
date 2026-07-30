@@ -3,7 +3,6 @@ import React, { useEffect, useContext } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { UserContext } from './context/UserContext';
 
-import Home from './pages/Home';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -37,6 +36,7 @@ import PokemonDetail from './pages/PokemonDetail';
 import PokemonShop from './pages/PokemonShop';
 import PokemonItems from './pages/PokemonItems';
 import MyPokemon from './pages/MyPokemon';
+import EggsPage from './pages/EggsPage';
 import Events from './pages/Events';
 import EventVote from './pages/EventVote';
 import PollVote from './pages/PollVote';
@@ -79,7 +79,6 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
-      <Route path="/home" element={<Home />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/app-selector" element={
@@ -170,6 +169,9 @@ function AppRoutes() {
       } />
       <Route path="/pokemon/items" element={
         <PrivateRoute><PokemonItems /></PrivateRoute>
+      } />
+      <Route path="/pokemon/eggs" element={
+        <PrivateRoute><EggsPage /></PrivateRoute>
       } />
       <Route path="/pokemon/:id" element={
         <PrivateRoute><PokemonDetail /></PrivateRoute>

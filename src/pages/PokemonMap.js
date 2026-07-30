@@ -750,6 +750,24 @@ export default function PokemonMap() {
             .then(r => r.json()).then(setSpawns).catch(() => {});
         fetch(`${pokemonApiUrl}/api/pokemon/pokestops/nearby?lat=${lat}&lng=${lng}&radius=500`, { credentials: 'include' })
             .then(r => r.json()).then(setStops).catch(() => {});
+
+        // Report the ping to the walk engine → advances eggs + buddy candy.
+        fetch(`${pokemonApiUrl}/api/pokemon/walk`, {
+            method: 'POST', credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ lat, lng }),
+        })
+            .then(r => r.ok ? r.json() : null)
+            .then(res => {
+                if (!res || !res.events || !res.events.length) return;
+                const hatch = res.events.find(e => e.type === 'hatch');
+                const candy = res.events.find(e => e.type === 'buddyCandy');
+                const text = hatch
+                    ? `🥚 A ${hatch.tierKm}km Egg hatched into ${hatch.speciesName} (Lv.${hatch.level})!`
+                    : candy ? `🍬 ${candy.buddyName} found ${candy.candy} Candy!` : '';
+                if (text) { setToast(text); setTimeout(() => setToast(''), 5000); }
+            })
+            .catch(() => {});
     }, [playerPos]);
 
     useEffect(() => {
@@ -1114,12 +1132,17 @@ export default function PokemonMap() {
                 }} />
             )}
 
-            {/* Level + coins + stardust badge */}
+            {/* Level + coins badge */}
             {playerStats && (
                 <div style={s.levelBadge}>
-                    ⭐ Lv.{playerStats.level} &nbsp;💰{playerStats.coins} &nbsp;✨{(playerStats.stardust || 0).toLocaleString()}
+                    ⭐ Lv.{playerStats.level} &nbsp;💰{playerStats.coins}
                 </div>
             )}
+
+            {/* Exit PokeWorld → back to the main Alex Dyakin site */}
+            <button style={s.exitBtn} onClick={() => navigate('/')} title="Exit PokeWorld">
+                ✕ Exit
+            </button>
 
             {/* FAB speed dial — all nav + actions */}
             <div style={s.fabContainer}>
@@ -1295,6 +1318,7 @@ const s = {
     btn:       { width: '100%', padding: '12px', background: '#ef4444', color: 'white', border: 'none', borderRadius: 8, fontSize: 15, cursor: 'pointer', fontWeight: 'bold' },
     catchBtn:  { display: 'block', width: '100%', padding: '8px 0', background: '#ef4444', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 'bold' },
     levelBadge:    { position: 'absolute', top: 16, left: 16, zIndex: 1000, background: 'rgba(0,0,0,.78)', color: 'white', borderRadius: 20, padding: '7px 16px', fontSize: 14, fontWeight: 700, backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)', pointerEvents: 'none' },
+    exitBtn:       { position: 'absolute', top: 16, right: 16, zIndex: 1000, background: 'rgba(0,0,0,.78)', color: 'white', border: '1px solid rgba(255,255,255,.2)', borderRadius: 20, padding: '7px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)' },
     tapHint:       { position: 'absolute', top: 16, left: '50%', transform: 'translateX(-50%)', background: 'rgba(245,158,11,.9)', color: 'white', padding: '8px 20px', borderRadius: 20, fontSize: 14, fontWeight: 'bold', zIndex: 1001, whiteSpace: 'nowrap', pointerEvents: 'none' },
     fabContainer:  { position: 'absolute', bottom: 24, right: 14, zIndex: 1000, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 },
     fabBtn:        { width: 50, height: 50, borderRadius: '50%', background: 'rgba(15,23,42,.78)', border: '1px solid rgba(255,255,255,.15)', color: 'white', fontSize: 28, lineHeight: 1, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 16px rgba(0,0,0,.45)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', transition: 'transform .2s, background .2s', fontWeight: 300 },

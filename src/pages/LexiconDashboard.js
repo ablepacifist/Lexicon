@@ -51,7 +51,7 @@ const FeatureCard = ({ to, icon, title, desc, theme }) => (
   </Link>
 );
 
-const toGB = bytes => (bytes / 1e9).toFixed(1);
+const toGB = bytes => (bytes / (1024 ** 3)).toFixed(1);
 
 const LexiconDashboard = () => {
   const { user } = useContext(UserContext);

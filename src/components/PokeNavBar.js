@@ -5,6 +5,7 @@ const NAV = [
     { icon: '🗺️', label: 'Map',     path: '/pokemon'           },
     { icon: '📖', label: 'Pokédex', path: '/pokemon/pokedex'   },
     { icon: '🔴', label: 'Pokémon', path: '/pokemon/pokemon'   },
+    { icon: '🥚', label: 'Eggs',    path: '/pokemon/eggs'      },
     { icon: '🎒', label: 'Items',   path: '/pokemon/items'     },
     { icon: '🛒', label: 'Shop',    path: '/pokemon/shop'      },
     { icon: '👤', label: 'Trainer', path: '/profile'           },

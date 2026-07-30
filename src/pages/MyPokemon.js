@@ -31,6 +31,7 @@ const SORTS = [
 
 export default function MyPokemon() {
     const [pokemon,     setPokemon]     = useState([]);
+    const [buddy,       setBuddy]       = useState(null);
     const [loading,     setLoading]     = useState(true);
     const [error,       setError]       = useState('');
     const [search,      setSearch]      = useState('');
@@ -51,6 +52,10 @@ export default function MyPokemon() {
                 else setError('Failed to load collection');
                 setLoading(false);
             });
+        fetch(`${pokemonApiUrl}/api/pokemon/buddy`, { credentials: 'include' })
+            .then(r => r.ok ? r.json() : null)
+            .then(b => setBuddy(b && b.caughtId ? b : null))
+            .catch(() => {});
     }, [navigate]);
 
     // Show grind message if navigated here after a grind
@@ -90,6 +95,25 @@ export default function MyPokemon() {
             <div style={styles.header}>
                 <h1 style={styles.title}>My Pokemon ({pokemon.length})</h1>
             </div>
+
+            {/* Buddy */}
+            {buddy && (
+                <div style={styles.buddyCard} onClick={() => navigate(`/pokemon/${buddy.caughtId}`)}>
+                    <span style={styles.buddyTag}>🤝 Buddy</span>
+                    <img src={`${pokemonApiUrl}/api/pokemon/sprites/${buddy.spriteKey}`} alt={buddy.speciesName}
+                        style={{ width: 46, height: 46, objectFit: 'contain' }}
+                        onError={e => { e.target.style.display = 'none'; }} />
+                    <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 800, fontSize: 14 }}>{buddy.nickname || buddy.speciesName}</div>
+                        <div style={{ fontSize: 11, color: '#64748b', marginBottom: 3 }}>
+                            {(buddy.kmSinceCandy || 0).toFixed(1)} / {buddy.kmPerCandy} km to next 🍬
+                        </div>
+                        <div style={styles.buddyTrack}>
+                            <div style={{ ...styles.buddyFill, width: `${Math.min(100, (buddy.kmSinceCandy / buddy.kmPerCandy) * 100)}%` }} />
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
                 <input style={{ ...styles.search, flex: 1, marginBottom: 0 }} placeholder="Search by name…"
@@ -176,4 +200,8 @@ const styles = {
     level:      { marginTop: 6, color: '#ef4444', fontWeight: 'bold', fontSize: 12 },
     moveList:   { display: 'flex', flexWrap: 'wrap', gap: 3, justifyContent: 'center', marginTop: 6 },
     moveChip:   { color: 'white', fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 8, lineHeight: 1.3 },
+    buddyCard:  { display: 'flex', alignItems: 'center', gap: 12, background: 'linear-gradient(135deg,#fff,#fdf2f8)', border: '1px solid #fbcfe8', borderRadius: 12, padding: 10, marginBottom: 12, cursor: 'pointer', position: 'relative' },
+    buddyTag:   { position: 'absolute', top: -8, left: 12, background: '#ec4899', color: 'white', fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 8 },
+    buddyTrack: { height: 6, background: '#fce7f3', borderRadius: 4, overflow: 'hidden' },
+    buddyFill:  { height: '100%', background: '#ec4899', borderRadius: 4, transition: 'width .4s' },
 };

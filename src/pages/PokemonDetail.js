@@ -226,6 +226,18 @@ export default function PokemonDetail() {
         } finally { setBusy(false); }
     }
 
+    async function setAsBuddy() {
+        try {
+            const r = await fetch(`${pokemonApiUrl}/api/pokemon/buddy`, {
+                method: 'POST', credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ caughtId: pokemon.id }),
+            });
+            setFlash(r.ok ? `${pokemon.nickname || pokemon.speciesName} is now your buddy!` : 'Could not set buddy');
+            setTimeout(() => setFlash(''), 2500);
+        } catch { setFlash('Could not set buddy'); setTimeout(() => setFlash(''), 2500); }
+    }
+
     if (!pokemon) return <div style={styles.center}>Loading…</div>;
 
     const { pct, curr, needed } = expProgress(pokemon.exp || 0, pokemon.pokemonLevel);
@@ -405,6 +417,12 @@ export default function PokemonDetail() {
                             ✨ Evolve
                         </button>
                     )}
+                    <button
+                        onClick={setAsBuddy}
+                        style={{ ...styles.actionBtn, background: 'linear-gradient(135deg,#ec4899,#be185d)', color: 'white', flex: 1, minWidth: 120 }}
+                    >
+                        🤝 Set as Buddy
+                    </button>
                     <button
                         onClick={() => setGrindModal(true)}
                         style={{ ...styles.actionBtn, background: 'linear-gradient(135deg,#ef4444,#b91c1c)', color: 'white', flex: 1, minWidth: 120 }}

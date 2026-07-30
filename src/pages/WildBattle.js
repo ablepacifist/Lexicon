@@ -266,30 +266,30 @@ export default function WildBattle({ spawn, playerPos, onRequestCatch, onClose }
     return (
         <div style={s.overlay}>
             <style>{KEYFRAMES}</style>
-            <div style={s.battleField}>
-                {/* Wild — top */}
-                <div style={{ alignSelf: 'flex-start', width: '100%' }}>
+
+            {/* Wild row: HP bar left, sprite right */}
+            <div style={s.rowTop}>
+                <div style={{ flex: 1, minWidth: 0 }}>
                     <HpBar name={wild.name} level={wild.level} cur={dispWild} max={wild.maxHp} status={wild.status} />
                 </div>
-                <div style={{ alignSelf: 'flex-end', marginRight: 12 }}>
-                    <img src={spriteUrl(wild.spriteKey)} alt={wild.name}
-                        style={{ ...s.wildSprite, animation: wildAnim ? `${wildAnim} .5s ease` : 'none' }}
-                        onError={e => { e.target.style.display = 'none'; }} />
-                </div>
-
-                {/* Player — bottom */}
-                <div style={{ alignSelf: 'flex-start', marginLeft: 12 }}>
-                    <img src={spriteUrl(me.spriteKey)} alt={me.name}
-                        style={{ ...s.mySprite, animation: meAnim ? `${meAnim} .5s ease` : 'none' }}
-                        onError={e => { e.target.style.display = 'none'; }} />
-                </div>
-                <div style={{ alignSelf: 'flex-end', width: '100%' }}>
-                    <HpBar name={me.name} level={me.level} cur={dispMe} max={me.maxHp} status={me.status} />
-                </div>
+                <img src={spriteUrl(wild.spriteKey)} alt={wild.name}
+                    style={{ ...s.wildSprite, animation: wildAnim ? `${wildAnim} .5s ease` : 'none' }}
+                    onError={e => { e.target.style.display = 'none'; }} />
             </div>
 
+            {/* Battle log */}
             <div ref={logRef} style={s.logBox}>
                 {log.map((l, i) => <div key={i} style={s.logLine}>{l}</div>)}
+            </div>
+
+            {/* Player row: sprite left, HP bar right */}
+            <div style={s.rowBottom}>
+                <img src={spriteUrl(me.spriteKey)} alt={me.name}
+                    style={{ ...s.mySprite, animation: meAnim ? `${meAnim} .5s ease` : 'none' }}
+                    onError={e => { e.target.style.display = 'none'; }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                    <HpBar name={me.name} level={me.level} cur={dispMe} max={me.maxHp} status={me.status} />
+                </div>
             </div>
 
             {menu === 'main' ? (
@@ -321,13 +321,13 @@ export default function WildBattle({ spawn, playerPos, onRequestCatch, onClose }
 }
 
 const KEYFRAMES = `
-@keyframes wbLungeDown { 0%{transform:translateY(0)} 40%{transform:translateY(22px)} 100%{transform:translateY(0)} }
-@keyframes wbLungeUp   { 0%{transform:scaleX(-1) translateY(0)} 40%{transform:scaleX(-1) translateY(-22px)} 100%{transform:scaleX(-1) translateY(0)} }
-@keyframes wbHit       { 0%,100%{opacity:1;transform:translateX(0)} 20%{opacity:.3;transform:translateX(-7px)} 40%{opacity:1;transform:translateX(7px)} 60%{opacity:.3;transform:translateX(-5px)} 80%{opacity:1;transform:translateX(5px)} }
+@keyframes wbLungeDown { 0%{transform:translateY(0)} 40%{transform:translateY(20px)} 100%{transform:translateY(0)} }
+@keyframes wbLungeUp   { 0%{transform:scaleX(-1) translateY(0)} 40%{transform:scaleX(-1) translateY(-20px)} 100%{transform:scaleX(-1) translateY(0)} }
+@keyframes wbHit       { 0%,100%{opacity:1} 20%{opacity:.25} 40%{opacity:1} 60%{opacity:.25} 80%{opacity:1} }
 `;
 
 const s = {
-    overlay:    { position: 'fixed', inset: 0, zIndex: 3000, background: 'linear-gradient(160deg,#0f172a,#1e293b)', display: 'flex', flexDirection: 'column', padding: 14, boxSizing: 'border-box' },
+    overlay:    { position: 'fixed', inset: 0, zIndex: 3000, background: 'linear-gradient(160deg,#0f172a,#1e293b)', display: 'flex', flexDirection: 'column', gap: 8, padding: 14, boxSizing: 'border-box', overflowY: 'auto' },
     panel:      { background: 'white', borderRadius: 16, padding: 18, maxWidth: 460, width: '100%', margin: 'auto', boxShadow: '0 12px 40px rgba(0,0,0,.5)' },
     wildHeader: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 },
     partyList:  { display: 'flex', flexDirection: 'column', gap: 8, maxHeight: '50vh', overflowY: 'auto' },
@@ -335,16 +335,17 @@ const s = {
     dim:        { color: '#94a3b8', textAlign: 'center', padding: 20, fontSize: 14 },
     closeBtn:   { width: '100%', marginTop: 14, padding: 12, borderRadius: 10, border: 'none', background: '#475569', color: 'white', fontWeight: 700, fontSize: 15, cursor: 'pointer' },
 
-    battleField:{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', maxWidth: 520, width: '100%', margin: '0 auto', gap: 4, minHeight: 0 },
-    hpCard:     { background: 'white', borderRadius: 12, padding: '8px 12px', maxWidth: 240, boxShadow: '0 2px 8px rgba(0,0,0,.3)' },
+    rowTop:     { display: 'flex', alignItems: 'center', gap: 8, maxWidth: 520, width: '100%', margin: '0 auto', minHeight: 104 },
+    rowBottom:  { display: 'flex', alignItems: 'center', gap: 8, maxWidth: 520, width: '100%', margin: '0 auto', minHeight: 112 },
+    hpCard:     { background: 'white', borderRadius: 12, padding: '8px 12px', width: '100%', maxWidth: 260, boxShadow: '0 2px 8px rgba(0,0,0,.3)', boxSizing: 'border-box' },
     hpHeader:   { display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 },
     hpTrack:    { height: 9, background: '#e5e7eb', borderRadius: 6, overflow: 'hidden' },
     hpFill:     { height: '100%', borderRadius: 6, transition: 'width .5s ease, background .5s' },
     statusBadge:{ marginLeft: 'auto', fontSize: 10, fontWeight: 800, color: 'white', background: '#7c3aed', borderRadius: 4, padding: '1px 5px' },
-    wildSprite: { width: 130, height: 130, objectFit: 'contain', filter: 'drop-shadow(0 8px 10px rgba(0,0,0,.5))' },
-    mySprite:   { width: 150, height: 150, objectFit: 'contain', transform: 'scaleX(-1)', filter: 'drop-shadow(0 8px 10px rgba(0,0,0,.5))' },
+    wildSprite: { width: 96, height: 96, objectFit: 'contain', flexShrink: 0, filter: 'drop-shadow(0 8px 10px rgba(0,0,0,.5))' },
+    mySprite:   { width: 104, height: 104, objectFit: 'contain', flexShrink: 0, transform: 'scaleX(-1)', filter: 'drop-shadow(0 8px 10px rgba(0,0,0,.5))' },
 
-    logBox:     { background: 'rgba(255,255,255,.95)', borderRadius: 10, padding: '8px 12px', height: 84, overflowY: 'auto', fontSize: 13, color: '#1e293b', maxWidth: 520, width: '100%', margin: '8px auto', boxSizing: 'border-box' },
+    logBox:     { background: 'rgba(255,255,255,.95)', borderRadius: 10, padding: '8px 12px', flex: 1, minHeight: 64, maxHeight: 140, overflowY: 'auto', fontSize: 13, color: '#1e293b', maxWidth: 520, width: '100%', margin: '0 auto', boxSizing: 'border-box' },
     logLine:    { padding: '1px 0', lineHeight: 1.35 },
 
     actionGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, maxWidth: 520, width: '100%', margin: '0 auto' },

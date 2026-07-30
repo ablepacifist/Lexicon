@@ -41,24 +41,21 @@ const STONE_ORDER    = ['THUNDER_STONE','WATER_STONE','FIRE_STONE','LEAF_STONE',
 export default function PokemonItems() {
     const navigate = useNavigate();
     const [items,    setItems]    = useState({});
-    const [stats,    setStats]    = useState(null);
     const [loading,  setLoading]  = useState(true);
     const [tab,      setTab]      = useState('items'); // 'items' | 'candy'
 
     useEffect(() => {
-        Promise.all([
-            fetch(`${pokemonApiUrl}/api/pokemon/items`,        { credentials: 'include' }).then(r => r.json()),
-            fetch(`${pokemonApiUrl}/api/pokemon/player/stats`, { credentials: 'include' }).then(r => r.json()),
-        ]).then(([list, s]) => {
-            const map = {};
-            list.forEach(i => { map[i.itemType] = i.quantity; });
-            setItems(map);
-            setStats(s);
-            setLoading(false);
-        }).catch(e => {
-            if (e?.message === 'unauthed') navigate('/pokemon');
-            setLoading(false);
-        });
+        fetch(`${pokemonApiUrl}/api/pokemon/items`, { credentials: 'include' })
+            .then(r => r.json())
+            .then(list => {
+                const map = {};
+                (list || []).forEach(i => { map[i.itemType] = i.quantity; });
+                setItems(map);
+                setLoading(false);
+            }).catch(e => {
+                if (e?.message === 'unauthed') navigate('/pokemon');
+                setLoading(false);
+            });
     }, [navigate]);
 
     if (loading) return (
@@ -77,14 +74,6 @@ export default function PokemonItems() {
                 <button onClick={() => navigate('/pokemon')} style={s.backBtn}>← Map</button>
                 <h1 style={s.title}>Items</h1>
             </div>
-
-            {stats && (
-                <div style={s.stardustBanner}>
-                    <span style={{ fontSize: 20 }}>✨</span>
-                    <span style={{ fontWeight: 800, fontSize: 18 }}>{(stats.stardust || 0).toLocaleString()}</span>
-                    <span style={{ color: '#94a3b8', fontSize: 13 }}>Stardust</span>
-                </div>
-            )}
 
             <div style={s.tabs}>
                 <button style={{ ...s.tab, ...(tab === 'items' ? s.tabActive : {}) }} onClick={() => setTab('items')}>Items</button>
@@ -140,7 +129,6 @@ const s = {
     header:        { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 },
     backBtn:       { background: 'none', border: '1px solid #d1d5db', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', color: '#374151' },
     title:         { margin: 0, fontSize: 22, fontWeight: 'bold' },
-    stardustBanner:{ display: 'flex', alignItems: 'center', gap: 8, background: 'linear-gradient(135deg,#1e293b,#334155)', color: 'white', borderRadius: 12, padding: '10px 16px', marginBottom: 16 },
     tabs:          { display: 'flex', gap: 4, marginBottom: 16 },
     tab:           { flex: 1, padding: '8px 0', borderRadius: 8, border: '1px solid #d1d5db', background: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#374151' },
     tabActive:     { background: '#ef4444', color: 'white', border: '1px solid #ef4444' },
