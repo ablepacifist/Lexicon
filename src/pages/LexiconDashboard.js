@@ -11,7 +11,7 @@ const SECTIONS = [
   {
     id: 'watch',
     badge: 'Watch & Listen',
-    title: 'Your Media',
+    title: 'Media hub',
     theme: 'watch',
     cards: [
       { to: '/video-player',  icon: '🎬', title: 'Video Player',  desc: 'Browse, search, and watch your video library.' },
@@ -26,7 +26,7 @@ const SECTIONS = [
     theme: 'library',
     cards: [
       { to: '/media-upload',     icon: '⬆️', title: 'Upload & Download', desc: 'Add files to your library or retrieve them anytime.' },
-      { to: '/playlist-manager', icon: '📋', title: 'Playlists',          desc: 'Build and organise playlists across all your media.' },
+      { to: '/playlist-manager', icon: '📋', title: 'Playlists',          desc: 'Build and organise playlists across all our media.' },
     ],
   },
   {

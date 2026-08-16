@@ -1,5 +1,6 @@
 import React from 'react';
 import Navbar from '../components/Navbar';
+import { navigateToVoice } from '../utils/voiceNavigation';
 import heroImg from '../assets/images/extra_photos/wide_me_landing.JPG';
 import natureImg from '../assets/images/extra_photos/me_nature_great_landing.JPG';
 import suitImg from '../assets/images/extra_photos/suit.JPEG';
@@ -216,6 +217,7 @@ const Landing = () => {
             />
             <QuickLinkCard
               to="https://voice.alex-dyakin.com"
+              onClick={goToVoice}
               title="Voice Bridge"
               description="Real-time voice communication powered by Mumble."
               icon="🎙️"
@@ -230,7 +232,7 @@ const Landing = () => {
           <p>&copy; {new Date().getFullYear()} Alex Dyakin</p>
           <div className="footer-links">
             <a href="https://ablepacifist.github.io/" target="_blank" rel="noopener noreferrer">Resume</a>
-            <a href="https://voice.alex-dyakin.com" target="_blank" rel="noopener noreferrer">Voice Service</a>
+            <a href="https://voice.alex-dyakin.com" onClick={goToVoice}>Voice Service</a>
           </div>
         </div>
       </footer>
@@ -238,8 +240,17 @@ const Landing = () => {
   );
 };
 
-const QuickLinkCard = ({ to, title, description, icon }) => (
-  <a href={to} className="quicklink-card">
+// Route voice through the SSO handoff instead of the bare public URL. On the
+// website this means you arrive already logged in; in the Android app it is
+// required — a plain link opens an external browser, outside the app and with
+// no token, which is why voice login failed there.
+const goToVoice = (e) => {
+  e.preventDefault();
+  navigateToVoice();
+};
+
+const QuickLinkCard = ({ to, title, description, icon, onClick }) => (
+  <a href={to} className="quicklink-card" onClick={onClick}>
     <span className="quicklink-icon">{icon}</span>
     <h3>{title}</h3>
     <p>{description}</p>

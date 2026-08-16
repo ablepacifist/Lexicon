@@ -4,6 +4,11 @@ import './index.css';
 import './responsive.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
+import { installNativeFetchAuth } from './utils/apiFetch';
+
+// Android shell only: attach the stored bearer token to Lexicon API requests.
+// Must run before the first component fetch. No-op in a browser.
+installNativeFetchAuth();
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(

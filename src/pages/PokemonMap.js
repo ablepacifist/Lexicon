@@ -8,6 +8,7 @@ import { getApiUrls } from '../utils/apiUrls';
 import { useAvatar } from '../hooks/useAvatar';
 import CatchScreen3D from './CatchScreen3D';
 import WildBattle from './WildBattle';
+import GymBattle from './GymBattle';
 
 // Fix Leaflet default icon broken by webpack
 delete L.Icon.Default.prototype._getIconUrl;
@@ -91,6 +92,22 @@ function stopIcon(canSpin, isLured) {
         html: `<div style="width:32px;height:32px;background:${bg};border:3px solid white;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;font-size:16px">📦</div>`,
         iconSize: [32, 32],
         iconAnchor: [16, 16],
+    });
+}
+
+const TEAM_COLOR = { VALOR: '#ef4444', MYSTIC: '#3b82f6', INSTINCT: '#eab308' };
+
+// Gym marker — taller than a stop, coloured by controlling team (grey if unclaimed).
+function gymIcon(team) {
+    const bg = TEAM_COLOR[team] || '#6b7280';
+    return L.divIcon({
+        className: '',
+        html: `<div style="display:flex;flex-direction:column;align-items:center">
+            <div style="width:40px;height:40px;background:${bg};border:3px solid white;border-radius:8px;box-shadow:0 3px 10px rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;font-size:22px">🏛️</div>
+            <div style="width:3px;height:8px;background:${bg}"></div>
+        </div>`,
+        iconSize: [40, 48],
+        iconAnchor: [20, 48],
     });
 }
 
@@ -638,6 +655,10 @@ export default function PokemonMap() {
     const [playerUsername,  setPlayerUsername]  = useState(null);
     const [spawns,          setSpawns]          = useState([]);
     const [stops,           setStops]           = useState([]);
+    const [gyms,            setGyms]            = useState([]);
+    const [teamPicker,      setTeamPicker]      = useState(false);
+    const [placingGym,      setPlacingGym]      = useState(false);
+    const [gymBattleTarget, setGymBattleTarget] = useState(null);  // gym we're attacking
     const [toast,           setToast]           = useState('');
 
     // Catch screen
@@ -750,6 +771,8 @@ export default function PokemonMap() {
             .then(r => r.json()).then(setSpawns).catch(() => {});
         fetch(`${pokemonApiUrl}/api/pokemon/pokestops/nearby?lat=${lat}&lng=${lng}&radius=500`, { credentials: 'include' })
             .then(r => r.json()).then(setStops).catch(() => {});
+        fetch(`${pokemonApiUrl}/api/pokemon/gyms/nearby?lat=${lat}&lng=${lng}&radius=500`, { credentials: 'include' })
+            .then(r => r.json()).then(setGyms).catch(() => {});
 
         // Report the ping to the walk engine → advances eggs + buddy candy.
         fetch(`${pokemonApiUrl}/api/pokemon/walk`, {
@@ -974,8 +997,62 @@ export default function PokemonMap() {
         } catch { showToast('Failed to activate lure'); }
     }
 
-    // ── Pokestop placement ────────────────────────────────────────────────────
-    function handleMapClick(latlng) {
+    // ── Gyms ──────────────────────────────────────────────────────────────────
+    async function spinGym(gym) {
+        if (!playerPos) return showToast('No GPS signal');
+        try {
+            const res = await fetch(`${pokemonApiUrl}/api/pokemon/gym/spin`, {
+                method: 'POST', credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ gymId: gym.id, lat: playerPos[0], lng: playerPos[1] }),
+            });
+            const data = await res.json();
+            showToast(typeof data === 'string' ? data : (data.message || 'Spun!'), 4000);
+            fetchNearby();
+        } catch { showToast('Spin failed'); }
+    }
+
+    async function chooseTeam(team) {
+        try {
+            const res = await fetch(`${pokemonApiUrl}/api/pokemon/team`, {
+                method: 'POST', credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ team }),
+            });
+            if (res.ok) {
+                setTeamPicker(false);
+                loadPlayerStats();
+                showToast(`Welcome to Team ${team.charAt(0) + team.slice(1).toLowerCase()}!`, 4000);
+            } else showToast('Could not set team');
+        } catch { showToast('Could not set team'); }
+    }
+
+    // Attack a gym: needs a team first.
+    function openGymBattle(gym) {
+        if (!playerStats?.team) { setTeamPicker(true); return; }
+        setGymBattleTarget(gym);
+    }
+
+    function closeGymBattle(refresh) {
+        setGymBattleTarget(null);
+        if (refresh) { fetchNearby(); loadPlayerStats(); }
+    }
+
+    // ── Pokestop / Gym placement ────────────────────────────────────────────────
+    async function handleMapClick(latlng) {
+        if (placingGym) {
+            setPlacingGym(false);
+            try {
+                const res = await fetch(`${pokemonApiUrl}/api/pokemon/gym/add`, {
+                    method: 'POST', credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: 'Gym', lat: latlng.lat, lng: latlng.lng }),
+                });
+                if (res.ok) { showToast('Gym added! A rival team controls it.', 4000); fetchNearby(); }
+                else showToast('Failed to add gym');
+            } catch { showToast('Failed to add gym'); }
+            return;
+        }
         setPendingStop({ lat: latlng.lat, lng: latlng.lng });
         setStopName('');
         setPlacingStop(false);
@@ -1036,7 +1113,7 @@ export default function PokemonMap() {
             <MapContainer center={center} zoom={17} style={{ height: '100%', width: '100%' }} zoomControl={false} attributionControl={false}>
                 <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                 <MapRefCapture mapRef={mapRef} />
-                <MapClickHandler active={placingStop} onMapClick={handleMapClick} />
+                <MapClickHandler active={placingStop || placingGym} onMapClick={handleMapClick} />
 
                 {playerPos && (
                     <>
@@ -1119,6 +1196,58 @@ export default function PokemonMap() {
                     </Marker>
                 ))}
 
+                {gyms.map(gym => {
+                    const myTeam = playerStats?.team;
+                    const mine = gym.controllingTeam && gym.controllingTeam === myTeam;
+                    const defenders = gym.defenders || [];
+                    const full = defenders.length >= 6;
+                    const teamLabel = gym.controllingTeam
+                        ? gym.controllingTeam.charAt(0) + gym.controllingTeam.slice(1).toLowerCase()
+                        : 'Unclaimed';
+                    return (
+                        <Marker key={`gym-${gym.id}`} position={[gym.lat, gym.lng]} icon={gymIcon(gym.controllingTeam)}>
+                            <Popup>
+                                <div style={{ textAlign: 'center', minWidth: 170 }}>
+                                    <div style={{ fontWeight: 'bold', fontSize: 14 }}>🏛️ {gym.name}</div>
+                                    <div style={{ fontSize: 11, fontWeight: 700, color: TEAM_COLOR[gym.controllingTeam] || '#6b7280', marginBottom: 4 }}>
+                                        Team {teamLabel} · {defenders.length}/6 defenders
+                                    </div>
+                                    {defenders.length > 0 && (
+                                        <div style={{ display: 'flex', justifyContent: 'center', gap: 2, flexWrap: 'wrap', marginBottom: 6 }}>
+                                            {defenders.map(d => (
+                                                <div key={d.id} style={{ width: 34, textAlign: 'center' }}>
+                                                    <img src={`${pokemonApiUrl}/api/pokemon/sprites/${d.spriteKey}`} alt={d.name}
+                                                        style={{ width: 28, height: 28, objectFit: 'contain' }}
+                                                        onError={e => { e.target.style.display = 'none'; }} />
+                                                    <div style={{ height: 3, background: '#e5e7eb', borderRadius: 2, overflow: 'hidden' }}>
+                                                        <div style={{ width: `${d.motivation}%`, height: '100%', background: d.motivation > 40 ? '#22c55e' : '#ef4444' }} />
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                                        {!mine && (
+                                            <button style={{ ...s.catchBtn, background: '#7c3aed' }} onClick={() => openGymBattle(gym)}>
+                                                ⚔️ Battle Gym
+                                            </button>
+                                        )}
+                                        {mine && !full && (
+                                            <button style={{ ...s.catchBtn, background: TEAM_COLOR[myTeam] }} onClick={() => openGymBattle(gym)}>
+                                                🛡️ Manage / Add Defender
+                                            </button>
+                                        )}
+                                        <button style={{ ...s.catchBtn, background: gym.canSpin ? '#3b82f6' : '#9ca3af', cursor: gym.canSpin ? 'pointer' : 'default' }}
+                                            disabled={!gym.canSpin} onClick={() => spinGym(gym)}>
+                                            {gym.canSpin ? '📦 Spin Disc' : '⏳ Cooldown'}
+                                        </button>
+                                    </div>
+                                </div>
+                            </Popup>
+                        </Marker>
+                    );
+                })}
+
                 {pendingStop && <Marker position={[pendingStop.lat, pendingStop.lng]} icon={pendingStopIcon()} />}
             </MapContainer>
 
@@ -1136,6 +1265,11 @@ export default function PokemonMap() {
             {playerStats && (
                 <div style={s.levelBadge}>
                     ⭐ Lv.{playerStats.level} &nbsp;💰{playerStats.coins}
+                    {playerStats.team && (
+                        <span style={{ marginLeft: 8, color: TEAM_COLOR[playerStats.team] || '#fff', fontWeight: 800 }}>
+                            🛡️{playerStats.team.charAt(0) + playerStats.team.slice(1).toLowerCase()}
+                        </span>
+                    )}
                 </div>
             )}
 
@@ -1170,8 +1304,13 @@ export default function PokemonMap() {
                         </button>
                         <button
                             style={{ ...s.fabMenuItem, background: placingStop ? 'rgba(245,158,11,.9)' : 'rgba(15,118,110,.88)' }}
-                            onClick={() => { setFabOpen(false); setPlacingStop(p => !p); setPendingStop(null); }}>
+                            onClick={() => { setFabOpen(false); setPlacingStop(p => !p); setPlacingGym(false); setPendingStop(null); }}>
                             📍 {placingStop ? 'Cancel Stop' : 'Add Pokéstop'}
+                        </button>
+                        <button
+                            style={{ ...s.fabMenuItem, background: placingGym ? 'rgba(245,158,11,.9)' : 'rgba(124,58,237,.88)' }}
+                            onClick={() => { setFabOpen(false); setPlacingGym(p => !p); setPlacingStop(false); setPendingStop(null); }}>
+                            🏛️ {placingGym ? 'Cancel Gym' : 'Add Gym'}
                         </button>
                     </div>
                 )}
@@ -1183,6 +1322,31 @@ export default function PokemonMap() {
             </div>
 
             {placingStop && <div style={s.tapHint}>Tap anywhere on the map to place a Pokéstop</div>}
+            {placingGym && <div style={s.tapHint}>Tap anywhere on the map to place a Gym</div>}
+
+            {/* Team picker */}
+            {teamPicker && (
+                <div style={s.overlay} onClick={() => setTeamPicker(false)}>
+                    <div style={{ ...s.dialog, width: 320 }} onClick={e => e.stopPropagation()}>
+                        <h3 style={{ margin: '0 0 4px' }}>Choose your Team</h3>
+                        <p style={{ color: '#6b7280', fontSize: 13, margin: '0 0 14px' }}>
+                            Pick a team to battle for gyms. You can change it later.
+                        </p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                            {[
+                                { key: 'VALOR',    label: '❤️ Valor',    color: '#ef4444' },
+                                { key: 'MYSTIC',   label: '💙 Mystic',   color: '#3b82f6' },
+                                { key: 'INSTINCT', label: '💛 Instinct', color: '#eab308' },
+                            ].map(t => (
+                                <button key={t.key} onClick={() => chooseTeam(t.key)}
+                                    style={{ padding: '12px', borderRadius: 10, border: 'none', background: t.color, color: 'white', fontWeight: 800, fontSize: 16, cursor: 'pointer' }}>
+                                    {t.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {pendingStop && !placingStop && (
                 <div style={s.overlay}>
@@ -1304,6 +1468,13 @@ export default function PokemonMap() {
                     playerPos={playerPos}
                     onRequestCatch={catchFromBattle}
                     onClose={closeBattle}
+                />
+            )}
+
+            {gymBattleTarget && (
+                <GymBattle
+                    gym={gymBattleTarget}
+                    onClose={closeGymBattle}
                 />
             )}
 

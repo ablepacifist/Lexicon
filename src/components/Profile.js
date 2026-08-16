@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
 import { useAvatar } from '../hooks/useAvatar';
 import { getApiUrls } from '../utils/apiUrls';
+import { clearMobileToken } from '../utils/apiFetch';
 import NotificationSettings from './NotificationSettings';
 import background from '../assets/images/lexicon_room.jpg';
 import './NotificationBell.css';
@@ -113,6 +114,8 @@ const Profile = () => {
     setUser(null);
     localStorage.removeItem('user');
     sessionStorage.removeItem('user');
+    // Android shell: drop the bearer token too, or the app silently re-authenticates
+    clearMobileToken();
     navigate('/');
   };
 
