@@ -296,6 +296,109 @@
   font-weight: 600;
 }
 
+/* ===== Featured Apps ===== */
+.featured-section {
+  background: #0e0e14;
+}
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+
+.feature-card {
+  display: flex;
+  flex-direction: column;
+  padding: 2.5rem;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.feature-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.feature-card.lexicon::before { background: linear-gradient(90deg, #6366f1, #8b5cf6); }
+.feature-card.dnd::before     { background: linear-gradient(90deg, #ef4444, #f97316); }
+.feature-card.pokemon::before { background: linear-gradient(90deg, #eab308, #22c55e); }
+
+.feature-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+}
+
+.feature-card:hover::before { opacity: 1; }
+
+.feature-card.lexicon:hover { border-color: rgba(99, 102, 241, 0.25); background: rgba(99, 102, 241, 0.04); }
+.feature-card.dnd:hover     { border-color: rgba(239, 68, 68, 0.25);  background: rgba(239, 68, 68, 0.04); }
+.feature-card.pokemon:hover { border-color: rgba(234, 179, 8, 0.25);  background: rgba(234, 179, 8, 0.04); }
+
+.feature-tag {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.3rem 0.75rem;
+  border-radius: 99px;
+  margin-bottom: 1.5rem;
+  width: fit-content;
+}
+
+.feature-card.lexicon .feature-tag { background: rgba(99, 102, 241, 0.15); color: #8b8bf5; }
+.feature-card.dnd .feature-tag     { background: rgba(239, 68, 68, 0.15);  color: #f87171; }
+.feature-card.pokemon .feature-tag { background: rgba(234, 179, 8, 0.15);  color: #facc15; }
+
+.feature-icon {
+  font-size: 2.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.feature-card h3 {
+  color: #fff;
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin: 0 0 0.75rem;
+  letter-spacing: -0.02em;
+}
+
+.feature-card p {
+  color: #888;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  margin: 0;
+  flex: 1;
+}
+
+.feature-enter {
+  display: inline-block;
+  margin-top: 2rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: letter-spacing 0.2s;
+}
+
+.feature-card.lexicon .feature-enter { color: #8b8bf5; }
+.feature-card.dnd .feature-enter     { color: #f87171; }
+.feature-card.pokemon .feature-enter { color: #facc15; }
+
+.feature-card:hover .feature-enter { letter-spacing: 0.03em; }
+
 /* ===== Quick Links ===== */
 .quicklinks-section {
   background: #0a0a0f;
@@ -417,6 +520,10 @@
   .mosaic-item.tall {
     grid-row: span 1;
     aspect-ratio: 1;
+  }
+
+  .feature-grid {
+    grid-template-columns: 1fr;
   }
 
   .quicklinks-grid {

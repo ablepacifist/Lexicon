@@ -1,10 +1,24 @@
 // Auto-detect whether to use local network, Cloudflare domain, or PlayIt tunnel URLs
 // This allows the same build to work for local dev, HTTPS domain, and external users
 
+import { isNativePlatform } from './native';
+
 const getApiUrls = () => {
+    // Inside the Android shell the page is served from the WebView's own local
+    // origin (capacitor://localhost), so hostname sniffing would wrongly resolve
+    // to LAN IPs that only work on one home network. Always use the public URLs.
+    if (isNativePlatform()) {
+        return {
+            lexiconApiUrl: 'https://api.alex-dyakin.com',
+            alchemyApiUrl: 'https://alchemy.alex-dyakin.com',
+            pokemonApiUrl: 'https://poke.alex-dyakin.com',
+            bridgeApiUrl: 'https://voice.alex-dyakin.com',
+        };
+    }
+
     const hostname = window.location.hostname;
     const protocol = window.location.protocol;
-    
+
     // If accessing via local IP or localhost, use local backend URLs for speed
     const isLocalAccess = (
         hostname === 'localhost' ||
@@ -25,6 +39,7 @@ const getApiUrls = () => {
         return {
             lexiconApiUrl: process.env.REACT_APP_LEXICON_API_URL_LOCAL || 'http://192.168.4.29:36568',
             alchemyApiUrl: process.env.REACT_APP_API_URL_LOCAL || 'http://192.168.4.29:8080',
+            pokemonApiUrl: process.env.REACT_APP_POKEMON_API_URL_LOCAL || 'http://192.168.4.29:8090',
             bridgeApiUrl
         };
     } else if (isCloudflareAccess) {
@@ -32,6 +47,7 @@ const getApiUrls = () => {
         return {
             lexiconApiUrl: 'https://api.alex-dyakin.com',
             alchemyApiUrl: 'https://alchemy.alex-dyakin.com',
+            pokemonApiUrl: 'https://poke.alex-dyakin.com',
             bridgeApiUrl
         };
     } else {
@@ -39,6 +55,7 @@ const getApiUrls = () => {
         return {
             lexiconApiUrl: process.env.REACT_APP_LEXICON_API_URL_INTERNET || 'http://209.25.140.16:1792',
             alchemyApiUrl: process.env.REACT_APP_API_URL_INTERNET || 'http://209.25.140.16:1760',
+            pokemonApiUrl: process.env.REACT_APP_POKEMON_API_URL_INTERNET || 'http://209.25.140.16:1790',
             bridgeApiUrl
         };
     }

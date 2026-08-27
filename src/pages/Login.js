@@ -3,6 +3,8 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
 import background from '../assets/images/background.jpg';
 import { getApiUrls } from '../utils/apiUrls';
+import { isNativePlatform } from '../utils/native';
+import { apiFetch, setMobileToken } from '../utils/apiFetch';
 
 const { lexiconApiUrl: API_URL } = getApiUrls();
 
@@ -20,11 +22,13 @@ const Login = () => {
     e.preventDefault();
     setError('');
     try {
-      const response = await fetch(`${API_URL}/api/auth/login`, {
+      const native = isNativePlatform();
+      const response = await apiFetch(`${API_URL}/api/auth/login`, {
         credentials: "include",
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password, rememberMe })
+        // platform: 'mobile' asks the backend for a bearer token alongside the session
+        body: JSON.stringify({ username, password, rememberMe, ...(native ? { platform: 'mobile' } : {}) })
       });
 
 
@@ -34,6 +38,11 @@ const Login = () => {
 
       const data = await response.json();
       console.log("Login successful:", data);
+
+      // Android shell: persist the bearer token so the session survives app restarts
+      if (native && data.mobileToken) {
+        setMobileToken(data.mobileToken);
+      }
 
       // Update context with session-based info - use 'id' field which AuthController returns
       setUser({ id: data.id, username: data.username, displayName: data.displayName });

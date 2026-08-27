@@ -3,7 +3,6 @@ import React, { useEffect, useContext } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { UserContext } from './context/UserContext';
 
-import Home from './pages/Home';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -30,6 +29,17 @@ import Recipes from './pages/Recipes';
 import Blog from './pages/Blog';
 import Projects from './pages/Projects';
 import DndCampaigns from './pages/DndCampaigns';
+import HoldfastManager from './pages/HoldfastManager';
+import PokemonMap from './pages/PokemonMap';
+import Pokedex from './pages/Pokedex';
+import PokemonDetail from './pages/PokemonDetail';
+import PokemonShop from './pages/PokemonShop';
+import PokemonItems from './pages/PokemonItems';
+import MyPokemon from './pages/MyPokemon';
+import EggsPage from './pages/EggsPage';
+import Events from './pages/Events';
+import EventVote from './pages/EventVote';
+import PollVote from './pages/PollVote';
 
 import { getApiUrls } from './utils/apiUrls';
 const { lexiconApiUrl: API_URL } = getApiUrls();
@@ -69,7 +79,6 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
-      <Route path="/home" element={<Home />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/app-selector" element={
@@ -141,6 +150,39 @@ function AppRoutes() {
       <Route path="/blog" element={<Blog />} />
       <Route path="/projects" element={<Projects />} />
       <Route path="/dnd" element={<DndCampaigns />} />
+      <Route path="/holdfast" element={
+        <PrivateRoute><HoldfastManager /></PrivateRoute>
+      } />
+
+      {/* Pokemon Go */}
+      <Route path="/pokemon" element={
+        <PrivateRoute><PokemonMap /></PrivateRoute>
+      } />
+      <Route path="/pokemon/pokedex" element={
+        <PrivateRoute><Pokedex /></PrivateRoute>
+      } />
+      <Route path="/pokemon/pokemon" element={
+        <PrivateRoute><MyPokemon /></PrivateRoute>
+      } />
+      <Route path="/pokemon/shop" element={
+        <PrivateRoute><PokemonShop /></PrivateRoute>
+      } />
+      <Route path="/pokemon/items" element={
+        <PrivateRoute><PokemonItems /></PrivateRoute>
+      } />
+      <Route path="/pokemon/eggs" element={
+        <PrivateRoute><EggsPage /></PrivateRoute>
+      } />
+      <Route path="/pokemon/:id" element={
+        <PrivateRoute><PokemonDetail /></PrivateRoute>
+      } />
+
+      {/* Events & Polls */}
+      <Route path="/events" element={
+        <PrivateRoute><Events /></PrivateRoute>
+      } />
+      <Route path="/events/:eventId" element={<EventVote />} />
+      <Route path="/events/:eventId/polls/:pollId" element={<PollVote />} />
 
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>

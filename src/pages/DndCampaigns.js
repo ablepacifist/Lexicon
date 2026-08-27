@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useContext } from 'react';
+import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
+import { UserContext } from '../context/UserContext';
 import mapImg from '../assets/images/extra_photos/map_of_dnd.JPG';
 import dndCake from '../assets/images/extra_photos/dnd_cake.JPG';
 import renfest from '../assets/images/extra_photos/ren_fest.JPG';
@@ -7,9 +9,43 @@ import renfest2 from '../assets/images/extra_photos/me_and_friends_renfest_2.JPG
 import './PageStyles.css';
 
 const DndCampaigns = () => {
+  const { user } = useContext(UserContext);
+
   return (
     <div className="page">
       <Navbar />
+
+      {/* Game Tools — authenticated users only */}
+      {user && (
+        <section className="page-section">
+          <div className="page-container">
+            <h2 className="page-section-title">Game Tools</h2>
+            <div className="page-section-divider"></div>
+            <div className="grid-2">
+              <Link to="/alchemy-dashboard" style={{ textDecoration: 'none' }}>
+                <div className="content-card" style={{ cursor: 'pointer', transition: 'border-color 0.2s', border: '1px solid rgba(99,102,241,0.2)' }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(99,102,241,0.6)'}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(99,102,241,0.2)'}
+                >
+                  <div style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>⚗️</div>
+                  <h3>Alchemy Lab</h3>
+                  <p>Brew potions, manage ingredients, and track your crafting progress.</p>
+                </div>
+              </Link>
+              <Link to="/holdfast" style={{ textDecoration: 'none' }}>
+                <div className="content-card" style={{ cursor: 'pointer', transition: 'border-color 0.2s', border: '1px solid rgba(99,102,241,0.2)' }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(99,102,241,0.6)'}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(99,102,241,0.2)'}
+                >
+                  <div style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>🏰</div>
+                  <h3>Holdfast Manager</h3>
+                  <p>Build your settlement, advance time, manage resources, and defend against raiders.</p>
+                </div>
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Hero */}
       <div className="page-hero" style={{ height: '50vh' }}>

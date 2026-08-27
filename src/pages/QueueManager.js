@@ -214,8 +214,10 @@ function QueueManager() {
             if (filterType !== 'ALL' && m.mediaType !== filterType) return false;
             if (searchQuery) {
                 const q = searchQuery.toLowerCase();
-                return (m.title || m.originalFilename || '').toLowerCase().includes(q) ||
-                       (m.description || '').toLowerCase().includes(q);
+                const title = (m.title || '').toLowerCase();
+                const filename = (m.originalFilename || '').toLowerCase();
+                const description = (m.description || '').toLowerCase();
+                return title.includes(q) || filename.includes(q) || description.includes(q);
             }
             return true;
         })

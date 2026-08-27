@@ -1,0 +1,911 @@
+/* =====================================================================
+   Events & Polls
+   Shared stylesheet for Events.js (private dashboard) and
+   EventVote.js (public voting page).
+   Accent: #8b5cf6 (notification-family violet)
+   ===================================================================== */
+
+/* =====================================================================
+   EVENTS DASHBOARD (Events.js) — .events- prefix
+   Page-level layout: clamp()/% spacing, matching Profile.css
+   ===================================================================== */
+
+/* ── Page ── */
+.events-page {
+  min-height: 100vh;
+  padding: calc(64px + 5vh) 4% 8vh; /* clear the fixed Navbar (64px) */
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+  background-size: cover;
+  background-position: center;
+}
+
+.events-shell {
+  width: min(94%, 46rem);
+  margin: 0 auto;
+}
+
+.events-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4%;
+  margin-bottom: 6%;
+  flex-wrap: wrap;
+}
+
+.events-header-title {
+  color: #fff;
+  font-size: clamp(1.3rem, 4.5vw, 1.9rem);
+  font-weight: 800;
+  margin: 0;
+}
+
+.events-header-subtitle {
+  color: #888;
+  font-size: clamp(0.78rem, 2.5vw, 0.9rem);
+  margin: 1% 0 0;
+}
+
+/* ── Create Event Form ── */
+.events-create-section {
+  background: rgba(10, 10, 18, 0.93);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 1.25rem;
+  box-shadow: 0 0 3.5rem rgba(0, 0, 0, 0.85);
+  padding: 5% 6%;
+  margin-bottom: 6%;
+}
+
+.events-create-title {
+  color: #8b5cf6;
+  font-weight: 700;
+  font-size: clamp(0.9rem, 3vw, 1.05rem);
+  margin: 0 0 4%;
+}
+
+.events-create-form {
+  display: flex;
+  flex-direction: column;
+  gap: 4%;
+}
+
+.events-form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5%;
+}
+
+.events-form-label {
+  color: #aaa;
+  font-size: clamp(0.72rem, 2.2vw, 0.82rem);
+  font-weight: 600;
+}
+
+.events-form-input,
+.events-form-textarea {
+  padding: 3% 4%;
+  font-size: clamp(0.82rem, 2.5vw, 0.95rem);
+  border-radius: 0.5rem;
+  border: 1px solid rgba(139, 92, 246, 0.35);
+  background: rgba(0, 0, 0, 0.4);
+  color: #fff;
+  outline: none;
+  min-width: 0;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.events-form-input:focus,
+.events-form-textarea:focus {
+  border-color: #8b5cf6;
+}
+
+.events-form-textarea {
+  resize: vertical;
+  min-height: 4.5rem;
+}
+
+.events-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1%;
+}
+
+.events-form-btn {
+  padding: 2.8% 6%;
+  font-size: clamp(0.82rem, 2.5vw, 0.95rem);
+  border-radius: 0.5rem;
+  border: none;
+  cursor: pointer;
+  font-weight: 700;
+  background: #8b5cf6;
+  color: #fff;
+  transition: background 0.2s, transform 0.2s;
+  white-space: nowrap;
+}
+
+.events-form-btn:hover {
+  background: #9b6ef8;
+  transform: translateY(-0.1rem);
+}
+
+.events-form-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.events-form-msg {
+  margin: 2% 0 0;
+  font-size: clamp(0.75rem, 2.2vw, 0.85rem);
+}
+
+.events-form-msg.success { color: #2ecc71; }
+.events-form-msg.error   { color: #e74c3c; }
+
+/* ── Event List / Cards ── */
+.events-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4%;
+}
+
+.events-empty,
+.events-loading {
+  text-align: center;
+  color: #888;
+  padding: 10% 0;
+  font-size: 0.95rem;
+}
+
+.event-card {
+  background: rgba(10, 10, 18, 0.93);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 1rem;
+  box-shadow: 0 0 2rem rgba(0, 0, 0, 0.6);
+  padding: 5% 6%;
+}
+
+.event-card-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4%;
+  flex-wrap: wrap;
+  margin-bottom: 2%;
+}
+
+.event-card-title {
+  color: #fff;
+  font-size: clamp(1rem, 3.2vw, 1.25rem);
+  font-weight: 700;
+  margin: 0;
+}
+
+.event-card-date {
+  color: #8b5cf6;
+  font-size: clamp(0.72rem, 2.2vw, 0.82rem);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.event-card-desc {
+  color: #a8a8b8;
+  font-size: clamp(0.8rem, 2.4vw, 0.9rem);
+  margin: 0 0 3%;
+}
+
+.event-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 2%;
+  color: #888;
+  font-size: clamp(0.72rem, 2.2vw, 0.8rem);
+  margin-bottom: 4%;
+}
+
+.events-view-btn {
+  margin-left: auto;
+  display: inline-block;
+  background: rgba(139, 92, 246, 0.15);
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  border-radius: 0.5rem;
+  color: #c4b5fd;
+  font-size: clamp(0.72rem, 2.2vw, 0.8rem);
+  font-weight: 700;
+  text-decoration: none;
+  padding: 0.4rem 0.75rem;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+  white-space: nowrap;
+}
+.events-view-btn:hover {
+  background: rgba(139, 92, 246, 0.28);
+  border-color: #8b5cf6;
+  color: #fff;
+}
+
+.event-card-poll-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.4rem;
+  height: 1.4rem;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: rgba(139, 92, 246, 0.15);
+  color: #c4b5fd;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+/* ── Shareable Link Row ── */
+.events-share-row {
+  display: flex;
+  align-items: center;
+  gap: 3%;
+  padding: 3% 4%;
+  background: rgba(139, 92, 246, 0.08);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  border-radius: 0.65rem;
+  margin-bottom: 4%;
+}
+
+.events-share-label {
+  color: #888;
+  font-size: clamp(0.68rem, 2vw, 0.75rem);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  flex-shrink: 0;
+}
+
+.events-share-link {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: #e0e0e8;
+  font-size: clamp(0.75rem, 2.2vw, 0.85rem);
+  background: none;
+  border: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: 'Courier New', monospace;
+}
+
+.events-copy-btn {
+  flex-shrink: 0;
+  padding: 1.6% 4%;
+  font-size: clamp(0.72rem, 2.2vw, 0.82rem);
+  border-radius: 0.4rem;
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  cursor: pointer;
+  font-weight: 600;
+  background: rgba(139, 92, 246, 0.12);
+  color: #c4b5fd;
+  transition: background 0.2s, color 0.2s;
+}
+
+.events-copy-btn:hover {
+  background: #8b5cf6;
+  color: #fff;
+}
+
+.events-copy-btn.copied {
+  background: #2ecc71;
+  border-color: #2ecc71;
+  color: #fff;
+}
+
+/* ── Create Poll Form (inside event card) ── */
+.events-poll-section {
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  padding-top: 4%;
+  margin-top: 2%;
+}
+
+.events-poll-toggle-btn {
+  background: none;
+  border: 1px solid rgba(139, 92, 246, 0.35);
+  border-radius: 0.5rem;
+  color: #c4b5fd;
+  font-size: clamp(0.75rem, 2.2vw, 0.85rem);
+  font-weight: 600;
+  padding: 1.8% 4%;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.events-poll-toggle-btn:hover {
+  background: rgba(139, 92, 246, 0.12);
+  color: #fff;
+}
+
+.events-poll-form {
+  display: flex;
+  flex-direction: column;
+  gap: 4%;
+  margin-top: 4%;
+}
+
+.events-poll-form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5%;
+}
+
+.events-poll-input {
+  padding: 3% 4%;
+  font-size: clamp(0.82rem, 2.5vw, 0.95rem);
+  border-radius: 0.5rem;
+  border: 1px solid rgba(139, 92, 246, 0.35);
+  background: rgba(0, 0, 0, 0.4);
+  color: #fff;
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.events-poll-input:focus { border-color: #8b5cf6; }
+
+.events-poll-seed-textarea {
+  padding: 3% 4%;
+  font-size: clamp(0.8rem, 2.4vw, 0.9rem);
+  border-radius: 0.5rem;
+  border: 1px solid rgba(139, 92, 246, 0.35);
+  background: rgba(0, 0, 0, 0.4);
+  color: #fff;
+  outline: none;
+  font-family: 'Courier New', monospace;
+  resize: vertical;
+  min-height: 6rem;
+  box-sizing: border-box;
+}
+
+.events-poll-seed-textarea:focus { border-color: #8b5cf6; }
+
+.events-poll-seed-hint {
+  color: #666;
+  font-size: clamp(0.68rem, 2vw, 0.75rem);
+  margin: 0;
+}
+
+/* Allow-guests-to-add-options toggle row (adapted from .notif-switch) */
+.events-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.4rem 0;
+}
+
+.events-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #dcdce6;
+  font-size: 0.85rem;
+}
+
+.events-switch {
+  width: 2.375rem;
+  height: 1.3125rem;
+  border-radius: 999px;
+  border: none;
+  background: rgba(255, 255, 255, 0.15);
+  cursor: pointer;
+  padding: 0;
+  position: relative;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+.events-switch.on { background: #8b5cf6; }
+
+.events-switch-knob {
+  position: absolute;
+  top: 0.125rem;
+  left: 0.125rem;
+  width: 1.0625rem;
+  height: 1.0625rem;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.2s;
+}
+.events-switch.on .events-switch-knob { transform: translateX(1.0625rem); }
+
+.events-poll-submit-btn {
+  align-self: flex-end;
+  padding: 2.8% 6%;
+  font-size: clamp(0.8rem, 2.4vw, 0.9rem);
+  border-radius: 0.5rem;
+  border: none;
+  cursor: pointer;
+  font-weight: 700;
+  background: #8b5cf6;
+  color: #fff;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.events-poll-submit-btn:hover {
+  background: #9b6ef8;
+  transform: translateY(-0.1rem);
+}
+
+/* ── Existing Polls List (within event card) ── */
+.events-poll-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 3%;
+}
+
+.events-poll-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(139, 92, 246, 0.1);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  color: #c4b5fd;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+/* =====================================================================
+   PUBLIC VOTE PAGE (EventVote.js) — .poll- prefix
+   Compact interactive widgets: fixed-rem units, matching NotificationBell.css
+   ===================================================================== */
+
+.poll-vote-page {
+  min-height: 100vh;
+  padding: calc(64px + 5vh) 4% 8vh; /* clear the fixed Navbar (64px) */
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+}
+
+.poll-vote-shell {
+  width: min(94%, 40rem);
+  margin: 0 auto;
+}
+
+.poll-vote-card {
+  background: rgba(10, 10, 18, 0.93);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 1.25rem;
+  box-shadow: 0 0 3.5rem rgba(0, 0, 0, 0.85);
+  overflow: hidden;
+}
+
+/* ── Header ── */
+.poll-vote-header {
+  padding: 6% 6% 4%;
+  border-bottom: 1px solid rgba(139, 92, 246, 0.15);
+}
+
+.poll-vote-title {
+  color: #fff;
+  font-size: clamp(1.15rem, 4vw, 1.6rem);
+  font-weight: 800;
+  margin: 0 0 1.5%;
+}
+
+.poll-vote-date {
+  color: #8b5cf6;
+  font-size: clamp(0.75rem, 2.2vw, 0.85rem);
+  font-weight: 600;
+  margin: 0 0 1.5%;
+}
+
+.poll-vote-desc {
+  color: #a8a8b8;
+  font-size: clamp(0.8rem, 2.4vw, 0.9rem);
+  margin: 0;
+}
+
+.poll-signin-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-top: 3%;
+  flex-wrap: wrap;
+}
+
+.poll-signin-hint {
+  color: #666;
+  font-size: 0.75rem;
+}
+
+.poll-signin-link {
+  color: #c4b5fd;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+.poll-signin-link:hover { color: #fff; text-decoration: underline; }
+
+/* ── Sibling-poll links ──
+   Real navigation (react-router <Link>, renders as <a>) to this event's
+   other polls — NOT client-state tab switching. Each poll is its own route,
+   so there is no shared "active poll" state for a slow response to race
+   against. Links WRAP instead of horizontally scrolling — a long poll
+   question must never be able to push another poll's link off-screen or
+   into a scroll zone the visitor might not discover. Long questions
+   truncate with an ellipsis inside a capped width (full text still
+   available via the title attribute on hover). */
+.poll-tab-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.75rem 6% 0.6rem;
+  border-bottom: 1px solid rgba(139, 92, 246, 0.15);
+}
+
+.poll-tab {
+  display: inline-block;
+  flex: 0 1 auto;
+  max-width: min(320px, 100%);
+  background: rgba(139, 92, 246, 0.06);
+  border: 1px solid rgba(139, 92, 246, 0.18);
+  border-radius: 0.5rem;
+  color: #aaa;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.5rem 0.85rem;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+
+.poll-tab:hover { color: #c4b5fd; border-color: rgba(139, 92, 246, 0.4); }
+
+/* ── Back link (PollVote.js -> event overview) ── */
+.poll-back-link {
+  display: inline-block;
+  color: #a8a8b8;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  margin-bottom: 0.5rem;
+}
+.poll-back-link:hover { color: #c4b5fd; }
+
+/* ── Poll picker (EventVote.js overview page) ── */
+.poll-picker-body {
+  padding: 5% 6% 6%;
+}
+
+.poll-picker-hint {
+  color: #888;
+  font-size: 0.85rem;
+  margin: 0 0 0.85rem;
+}
+
+.poll-picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.poll-picker-card {
+  display: block;
+  background: rgba(139, 92, 246, 0.06);
+  border: 1px solid rgba(139, 92, 246, 0.18);
+  border-radius: 0.75rem;
+  color: #eaeaf2;
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 1rem 1.1rem;
+  text-decoration: none;
+  transition: border-color 0.2s, background 0.2s, color 0.2s;
+}
+.poll-picker-card:hover {
+  border-color: #8b5cf6;
+  background: rgba(139, 92, 246, 0.14);
+  color: #fff;
+}
+
+/* ── Name Prompt (inline, shown before a guest can vote/add) ── */
+.poll-name-prompt {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin: 1rem 6% 0;
+  padding: 0.85rem 1rem;
+  background: rgba(139, 92, 246, 0.08);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-radius: 0.65rem;
+}
+
+.poll-name-prompt-text {
+  color: #dcdce6;
+  font-size: 0.82rem;
+  margin: 0;
+}
+
+.poll-name-prompt-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.poll-name-prompt-input {
+  flex: 1 1 10rem;
+  min-width: 0;
+  padding: 0.5rem 0.7rem;
+  font-size: 0.85rem;
+  border-radius: 0.4rem;
+  border: 1px solid rgba(139, 92, 246, 0.35);
+  background: rgba(0, 0, 0, 0.4);
+  color: #fff;
+  outline: none;
+}
+.poll-name-prompt-input:focus { border-color: #8b5cf6; }
+
+.poll-name-prompt-btn {
+  flex-shrink: 0;
+  padding: 0.5rem 1rem;
+  font-size: 0.82rem;
+  border-radius: 0.4rem;
+  border: none;
+  cursor: pointer;
+  font-weight: 700;
+  background: #8b5cf6;
+  color: #fff;
+  transition: background 0.2s;
+}
+.poll-name-prompt-btn:hover { background: #9b6ef8; }
+.poll-name-prompt-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.poll-name-prompt-signin {
+  color: #888;
+  font-size: 0.75rem;
+}
+.poll-name-prompt-signin a { color: #c4b5fd; text-decoration: none; }
+.poll-name-prompt-signin a:hover { text-decoration: underline; }
+
+/* ── Options Table ── */
+.poll-body {
+  padding: 5% 6% 6%;
+}
+
+.poll-question {
+  color: #fff;
+  font-size: clamp(1rem, 3vw, 1.15rem);
+  font-weight: 700;
+  margin: 0 0 4%;
+}
+
+.poll-options-table {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.poll-empty {
+  text-align: center;
+  color: #888;
+  padding: 8% 0;
+  font-size: 0.9rem;
+}
+
+.poll-option-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem 0.9rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 0.65rem;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.poll-option-row.voted {
+  border-color: rgba(139, 92, 246, 0.45);
+  background: rgba(139, 92, 246, 0.08);
+}
+
+.poll-option-checkbox {
+  flex-shrink: 0;
+  width: 1.15rem;
+  height: 1.15rem;
+  margin-top: 0.15rem;
+  accent-color: #8b5cf6;
+  cursor: pointer;
+}
+
+.poll-option-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.poll-option-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.poll-option-text {
+  color: #eaeaf2;
+  font-size: 0.9rem;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.poll-option-added-by {
+  color: #666;
+  font-size: 0.7rem;
+  font-weight: 400;
+  font-style: italic;
+}
+
+.poll-option-count {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.4rem;
+  height: 1.4rem;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: #8b5cf6;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.poll-voters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.poll-voter-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(139, 92, 246, 0.15);
+  color: #d9d0fa;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+/* ── Add Your Own Idea Row ── */
+.poll-add-option-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.poll-add-option-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.85rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(139, 92, 246, 0.35);
+  background: rgba(0, 0, 0, 0.4);
+  color: #fff;
+  outline: none;
+}
+.poll-add-option-input:focus { border-color: #8b5cf6; }
+
+.poll-add-option-btn {
+  flex-shrink: 0;
+  padding: 0.6rem 1.1rem;
+  font-size: 0.85rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  cursor: pointer;
+  font-weight: 700;
+  background: rgba(139, 92, 246, 0.12);
+  color: #c4b5fd;
+  transition: background 0.2s, color 0.2s;
+  white-space: nowrap;
+}
+.poll-add-option-btn:hover { background: #8b5cf6; color: #fff; }
+.poll-add-option-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.poll-loading {
+  text-align: center;
+  color: #888;
+  padding: 10% 0;
+  font-size: 0.95rem;
+}
+
+/* =====================================================================
+   RESPONSIVE — stacks below 600px
+   ===================================================================== */
+@media (max-width: 600px) {
+  .event-card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1.5%;
+  }
+
+  .event-card-meta {
+    flex-wrap: wrap;
+    gap: 2% 3%;
+  }
+
+  .events-view-btn {
+    margin-left: 0;
+    flex: 1 1 100%;
+    text-align: center;
+  }
+
+  .events-share-row {
+    flex-wrap: wrap;
+  }
+
+  .events-share-link {
+    flex-basis: 100%;
+    white-space: normal;
+    word-break: break-all;
+  }
+
+  .events-copy-btn {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+
+  .events-poll-submit-btn {
+    align-self: stretch;
+  }
+
+  .poll-signin-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  /* One tab per row on narrow screens — the surest way to guarantee every
+     poll is reachable with a tap, no matter how long its question is. */
+  .poll-tab-bar {
+    flex-direction: column;
+    flex-wrap: nowrap;
+  }
+
+  .poll-tab {
+    max-width: 100%;
+    width: 100%;
+    text-align: left;
+  }
+
+  .poll-option-row {
+    flex-wrap: wrap;
+  }
+
+  .poll-option-top {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.3rem;
+  }
+
+  .poll-add-option-row {
+    flex-direction: column;
+  }
+
+  .poll-add-option-btn {
+    width: 100%;
+  }
+
+  .poll-name-prompt-row {
+    flex-direction: column;
+  }
+
+  .poll-name-prompt-btn {
+    width: 100%;
+  }
+}
