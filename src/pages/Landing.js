@@ -1,6 +1,7 @@
 import React from 'react';
 import Navbar from '../components/Navbar';
 import { navigateToVoice } from '../utils/voiceNavigation';
+import { getApiUrls } from '../utils/apiUrls';
 import heroImg from '../assets/images/extra_photos/wide_me_landing.JPG';
 import natureImg from '../assets/images/extra_photos/me_nature_great_landing.JPG';
 import suitImg from '../assets/images/extra_photos/suit.JPEG';
@@ -14,6 +15,7 @@ import smilingImg from '../assets/images/extra_photos/smiling_image.JPEG';
 import './Landing.css';
 
 const Landing = () => {
+  const { bridgeApiUrl } = getApiUrls();
   return (
     <div className="landing-page">
       <Navbar />
@@ -216,7 +218,7 @@ const Landing = () => {
               icon="🛠️"
             />
             <QuickLinkCard
-              to="https://voice.alex-dyakin.com"
+              to={bridgeApiUrl}
               onClick={goToVoice}
               title="Voice Bridge"
               description="Real-time voice communication powered by Mumble."
@@ -232,7 +234,7 @@ const Landing = () => {
           <p>&copy; {new Date().getFullYear()} Alex Dyakin</p>
           <div className="footer-links">
             <a href="https://ablepacifist.github.io/" target="_blank" rel="noopener noreferrer">Resume</a>
-            <a href="https://voice.alex-dyakin.com" onClick={goToVoice}>Voice Service</a>
+            <a href={bridgeApiUrl} onClick={goToVoice}>Voice Service</a>
           </div>
         </div>
       </footer>

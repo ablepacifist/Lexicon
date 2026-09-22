@@ -54,18 +54,26 @@ self.addEventListener('pushsubscriptionchange', function(event) {
     event.waitUntil(
         self.registration.pushManager.subscribe(event.oldSubscription.options)
             .then(function(subscription) {
-                // Notify the server of the new subscription
-                return fetch('/api/push/subscribe', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        endpoint: subscription.endpoint,
-                        keys: {
-                            p256dh: btoa(String.fromCharCode(...new Uint8Array(subscription.getKey('p256dh')))),
-                            auth: btoa(String.fromCharCode(...new Uint8Array(subscription.getKey('auth'))))
-                        }
-                    })
-                });
+                // A relative URL here would hit this page's own static origin,
+                // not the API. A service worker cannot import modules, so read
+                // the generated destinations doc directly instead; the public
+                // URL is fine for this rare, best-effort re-subscribe.
+                return fetch('/destinations.json', { cache: 'force-cache' })
+                    .then(function(res) { return res.json(); })
+                    .then(function(dest) {
+                        // Notify the server of the new subscription
+                        return fetch(dest.PUBLIC_LEXICON_URL + '/api/push/subscribe', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                endpoint: subscription.endpoint,
+                                keys: {
+                                    p256dh: btoa(String.fromCharCode(...new Uint8Array(subscription.getKey('p256dh')))),
+                                    auth: btoa(String.fromCharCode(...new Uint8Array(subscription.getKey('auth'))))
+                                }
+                            })
+                        });
+                    });
             })
     );
 });
