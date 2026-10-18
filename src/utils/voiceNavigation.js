@@ -2,15 +2,13 @@ import { getApiUrls } from './apiUrls';
 import { isNativePlatform } from './native';
 import { apiFetch } from './apiFetch';
 
-const VOICE_URL = 'https://voice.alex-dyakin.com';
-
 // Inside the Android shell the voice client is bundled alongside Lexicon, so we
 // navigate to it in-app instead of leaving for the public site. The SSO token is
 // passed exactly as it is on the web.
 const NATIVE_VOICE_PATH = '/voice/index.html';
 
 function voiceTarget() {
-    return isNativePlatform() ? NATIVE_VOICE_PATH : VOICE_URL;
+    return isNativePlatform() ? NATIVE_VOICE_PATH : getApiUrls().bridgeApiUrl;
 }
 
 /**

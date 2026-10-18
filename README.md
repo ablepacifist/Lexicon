@@ -25,39 +25,36 @@ The app runs at http://localhost:3000 by default.
 
 ## Hosting Setup (Playit Tunnel)
 
-If you are hosting this frontend behind a Playit tunnel, use these steps:
+Playit hosting is already covered by the destinations doc below (`PLAYIT_HOST`,
+`PLAYIT_LEXICON_PORT`, `PLAYIT_ALCHEMY_PORT`, `PLAYIT_POKEMON_PORT`), so there
+is nothing to set per tunnel. Point a Playit TCP tunnel at this app's port
+(`FRONTEND_PORT`, default 3001) and, if the tunnel host/ports ever change,
+update the root registry (see below) rather than this app.
 
-1) Create and run a tunnel to your local dev server:
+## Destinations (API URLs)
 
-```bash
-playit tunnel tcp 3001
-```
+This app does **not** read `REACT_APP_*_URL` env vars - the backend
+destinations (Lexicon, Alchemy, Pokemon, Voice Bridge) are compiled into the
+build from a flat, secret-free registry instead:
 
-2) Set `.env` with your tunnel URL and API base:
+- `src/config/destinations.defaults.json` - committed standalone defaults, so
+  this app builds correctly even cloned by itself.
+- `scripts/sync-destinations.js` - runs automatically before `npm start` and
+  `npm run build` (via `prestart`/`prebuild`). It overlays the defaults with
+  the whitelisted keys from the monorepo's root `.env` (found via
+  `MASTER_ENV_FILE` or by walking up from this folder), then with matching
+  real environment variables, and writes the merged result to the
+  git-ignored `src/config/destinations.json` and `public/destinations.json`.
+- `src/utils/apiUrls.js` imports `src/config/destinations.json` and composes
+  the actual URLs used at runtime (LAN / public HTTPS / Playit / native, by
+  hostname), based on `LAN_HOST`, `*_PORT`, `PUBLIC_*_URL` and `PLAYIT_*` keys.
 
-```env
-REACT_APP_LEXICON_API_URL=https://your-backend-tunnel-url.ply.gg/api
-REACT_APP_API_URL=https://your-backend-tunnel-url.ply.gg/api
-PORT=3001
-REACT_APP_FRONTEND_URL=https://your-frontend-tunnel-url.ply.gg
-```
+To override a destination locally, either set `MASTER_ENV_FILE` to point at a
+root `.env`, or export the specific key (e.g. `LAN_HOST=192.168.1.50 npm start`).
 
-3) Ensure the backend CORS config allows your frontend tunnel URL.
-
-## Environment Variables
-
-Create a `.env` file in this folder if you need to override API URLs:
-
-```env
-REACT_APP_LEXICON_API_URL=http://localhost:8080
-REACT_APP_API_URL=http://localhost:8080
-```
-
-Notes:
-- `REACT_APP_LEXICON_API_URL` is preferred for session/auth checks.
-- `REACT_APP_API_URL` is used as a fallback.
-- `PORT` sets the local dev server port.
-- `REACT_APP_FRONTEND_URL` is optional, but useful for CORS and linking.
+`.env` / `.env.development` in this folder now hold only non-destination
+settings (`PORT`, `REACT_APP_ENV`) - they are still git-tracked since they
+carry no secrets.
 
 ## Scripts
 

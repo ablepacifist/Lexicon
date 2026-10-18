@@ -40,6 +40,7 @@ import EggsPage from './pages/EggsPage';
 import Events from './pages/Events';
 import EventVote from './pages/EventVote';
 import PollVote from './pages/PollVote';
+import VoiceAssistant from './pages/VoiceAssistant';
 
 import { getApiUrls } from './utils/apiUrls';
 const { lexiconApiUrl: API_URL } = getApiUrls();
@@ -80,6 +81,9 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/voice-assistant" element={
+        <PrivateRoute><VoiceAssistant /></PrivateRoute>
+      } />
       <Route path="/register" element={<Register />} />
       <Route path="/app-selector" element={
         <PrivateRoute><AppSelector /></PrivateRoute>
