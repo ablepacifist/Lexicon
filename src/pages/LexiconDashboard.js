@@ -60,7 +60,7 @@ const LexiconDashboard = () => {
 
   useEffect(() => {
     const { lexiconApiUrl } = getApiUrls();
-    fetch(`${lexiconApiUrl}/api/media/storage-info`)
+    fetch(`${lexiconApiUrl}/api/media/storage-info`, { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data) setStorageInfo(data); })
       .catch(() => {});

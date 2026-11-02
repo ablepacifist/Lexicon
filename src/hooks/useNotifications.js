@@ -52,9 +52,9 @@ export function useNotifications(user) {
     async function loadInitial() {
       try {
         const [histRes, unreadRes, prefsRes] = await Promise.all([
-          fetch(`${lexiconApiUrl}/api/notifications?userId=${userId}&limit=30`),
-          fetch(`${lexiconApiUrl}/api/notifications/unread-count?userId=${userId}`),
-          fetch(`${lexiconApiUrl}/api/notifications/prefs?userId=${userId}`),
+          fetch(`${lexiconApiUrl}/api/notifications?userId=${userId}&limit=30`, { credentials: 'include' }),
+          fetch(`${lexiconApiUrl}/api/notifications/unread-count?userId=${userId}`, { credentials: 'include' }),
+          fetch(`${lexiconApiUrl}/api/notifications/prefs?userId=${userId}`, { credentials: 'include' }),
         ]);
         if (cancelled) return;
         if (histRes.ok) setNotifications(await histRes.json());
@@ -98,7 +98,7 @@ export function useNotifications(user) {
     if (!userId) return;
     setUnreadCount(0);
     try {
-      await fetch(`${lexiconApiUrl}/api/notifications/read-all?userId=${userId}`, { method: 'POST' });
+      await fetch(`${lexiconApiUrl}/api/notifications/read-all?userId=${userId}`, { method: 'POST', credentials: 'include' });
     } catch (_) {}
   }, [userId]);
 
@@ -107,6 +107,7 @@ export function useNotifications(user) {
     setPrefs(next);
     try {
       await fetch(`${lexiconApiUrl}/api/notifications/prefs?userId=${userId}`, {
+        credentials: 'include',
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(next),

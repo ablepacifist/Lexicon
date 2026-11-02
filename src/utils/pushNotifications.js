@@ -41,7 +41,7 @@ export async function subscribeToPush(userId) {
     // Get VAPID public key from server
     let vapidPublicKey;
     try {
-        const resp = await fetch(`${lexiconApiUrl}/api/push/vapid-key`);
+        const resp = await fetch(`${lexiconApiUrl}/api/push/vapid-key`, { credentials: 'include' });
         if (!resp.ok) {
             console.warn('Push not configured on server');
             return null;
