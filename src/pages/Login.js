@@ -32,6 +32,11 @@ const Login = () => {
       });
 
 
+      if (response.status === 429) {
+        // Too many wrong passwords in a row: the server asks the person to wait before trying again
+        setError("Too many failed attempts. Please wait a minute and try again.");
+        return;
+      }
       if (!response.ok) {
         throw new Error('Login failed');
       }

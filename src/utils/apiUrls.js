@@ -1,5 +1,5 @@
-// Auto-detect whether to use local network, Cloudflare domain, or PlayIt tunnel URLs
-// This allows the same build to work for local dev, HTTPS domain, and external users
+// Auto-detect whether to use local network or the public HTTPS (Cloudflare) URLs.
+// This allows the same build to work for local dev, the public domain, and any other host.
 //
 // Every destination composed here comes from src/config/destinations.json,
 // generated at prestart/prebuild time by scripts/sync-destinations.js from
@@ -18,10 +18,6 @@ const {
     PUBLIC_ALCHEMY_URL,
     PUBLIC_POKEMON_URL,
     PUBLIC_BRIDGE_URL,
-    PLAYIT_HOST,
-    PLAYIT_ALCHEMY_PORT,
-    PLAYIT_LEXICON_PORT,
-    PLAYIT_POKEMON_PORT,
 } = destinations;
 
 const getApiUrls = () => {
@@ -70,15 +66,15 @@ const getApiUrls = () => {
             pokemonApiUrl: PUBLIC_POKEMON_URL,
             bridgeApiUrl
         };
-    } else {
-        // User is external via PlayIt - use internet tunnel URLs
-        return {
-            lexiconApiUrl: `http://${PLAYIT_HOST}:${PLAYIT_LEXICON_PORT}`,
-            alchemyApiUrl: `http://${PLAYIT_HOST}:${PLAYIT_ALCHEMY_PORT}`,
-            pokemonApiUrl: `http://${PLAYIT_HOST}:${PLAYIT_POKEMON_PORT}`,
-            bridgeApiUrl
-        };
     }
+
+    // Any other host (for example an old plain-HTTP tunnel address): always use the public HTTPS URLs.
+    return {
+        lexiconApiUrl: PUBLIC_LEXICON_URL,
+        alchemyApiUrl: PUBLIC_ALCHEMY_URL,
+        pokemonApiUrl: PUBLIC_POKEMON_URL,
+        bridgeApiUrl
+    };
 };
 
 export { getApiUrls };

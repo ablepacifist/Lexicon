@@ -61,7 +61,7 @@ const Profile = () => {
 
     const fetchNotifPrefs = async () => {
       try {
-        const res = await fetch(`${lexiconApiUrl}/api/notifications/prefs?userId=${user.id}`);
+        const res = await fetch(`${lexiconApiUrl}/api/notifications/prefs?userId=${user.id}`, { credentials: 'include' });
         if (res.ok) setNotifPrefs(await res.json());
       } catch (err) {
         console.error('Error fetching notification prefs:', err);
@@ -78,6 +78,7 @@ const Profile = () => {
     setNotifPrefs(next);
     try {
       await fetch(`${lexiconApiUrl}/api/notifications/prefs?userId=${user.id}`, {
+        credentials: 'include',
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(next),
