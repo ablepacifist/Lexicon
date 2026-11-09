@@ -1,5 +1,7 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import App from './App';
+
+jest.mock('./components/Navbar', () => () => null);
 
 // The app asks the server who is signed in before it shows any page. These tests answer that question
 // themselves, so no server is needed.
@@ -9,6 +11,9 @@ function answerSessionCheck(user) {
       return user
         ? Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(user) })
         : Promise.resolve({ ok: false, status: 401, json: () => Promise.resolve({}) });
+    }
+    if (String(url).includes('/api/media/storage-info')) {
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ volumes: [] }) });
     }
     return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) });
   });
@@ -38,6 +43,14 @@ test('a private page sends a visitor who is not signed in to the login form', as
   expect(window.location.pathname).toBe('/login');
 });
 
+test('the printer monitor requires a signed-in user', async () => {
+  answerSessionCheck(null);
+  window.history.pushState({}, '', '/printer-monitor');
+  render(<App />);
+  expect(await screen.findByRole('heading', { name: 'Login' })).toBeInTheDocument();
+  expect(window.location.pathname).toBe('/login');
+});
+
 test('the app checks the session with the login cookie attached', async () => {
   answerSessionCheck(null);
 
@@ -57,4 +70,23 @@ test('a signed-in visitor can open a private page', async () => {
 
   await waitFor(() => expect(window.location.pathname).toBe('/app-selector'));
   expect(screen.queryByRole('heading', { name: 'Login' })).not.toBeInTheDocument();
+});
+
+test('the projects page button opens the protected printer monitor', async () => {
+  answerSessionCheck(null);
+  window.history.pushState({}, '', '/projects');
+  render(<App />);
+  const button = await screen.findByRole('button', { name: /open printer monitor/i });
+  fireEvent.click(button);
+  expect(await screen.findByRole('heading', { name: 'Login' })).toBeInTheDocument();
+  expect(window.location.pathname).toBe('/login');
+});
+
+test('the Lexicon dashboard does not show the printer', async () => {
+  answerSessionCheck({ id: 7, username: 'alice', displayName: 'Alice' });
+  window.history.pushState({}, '', '/lexicon-dashboard');
+  render(<App />);
+  await screen.findByText('Lexicon Media Center');
+  expect(screen.queryByText(/3D Printer/i)).not.toBeInTheDocument();
+  expect(document.querySelector('a[href="/printer-monitor"]')).not.toBeInTheDocument();
 });

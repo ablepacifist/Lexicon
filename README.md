@@ -52,9 +52,9 @@ build from a flat, secret-free registry instead:
 To override a destination locally, either set `MASTER_ENV_FILE` to point at a
 root `.env`, or export the specific key (e.g. `LAN_HOST=192.168.1.50 npm start`).
 
-`.env` / `.env.development` in this folder now hold only non-destination
-settings (`PORT`, `REACT_APP_ENV`) - they are still git-tracked since they
-carry no secrets.
+The local `.env` is ignored by Git; `.env.development` remains tracked for
+non-secret frontend defaults. Never store credentials in frontend settings:
+configure server-only secrets in the backend's private environment instead.
 
 ## Scripts
 
@@ -77,6 +77,12 @@ Authenticated:
 - Lexicon Dashboard
 - Media Upload/Player/Stream
 - Audiobooks, Playlists, Knowledge Book
+- Read-only 3D printer camera and status (requires backend configuration)
+
+The printer monitor is available from Projects. It uses the
+Lexicon backend rather than connecting the browser to the Pi; configure the
+backend's `OCTOPRINT_URL`, `PRINTER_CAMERA_URL`, and `OCTOPRINT_API_KEY` as
+described in the backend README. All signed-in Lexicon users can view it.
 
 ## Assets
 

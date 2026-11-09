@@ -123,6 +123,21 @@
   margin: 0;
 }
 
+.project-action {
+  display: inline-block;
+  padding: 0.75rem 1.25rem;
+  border: 0;
+  border-radius: 8px;
+  background: #6366f1;
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.project-action:hover { background: #4f46e5; }
+.project-action:focus-visible { outline: 3px solid #c7d2fe; outline-offset: 3px; }
+
 /* Tags */
 .tag {
   display: inline-block;

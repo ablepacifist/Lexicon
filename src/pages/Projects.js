@@ -1,9 +1,11 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import photoshopImg from '../assets/images/extra_photos/cool_photoshop.PNG';
 import './PageStyles.css';
 
 const Projects = () => {
+  const navigate = useNavigate();
   return (
     <div className="page">
       <Navbar />
@@ -59,6 +61,16 @@ const Projects = () => {
                 <span className="tag">Streaming</span>
                 <span className="tag">Media</span>
                 <span className="tag">Self-Hosted</span>
+              </div>
+            </div>
+            <div className="content-card">
+              <div style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>🖨️</div>
+              <h3>3D Printer</h3>
+              <p>Watch the live camera and check print progress and temperatures.</p>
+              <div style={{ marginTop: '1rem' }}>
+                <button type="button" className="project-action" onClick={() => navigate('/printer-monitor')}>
+                  Open printer monitor
+                </button>
               </div>
             </div>
           </div>

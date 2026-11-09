@@ -1,0 +1,38 @@
+.printer-page {
+  min-height: 100vh;
+  background: #0a0a0f;
+  color: #e0e0e8;
+  padding-top: 80px;
+}
+
+.printer-content {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.printer-content a { color: #a5b4fc; }
+.printer-content h1, .printer-content h2 { color: #fff; }
+.printer-panel {
+  margin: 1.5rem 0;
+  padding: 1.5rem;
+  border: 1px solid #333344;
+  border-radius: 12px;
+  background: #15151f;
+}
+.printer-camera {
+  display: block;
+  max-width: 100%;
+  width: 100%;
+  height: auto;
+  background: #000;
+  transform: rotate(180deg);
+}
+.printer-status {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 1rem;
+}
+.printer-status dt { color: #aaaabc; }
+.printer-status dd { margin: 0.3rem 0 0; color: #fff; }
+.printer-panel button { cursor: pointer; padding: 0.5rem 1rem; }
