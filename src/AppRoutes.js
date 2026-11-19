@@ -41,6 +41,7 @@ import Events from './pages/Events';
 import EventVote from './pages/EventVote';
 import PollVote from './pages/PollVote';
 import VoiceAssistant from './pages/VoiceAssistant';
+import PrinterMonitor from './pages/PrinterMonitor';
 
 import { getApiUrls } from './utils/apiUrls';
 const { lexiconApiUrl: API_URL } = getApiUrls();
@@ -93,6 +94,9 @@ function AppRoutes() {
       } />
       <Route path="/lexicon-dashboard" element={
         <PrivateRoute><LexiconDashboard /></PrivateRoute>
+      } />
+      <Route path="/printer-monitor" element={
+        <PrivateRoute><PrinterMonitor /></PrivateRoute>
       } />
       <Route path="/media-upload" element={
         <PrivateRoute><MediaUploadDownload /></PrivateRoute>
