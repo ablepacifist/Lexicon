@@ -44,6 +44,7 @@ import VoiceAssistant from './pages/VoiceAssistant';
 import PrinterMonitor from './pages/PrinterMonitor';
 
 import { getApiUrls } from './utils/apiUrls';
+import { toSessionUser } from './utils/sessionUser';
 const { lexiconApiUrl: API_URL } = getApiUrls();
 
 function PrivateRoute({ children }) {
@@ -67,7 +68,7 @@ function AppRoutes() {
         return res.json();
       })
       .then(data => {
-        setUser({ id: data.id, username: data.username, displayName: data.displayName });
+        setUser(toSessionUser(data));
       })
       .catch(() => {
         setUser(null);

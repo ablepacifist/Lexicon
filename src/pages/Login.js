@@ -5,6 +5,7 @@ import background from '../assets/images/background.jpg';
 import { getApiUrls } from '../utils/apiUrls';
 import { isNativePlatform } from '../utils/native';
 import { apiFetch, setMobileToken } from '../utils/apiFetch';
+import { toSessionUser } from '../utils/sessionUser';
 
 const { lexiconApiUrl: API_URL } = getApiUrls();
 
@@ -50,7 +51,7 @@ const Login = () => {
       }
 
       // Update context with session-based info - use 'id' field which AuthController returns
-      setUser({ id: data.id, username: data.username, displayName: data.displayName });
+      setUser(toSessionUser(data));
       navigate(redirectTo, { replace: true });
     } catch (err) {
       console.error("Login error:", err);

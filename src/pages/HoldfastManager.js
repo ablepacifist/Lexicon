@@ -1,11 +1,42 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useContext } from 'react';
 import Navbar from '../components/Navbar';
+import HoldfastIcon from '../components/holdfast/HoldfastIcon';
+import { UserContext } from '../context/UserContext';
 import { getApiUrls } from '../utils/apiUrls';
+import { identityHeaders, errorMessage } from '../utils/lexiconIdentity';
+import { hasPermission } from '../utils/sessionUser';
 import './HoldfastManager.css';
 
 const { alchemyApiUrl: API_URL } = getApiUrls();
 
+// Permission names come from Lexicon; Alchemy enforces them on every request.
+const PERMISSION_ADVANCE_TIME = 'HOLDFAST_ADVANCE_TIME';
+const PERMISSION_DELETE = 'HOLDFAST_DELETE';
+
+const TABS = [
+  { id: 'status', label: 'Status' },
+  { id: 'time', label: 'Time' },
+  { id: 'build', label: 'Build' },
+  { id: 'treasury', label: 'Treasury' },
+  { id: 'log', label: 'Log' },
+  { id: 'help', label: 'Help' },
+];
+const TAB_EMOJI = { status: '📊', time: '⏰', build: '🏗️', treasury: '💰', log: '📜', help: '📖' };
+
+// Display only: which emoji stands in for a resource without an image, and the CSS class for
+// each level or tone the server sends. Every number and decision comes from alchemyServer.
+const LEVEL_CLASS = { warn: 'resource-warn', danger: 'resource-danger' };
+const TREND = {
+  rising: { cls: 'up', arrow: '↑' },
+  falling: { cls: 'down', arrow: '↓' },
+  steady: { cls: 'stable', arrow: '→' },
+};
+const RESOURCE_EMOJI = { gold: '💰', food: '🍞', wood: '🪵', stone: '🪨', iron: '⚙️', beer: '🍺', wine: '🍷', tools: '🔧', grain: '🌾', silver: '🪙' };
+
 function HoldfastManager() {
+  const { user } = useContext(UserContext);
+  const canAdvanceTime = hasPermission(user, PERMISSION_ADVANCE_TIME);
+  const canDelete = hasPermission(user, PERMISSION_DELETE);
   const [holdfasts, setHoldfasts] = useState([]);
   const [selected, setSelected] = useState(null);
   const [status, setStatus] = useState(null);
@@ -116,16 +147,15 @@ function HoldfastManager() {
     try {
       const res = await fetch(`${API_URL}/api/holdfast/advance`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await identityHeaders({ 'Content-Type': 'application/json' }),
         credentials: 'include',
         body: JSON.stringify({ groupName: selected.groupName, days: Number(advanceDays) }),
       });
       if (!res.ok) {
-        const msg = await res.text();
-        throw new Error(msg);
+        throw new Error(await errorMessage(res, 'Could not advance time'));
       }
       const data = await res.json();
-      setEvents(data.events || []);
+      setEvents(data.eventEntries || []);
       await fetchStatus(selected.groupName);
       await fetchAll();
       await fetchEventLog(selected.groupName);
@@ -218,11 +248,16 @@ function HoldfastManager() {
   const handleDelete = async () => {
     if (!selected || !window.confirm(`Delete holdfast "${selected.holdfastName}"? This cannot be undone.`)) return;
     setLoading(true);
+    setError(null);
     try {
-      await fetch(`${API_URL}/api/holdfast/${encodeURIComponent(selected.groupName)}`, {
+      const res = await fetch(`${API_URL}/api/holdfast/${encodeURIComponent(selected.groupName)}`, {
         method: 'DELETE',
+        headers: await identityHeaders(),
         credentials: 'include',
       });
+      if (!res.ok) {
+        throw new Error(await errorMessage(res, 'Could not delete the holdfast'));
+      }
       setSelected(null);
       setStatus(null);
       await fetchAll();
@@ -276,6 +311,9 @@ function HoldfastManager() {
   };
 
   const h = status?.holdfast;
+  const cal = status?.calendar;
+  const food = status?.food;
+  const market = status?.foodMarket;
   const buildings = status?.buildingMenu || [];
   const availableBuildings = buildings.filter(b => b.status === 'available');
   const lockedBuildings = buildings.filter(b => b.status === 'locked');
@@ -321,7 +359,10 @@ function HoldfastManager() {
                 className={`holdfast-item ${selected?.groupName === hf.groupName ? 'active' : ''}`}
                 onClick={() => selectHoldfast(hf)}
               >
-                <div className="hf-name">{hf.holdfastName}</div>
+                <div className="hf-name">
+                  <HoldfastIcon k={`castle.${hf.castleType}`} fallback="🏰" />
+                  {hf.holdfastName}
+                </div>
                 <div className="hf-group">{hf.groupName}</div>
                 <div className="hf-meta">
                   <span>Day {hf.daysElapsed}</span>
@@ -337,7 +378,7 @@ function HoldfastManager() {
         <main className="holdfast-main">
           {!selected && (
             <div className="holdfast-empty">
-              <div className="empty-icon">🏰</div>
+              <div className="empty-icon"><HoldfastIcon k="ui.empty" fallback="🏰" size="lg" /></div>
               <h3>Select or create a holdfast</h3>
               <p>Manage your D&amp;D settlement — buildings, resources, and time.</p>
             </div>
@@ -346,27 +387,47 @@ function HoldfastManager() {
           {selected && (
             <>
               <div className="holdfast-header">
-                <div>
-                  <h2>{h?.holdfastName || selected.holdfastName}</h2>
-                  <span className="group-badge">{selected.groupName}</span>
+                <div className="holdfast-banner" aria-hidden="true">
+                  <HoldfastIcon k="ui.banner" fallback="🏰" size="banner" />
                 </div>
-                <button className="btn-danger-sm" onClick={handleDelete}>Delete</button>
+                <div className="holdfast-title">
+                  <h2>{h?.holdfastName || selected.holdfastName}</h2>
+                  <div className="holdfast-badges">
+                    <span className="group-badge">{selected.groupName}</span>
+                    {cal && (
+                      <span className="day-badge">
+                        <HoldfastIcon k="resource.day" fallback="📅" />
+                        Day {cal.day} · week {cal.week}
+                      </span>
+                    )}
+                    {h?.castleType && (
+                      <span className="castle-badge">
+                        <HoldfastIcon k={`castle.${h.castleType}`} fallback="🏰" />
+                        {status.castleName}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {canDelete && (
+                  <button className="btn-danger-sm" onClick={handleDelete} disabled={loading}>Delete</button>
+                )}
               </div>
 
               {error && <div className="hf-error">{error} <button onClick={() => setError(null)}>✕</button></div>}
 
               <div className="hf-tabs">
-                {['status', 'time', 'build', 'treasury', 'log', 'help'].map(tab => (
+                {TABS.map(({ id, label }) => (
                   <button
-                    key={tab}
-                    className={`tab-btn ${activeTab === tab ? 'active' : ''}`}
+                    key={id}
+                    className={`tab-btn ${activeTab === id ? 'active' : ''}`}
                     onClick={() => {
-                      setActiveTab(tab);
+                      setActiveTab(id);
                       setError(null);
-                      if (tab === 'log' && selected) fetchEventLog(selected.groupName);
+                      if (id === 'log' && selected) fetchEventLog(selected.groupName);
                     }}
                   >
-                    {tab === 'status' ? '📊 Status' : tab === 'time' ? '⏰ Time' : tab === 'build' ? '🏗️ Build' : tab === 'treasury' ? '💰 Treasury' : tab === 'log' ? '📜 Log' : '📖 Help'}
+                    <HoldfastIcon k={`tab.${id}`} fallback={TAB_EMOJI[id]} />
+                    <span>{label}</span>
                   </button>
                 ))}
               </div>
@@ -378,137 +439,121 @@ function HoldfastManager() {
                 <div className="tab-content">
                   <div className="stats-grid">
                     <div className="stat-card">
-                      <div className="stat-label">Days Elapsed</div>
-                      <div className="stat-value">{h.daysElapsed} <span className="stat-sub">({Math.floor(h.daysElapsed / 7)}w {h.daysElapsed % 7}d)</span></div>
+                      <div className="stat-label"><HoldfastIcon k="resource.day" fallback="📅" /> Days Elapsed</div>
+                      <div className="stat-value">{cal.day} <span className="stat-sub">({cal.weeksElapsed}w {cal.dayOfWeek}d)</span></div>
                     </div>
                     <div className="stat-card">
-                      <div className="stat-label">Castle</div>
-                      <div className="stat-value">{h.castleType?.replace(/_/g, ' ')}</div>
+                      <div className="stat-label"><HoldfastIcon k={`castle.${h.castleType}`} fallback="🏰" /> Castle</div>
+                      <div className="stat-value">{status.castleName}</div>
                     </div>
                     <div className="stat-card">
-                      <div className="stat-label">Population</div>
+                      <div className="stat-label"><HoldfastIcon k="resource.population" fallback="👥" /> Population</div>
                       <div className="stat-value">
                         {h.population}
-                        {(() => {
-                          const hist = status.populationHistory;
-                          const rate = status.avgDailyGrowth;
-                          if (!hist || hist.length < 2) return <span className="stat-sub"> tracking…</span>;
-                          if (rate > 0.05)  return <span className="pop-trend up">↑ +{rate.toFixed(1)}/day</span>;
-                          if (rate < -0.05) return <span className="pop-trend down">↓ {rate.toFixed(1)}/day</span>;
-                          return <span className="pop-trend stable">→ stable</span>;
-                        })()}
+                        {!status.populationTrend && <span className="stat-sub"> tracking…</span>}
+                        {status.populationTrend === 'steady' && <span className="pop-trend stable">→ stable</span>}
+                        {TREND[status.populationTrend] && status.populationTrend !== 'steady' && (
+                          <span className={`pop-trend ${TREND[status.populationTrend].cls}`}>
+                            {TREND[status.populationTrend].arrow} {status.populationTrend === 'rising' ? '+' : ''}{status.avgDailyGrowth?.toFixed(1)}/day
+                          </span>
+                        )}
                       </div>
                     </div>
                     <div className="stat-card">
-                      <div className="stat-label">Happiness</div>
-                      <div className="stat-value">{h.happiness?.toFixed(1)}<span className="stat-sub">/100 (target: {status.targetHappiness})</span></div>
+                      <div className="stat-label"><HoldfastIcon k="resource.happiness" fallback="😊" /> Happiness</div>
+                      <div className={`stat-value happiness-${status.happinessLevel}`}>{h.happiness?.toFixed(1)}<span className="stat-sub">/100 (target: {status.targetHappiness})</span></div>
                     </div>
                     <div className="stat-card">
-                      <div className="stat-label">Protection</div>
+                      <div className="stat-label"><HoldfastIcon k="resource.protection" fallback="🛡️" /> Protection</div>
                       <div className="stat-value">{status.protection?.toFixed(1)}<span className="stat-sub"> (raid: {status.raidChance?.toFixed(1)}%)</span></div>
                     </div>
                     <div className="stat-card accent">
-                      <div className="stat-label">Net Gold/Day</div>
+                      <div className="stat-label"><HoldfastIcon k="resource.gold" fallback="💰" /> Net Gold/Day</div>
                       <div className="stat-value">{status.netDailyGold > 0 ? '+' : ''}{status.netDailyGold?.toFixed(1)}g</div>
                       <div className="stat-sub">Income: {status.dailyIncome?.toFixed(1)}g | Upkeep: {status.dailyUpkeep?.toFixed(1)}g</div>
                     </div>
                   </div>
 
                   <div className="section-title">Resources</div>
-                  <div className="resources-row">
-                    <div className="resource-chip">💰 {h.gold?.toFixed(1)}g</div>
-                    <div className={`resource-chip ${h.food === 0 ? 'resource-danger' : h.food < h.population * 2 ? 'resource-warn' : ''}`}>
-                      🍞 {h.food} food
-                      <span className="resource-rate">(-{Math.ceil(h.population * 0.2)}/day)</span>
-                      {status.daysOfFood < 999 && <span className="food-days"> ≈{status.daysOfFood}d</span>}
-                      {status.nextSpoilIn >= 0 && status.nextSpoilIn <= 7 && (
-                        <span className="spoil-warn"> ⚠️ spoils in {status.nextSpoilIn}d</span>
-                      )}
-                    </div>
-                    <div className="resource-chip">🪵 {h.wood} wood</div>
-                    <div className="resource-chip">🪨 {h.stone} stone</div>
-                    <div className="resource-chip">⚙️ {h.iron} iron</div>
-                    <div className="resource-chip">🍺 {h.beer} beer</div>
-                    <div className="resource-chip">🍷 {h.wine} wine</div>
-                    <div className="resource-chip">🔧 {h.tools} tools</div>
+                  <div className="resources-grid">
+                    {status.resources?.map(r => (
+                      <div key={r.key} className={`resource-chip ${LEVEL_CLASS[r.level] || ''}`}>
+                        <HoldfastIcon k={`resource.${r.key}`} fallback={RESOURCE_EMOJI[r.key] || '📦'} />
+                        {r.key === 'gold' ? ` ${r.amount}g` : ` ${r.amount} ${r.key}`}
+                        {r.key === 'food' && food && (
+                          <>
+                            <span className="resource-rate">(-{food.dailyNeed}/day)</span>
+                            {food.daysOfFood < 999 && <span className="food-days"> ≈{food.daysOfFood}d</span>}
+                            {food.spoilLevel !== 'ok' && (
+                              <span className="spoil-warn"> ⚠️ spoils in {food.nextSpoilIn}d</span>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    ))}
                   </div>
 
-                  {Object.entries(h.buildings || {}).some(([, v]) => v > 0) && (
+                  {status.builtBuildings?.length > 0 && (
                     <>
                       <div className="section-title">Buildings</div>
                       <div className="buildings-list">
-                        {Object.entries(h.buildings).filter(([, v]) => v > 0).map(([type, count]) => (
-                          <div key={type} className="building-tag">
-                            {type.replace(/_/g, ' ')} ×{count}
+                        {status.builtBuildings.map(b => (
+                          <div key={b.type} className="building-tag">
+                            <HoldfastIcon k={`building.${b.type}`} fallback="🏠" />
+                            {b.name} ×{b.count}
                           </div>
                         ))}
                       </div>
                     </>
                   )}
 
-                  {(() => {
-                    const allCrops = [
-                      { label: 'Wheat Fields (+20 food)',      days: h.wheatFieldPlantDays,     harvest: 14 },
-                      { label: 'Rye Fields (+40 food)',        days: h.ryeFieldPlantDays,        harvest: 28 },
-                      { label: 'Vegetable Gardens (+10 food)', days: h.vegetableGardenPlantDays, harvest: 10 },
-                      { label: 'Berry Patches (+8 food)',      days: h.berryPatchPlantDays,      harvest: 7  },
-                      { label: 'Mushroom Caves (+25 food)',    days: h.mushroomCavePlantDays,    harvest: 21 },
-                      { label: 'Orchards (+8 food +40g)',      days: h.orchardPlantDays,         harvest: 30 },
-                      { label: 'Vineyards (wine)',             days: h.vineyardPlantDays,        harvest: 90 },
-                    ];
-                    const growing = allCrops.filter(c => c.days?.length > 0);
-                    const SEED_COSTS = { wheat_field: 10, rye_field: 12, vegetable_garden: 8 };
-                    const fallowCrops = [
-                      { type: 'wheat_field',      label: 'Wheat Fields',      seedCost: 10, built: h.buildings?.wheat_field || 0,      planted: h.wheatFieldPlantDays?.length || 0 },
-                      { type: 'rye_field',        label: 'Rye Fields',        seedCost: 12, built: h.buildings?.rye_field || 0,        planted: h.ryeFieldPlantDays?.length || 0 },
-                      { type: 'vegetable_garden', label: 'Vegetable Gardens', seedCost: 8,  built: h.buildings?.vegetable_garden || 0, planted: h.vegetableGardenPlantDays?.length || 0 },
-                    ].filter(c => c.built - c.planted > 0);
-                    return (
-                      <>
-                        {growing.length > 0 && (
-                          <>
-                            <div className="section-title">Growing Crops</div>
-                            <div className="crops-grid">
-                              {growing.map(({ label, days, harvest }) => (
-                                <div key={label} className="crop-section">
-                                  <div className="crop-label">{label}</div>
-                                  {days.map((plantDay, i) => {
-                                    const grown = h.daysElapsed - plantDay;
-                                    const pct = Math.min(100, Math.round((grown / harvest) * 100));
-                                    return (
-                                      <div key={i} className="crop-bar">
-                                        <div className="crop-bar-fill" style={{ width: pct + '%' }} />
-                                        <span className="crop-bar-text">Field {i + 1}: {grown}/{harvest}d ({pct}%)</span>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              ))}
+                  {status.crops?.length > 0 && (
+                    <>
+                      <div className="section-title">Growing Crops</div>
+                      <div className="crops-grid">
+                        {status.crops.map(c => (
+                          <div key={c.type} className="crop-section">
+                            <div className="crop-label">
+                              <HoldfastIcon k={`building.${c.type}`} fallback="🌱" /> {c.label}
+                              {c.harvestFood > 0 && ` (+${c.harvestFood} food`}
+                              {c.harvestFood > 0 && c.harvestGold > 0 && ` +${c.harvestGold}g`}
+                              {c.harvestFood > 0 && ')'}
                             </div>
-                          </>
-                        )}
-                        {fallowCrops.length > 0 && (
-                          <>
-                            <div className="section-title">Fallow Fields — Need Replanting</div>
-                            <div className="fallow-section">
-                              {fallowCrops.map(c => (
-                                <div key={c.type} className="fallow-item">
-                                  <span>{c.label}: <strong>{c.built - c.planted}</strong> fallow</span>
-                                  <button
-                                    className="btn-replant"
-                                    onClick={() => handleReplant(c.type)}
-                                    disabled={replanting || loading}
-                                  >
-                                    Replant all — {(c.built - c.planted) * c.seedCost}g
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          </>
-                        )}
-                      </>
-                    );
-                  })()}
+                            {!c.showProgress && (
+                              <div className="crop-note">{c.planted} planted · produces on its own schedule</div>
+                            )}
+                            {c.fields.map(f => (
+                              <div key={f.field} className={`crop-bar ${f.ready ? 'crop-ready' : ''}`}>
+                                <div className="crop-bar-fill" style={{ width: f.percent + '%' }} />
+                                <span className="crop-bar-text">Field {f.field}: {f.grownDays}/{f.harvestDays}d ({f.percent}%)</span>
+                              </div>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+
+                  {status.fallowFields?.length > 0 && (
+                    <>
+                      <div className="section-title">Fallow Fields — Need Replanting</div>
+                      <div className="fallow-section">
+                        {status.fallowFields.map(f => (
+                          <div key={f.type} className="fallow-item">
+                            <span>{f.label}: <strong>{f.fallow}</strong> fallow</span>
+                            <button
+                              className="btn-replant"
+                              onClick={() => handleReplant(f.type)}
+                              disabled={replanting || loading || !f.canAfford}
+                              title={f.canAfford ? undefined : 'Not enough gold for the seed'}
+                            >
+                              Replant all — {f.replantCost}g
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 
@@ -516,26 +561,43 @@ function HoldfastManager() {
               {activeTab === 'time' && (
                 <div className="tab-content">
                   <div className="section-title">Advance Time</div>
-                  <div className="advance-form">
-                    <label>Days to advance:</label>
-                    <input
-                      type="number"
-                      min={1}
-                      max={365}
-                      value={advanceDays}
-                      onChange={e => setAdvanceDays(e.target.value)}
-                    />
-                    <button className="btn-primary" onClick={handleAdvanceTime} disabled={loading}>
-                      {loading ? 'Processing...' : `Advance ${advanceDays} Day(s)`}
-                    </button>
+                  <div className="time-card">
+                    <div className="time-card-day">
+                      <HoldfastIcon k="resource.day" fallback="📅" size="md" />
+                      <div>
+                        <div className="time-card-value">Day {cal?.day ?? selected.daysElapsed}</div>
+                        {cal && <div className="stat-sub">week {cal.week}</div>}
+                      </div>
+                    </div>
+                    {canAdvanceTime ? (
+                      <div className="advance-form">
+                        <label htmlFor="hf-advance-days">Days to advance:</label>
+                        <input
+                          id="hf-advance-days"
+                          type="number"
+                          min={1}
+                          max={365}
+                          value={advanceDays}
+                          onChange={e => setAdvanceDays(e.target.value)}
+                        />
+                        <button className="btn-primary" onClick={handleAdvanceTime} disabled={loading}>
+                          {loading ? 'Processing...' : `Advance ${advanceDays} Day(s)`}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="admin-only-note">
+                        <HoldfastIcon k="ui.lock" fallback="🔒" />
+                        <span>Time is advanced by an admin. Ask your DM to move the clock forward.</span>
+                      </div>
+                    )}
                   </div>
 
                   {events.length > 0 && (
                     <div className="event-log">
                       <div className="event-log-header">Event Log</div>
                       {events.map((ev, i) => (
-                        <div key={i} className={`event-line ${ev.includes('RAID') ? 'event-danger' : ev.includes('grew') || ev.includes('harvested') || ev.includes('produced') ? 'event-success' : ''}`}>
-                          {ev}
+                        <div key={i} className={`event-line event-${ev.tone}`}>
+                          {ev.message}
                         </div>
                       ))}
                     </div>
@@ -550,12 +612,12 @@ function HoldfastManager() {
                     <>
                       <div className="section-title">Available to Build</div>
                       <div className="build-grid">
-                        {availableBuildings.map(b => {
-                          const rc = b.resourceCost;
-                          const canAffordRes = !rc || Object.entries(rc).every(([res, amt]) => (h[res] || 0) >= amt);
-                          return (
-                          <div key={b.type} className={`build-card ${!canAffordRes ? 'build-card-res-blocked' : ''}`}>
-                            <div className="build-card-name">{b.name}</div>
+                        {availableBuildings.map(b => (
+                          <div key={b.type} className={`build-card ${b.canAffordResources ? '' : 'build-card-res-blocked'} ${b.canAffordGold ? '' : 'build-card-gold-short'}`}>
+                            <div className="build-card-name">
+                              <HoldfastIcon k={`building.${b.type}`} fallback="🏠" size="md" />
+                              {b.name}
+                            </div>
                             <div className="build-card-desc">{b.description}</div>
                             <div className="build-card-stats">
                               {b.dailySilver > 0 && <span className="stat-pos">+{b.dailySilver}s/d</span>}
@@ -564,22 +626,19 @@ function HoldfastManager() {
                               {b.harvestFood > 0 && <span className="stat-pos">+{b.harvestFood} food/{b.harvestDays}d</span>}
                               {b.productionItem && <span className="stat-pos">+{b.productionAmount} {b.productionItem}/{b.productionDays}d</span>}
                             </div>
-                            {rc && (
+                            {b.resourceRequirements?.length > 0 && (
                               <div className="build-resource-cost">
-                                {Object.entries(rc).map(([res, amt]) => {
-                                  const have = h[res] || 0;
-                                  return (
-                                    <span key={res} className={`res-req ${have >= amt ? 'res-ok' : 'res-missing'}`}>
-                                      {res === 'wood' ? '🪵' : res === 'stone' ? '🪨' : res === 'iron' ? '⚙️' : res === 'beer' ? '🍺' : '📦'} {amt} {res} ({have})
-                                    </span>
-                                  );
-                                })}
+                                {b.resourceRequirements.map(r => (
+                                  <span key={r.resource} className={`res-req ${r.enough ? 'res-ok' : 'res-missing'}`}>
+                                    <HoldfastIcon k={`resource.${r.resource}`} fallback={RESOURCE_EMOJI[r.resource] || '📦'} /> {r.needed} {r.resource} ({r.have})
+                                  </span>
+                                ))}
                               </div>
                             )}
                             <div className="build-card-footer">
                               <span className="build-count">{b.current}{b.max != null ? `/${b.max}` : ''}</span>
                               <button
-                                className="btn-build"
+                                className={`btn-build ${b.canBuild ? '' : 'btn-build-short'}`}
                                 onClick={() => handleBuild(b.type)}
                                 disabled={loading}
                               >
@@ -587,8 +646,7 @@ function HoldfastManager() {
                               </button>
                             </div>
                           </div>
-                          );
-                        })}
+                        ))}
                       </div>
                     </>
                   )}
@@ -623,34 +681,32 @@ function HoldfastManager() {
               {/* TREASURY TAB */}
               {activeTab === 'treasury' && h && (
                 <div className="tab-content">
-                  <div className="resources-row big">
-                    <div className="resource-chip">💰 {h.gold?.toFixed(1)}g</div>
-                    <div className={`resource-chip ${h.food === 0 ? 'resource-danger' : ''}`}>🍞 {h.food} food</div>
-                    <div className="resource-chip">🪵 {h.wood} wood</div>
-                    <div className="resource-chip">🪨 {h.stone} stone</div>
-                    <div className="resource-chip">⚙️ {h.iron} iron</div>
-                    <div className="resource-chip">🍺 {h.beer} beer</div>
-                    <div className="resource-chip">🍷 {h.wine} wine</div>
-                    <div className="resource-chip">🔧 {h.tools} tools</div>
+                  <div className="resources-grid big">
+                    {status.resources?.map(r => (
+                      <div key={r.key} className={`resource-chip ${LEVEL_CLASS[r.level] || ''}`}>
+                        <HoldfastIcon k={`resource.${r.key}`} fallback={RESOURCE_EMOJI[r.key] || '📦'} />
+                        {r.key === 'gold' ? ` ${r.amount}g` : ` ${r.amount} ${r.key}`}
+                      </div>
+                    ))}
                   </div>
 
-                  {h.buildings?.food_market > 0 && (
+                  {market?.available && (
                     <div className="market-toggle-section">
                       <div className="section-title">Food Market</div>
                       <div className="market-toggle-row">
-                        <span>Status: <strong>{status.foodMarketEnabled ? '🟢 Selling' : '⚫ Off'}</strong></span>
+                        <span>Status: <strong>{market.enabled ? '🟢 Selling' : '⚫ Off'}</strong></span>
                         <button
-                          className={`btn-toggle ${status.foodMarketEnabled ? 'active' : ''}`}
+                          className={`btn-toggle ${market.enabled ? 'active' : ''}`}
                           onClick={handleToggleFoodMarket}
                           disabled={loading}
                         >
-                          {status.foodMarketEnabled ? 'Disable' : 'Enable'}
+                          {market.enabled ? 'Disable' : 'Enable'}
                         </button>
                         <span className="market-rate">
-                          Sells up to {h.buildings.food_market * 5} food/day → {(h.buildings.food_market * 5 * 0.8).toFixed(1)}g/day
+                          Sells up to {market.dailyCap} food/day → {market.dailyGold}g/day (today: {market.sellableToday})
                         </span>
                       </div>
-                      <p className="market-note">Keeps a 14-day food reserve. Shelf life: {status.foodShelfLife}d.</p>
+                      <p className="market-note">Keeps a {market.reserveDays}-day food reserve ({market.reserve} food). Shelf life: {food?.shelfLife}d.</p>
                     </div>
                   )}
 
@@ -703,18 +759,14 @@ function HoldfastManager() {
                   </div>
                   {logLoading && <div className="hf-loading">Loading events...</div>}
                   {!logLoading && eventLog.length === 0 && (
-                    <p className="empty-hint">No events yet. Advance time to generate events.</p>
+                    <p className="empty-hint">No events yet. Events appear once an admin advances time.</p>
                   )}
                   {!logLoading && eventLog.length > 0 && (
                     <div className="event-log persistent">
                       {[...eventLog].reverse().map(ev => (
                         <div
                           key={ev.id}
-                          className={`event-line ${
-                            ev.message.includes('RAID') || ev.message.includes('FAMINE') ? 'event-danger' :
-                            ev.message.includes('grew') || ev.message.includes('harvested') || ev.message.includes('produced') ? 'event-success' :
-                            ev.message.includes('No food') || ev.message.includes('low!') ? 'event-warn' : ''
-                          }`}
+                          className={`event-line event-${ev.tone}`}
                         >
                           <span className="event-day">d{ev.day}</span>
                           <span>{ev.message}</span>
@@ -810,7 +862,7 @@ function HoldfastManager() {
 
                     <h3>Advancing Time</h3>
                     <ul>
-                      <li>Use the Time tab to advance days (1–365 at a time)</li>
+                      <li>An admin (usually the DM) uses the Time tab to advance days (1–365 at a time)</li>
                       <li>Each day: gold is produced, upkeep is deducted, happiness adjusts</li>
                       <li>Raid checks happen each day; population growth checks every 7 days</li>
                       <li>Event log shows raids, harvests, production, and growth as they happen</li>

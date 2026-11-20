@@ -515,9 +515,129 @@
 .help-table tr:hover td { background: #0e0e14; }
 
 /* Responsive */
+/* ── Assets: images from the Alchemy asset manifest, emoji until one is added ── */
+.hf-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 1;
+  vertical-align: middle;
+  object-fit: contain;
+}
+.hf-icon-sm { width: 1.15em; height: 1.15em; font-size: 1em; margin-right: 0.3em; }
+.hf-icon-md { width: 1.75rem; height: 1.75rem; font-size: 1.35rem; margin-right: 0.45rem; }
+.hf-icon-lg { width: 4rem; height: 4rem; font-size: 4rem; }
+.hf-icon-banner { width: 100%; height: 100%; font-size: 2.6rem; object-fit: cover; }
+
+/* ── Header with banner slot ── */
+.holdfast-header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  align-items: center;
+  background: linear-gradient(135deg, #12122a 0%, #0e0e14 70%);
+  border: 1px solid #1a1a2e;
+  border-radius: 14px;
+  padding: 1rem 1.25rem;
+}
+.holdfast-banner {
+  width: 72px;
+  height: 72px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #0a0a14;
+  border: 1px solid #2a2a40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.holdfast-title h2 { margin: 0 0 0.35rem; }
+.holdfast-badges { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.holdfast-badges .group-badge { margin-top: 0; }
+.day-badge, .castle-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.75rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 100px;
+  text-transform: capitalize;
+}
+.day-badge { color: #c7c8ff; background: #1d1d40; }
+.castle-badge { color: #d6c8a8; background: #221d14; }
+
+.hf-name { display: flex; align-items: center; }
+
+/* ── Sticky tab bar with icons ── */
+.hf-tabs {
+  position: sticky;
+  top: -1.5rem;
+  z-index: 2;
+  background: #0a0a0f;
+  padding-top: 0.75rem;
+  flex-wrap: wrap;
+}
+.tab-btn { display: inline-flex; align-items: center; }
+
+.stat-label { display: flex; align-items: center; }
+.build-card-name { display: flex; align-items: center; }
+.building-tag { display: inline-flex; align-items: center; }
+
+/* ── Resources as an even grid ── */
+.resources-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+.resources-grid .resource-chip { display: flex; align-items: center; flex-wrap: wrap; gap: 0.15rem; }
+.resources-grid.big .resource-chip { font-size: 1rem; padding: 0.55rem 0.9rem; }
+
+/* ── Time tab ── */
+.time-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.25rem;
+  background: #0e0e14;
+  border: 1px solid #1a1a2e;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+.time-card .advance-form { margin: 0; }
+.time-card-day { display: flex; align-items: center; }
+.time-card-value { font-size: 1.4rem; font-weight: 600; color: #e0e0e8; }
+.admin-only-note {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: #a0a0c8;
+  background: #13131f;
+  border: 1px dashed #2a2a40;
+  border-radius: 8px;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.9rem;
+}
+
 @media (max-width: 768px) {
   .holdfast-layout { flex-direction: column; height: auto; }
-  .holdfast-sidebar { width: 100%; height: auto; border-right: none; border-bottom: 1px solid #1a1a2e; }
-  .holdfast-main { padding: 1rem; }
+  .holdfast-sidebar { width: 100%; height: auto; max-height: 40vh; border-right: none; border-bottom: 1px solid #1a1a2e; }
+  .holdfast-main { padding: 1rem; overflow-y: visible; }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .holdfast-header { grid-template-columns: auto 1fr; }
+  .holdfast-header .btn-danger-sm { grid-column: 1 / -1; justify-self: start; }
+  .holdfast-banner { width: 56px; height: 56px; }
+  .hf-tabs { top: 0; }
+  .tab-btn span { display: none; }
+  .tab-btn .hf-icon-sm { margin-right: 0; }
 }
+
+/* States sent by alchemyServer (the page only shows them) */
+.crop-note { font-size: 0.8rem; color: #9a9ab0; margin-top: 4px; }
+.crop-bar.crop-ready .crop-bar-fill { background: linear-gradient(90deg, #6a5a1a, #c8a24c); }
+.build-card-gold-short .build-card-footer .btn-build { opacity: 0.75; }
+.btn-build.btn-build-short { background: #4a4a6a; }
+.stat-value.happiness-warn { color: #e0b860; }
+.stat-value.happiness-danger { color: #f08080; }
