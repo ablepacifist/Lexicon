@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import PrinterMonitor from './PrinterMonitor';
 
@@ -45,7 +45,7 @@ test('stops polling when the page unmounts', async () => {
   jest.useFakeTimers();
   global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ connected: false }) });
   const { unmount } = render(<MemoryRouter><PrinterMonitor /></MemoryRouter>);
-  await waitFor(() => expect(screen.getByText('Not operational')).toBeInTheDocument());
+  expect(await screen.findByText('Not operational')).toBeInTheDocument();
   expect(global.fetch).toHaveBeenCalledTimes(1);
   await act(async () => { jest.advanceTimersByTime(10000); });
   expect(global.fetch).toHaveBeenCalledTimes(2);

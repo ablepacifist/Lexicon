@@ -1,5 +1,7 @@
 // URL selection: LAN hosts talk to the LAN backends, everything else uses the public HTTPS URLs.
 // In particular no host, however unusual, may ever be sent to a plain-HTTP tunnel address.
+// (jest.mock calls below are hoisted above this import.)
+import { getApiUrls } from './apiUrls';
 
 jest.mock('../config/destinations.json', () => ({
     LAN_HOST: '192.168.1.4',
@@ -14,8 +16,6 @@ jest.mock('../config/destinations.json', () => ({
 
 const mockIsNative = jest.fn(() => false);
 jest.mock('./native', () => ({ isNativePlatform: () => mockIsNative() }));
-
-import { getApiUrls } from './apiUrls';
 
 const withHostname = (hostname) => {
     Object.defineProperty(window, 'location', { value: { hostname }, writable: true, configurable: true });

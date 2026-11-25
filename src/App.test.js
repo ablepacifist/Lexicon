@@ -39,7 +39,7 @@ test('a private page sends a visitor who is not signed in to the login form', as
 
   render(<App />);
 
-  expect(await screen.findByRole('heading', { name: 'Login' })).toBeInTheDocument();
+  expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
   expect(window.location.pathname).toBe('/login');
 });
 
@@ -47,7 +47,7 @@ test('the printer monitor requires a signed-in user', async () => {
   answerSessionCheck(null);
   window.history.pushState({}, '', '/printer-monitor');
   render(<App />);
-  expect(await screen.findByRole('heading', { name: 'Login' })).toBeInTheDocument();
+  expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
   expect(window.location.pathname).toBe('/login');
 });
 
@@ -69,7 +69,7 @@ test('a signed-in visitor can open a private page', async () => {
   render(<App />);
 
   await waitFor(() => expect(window.location.pathname).toBe('/app-selector'));
-  expect(screen.queryByRole('heading', { name: 'Login' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: 'Sign in' })).not.toBeInTheDocument();
 });
 
 test('the projects page button opens the protected printer monitor', async () => {
@@ -78,7 +78,7 @@ test('the projects page button opens the protected printer monitor', async () =>
   render(<App />);
   const button = await screen.findByRole('button', { name: /open printer monitor/i });
   fireEvent.click(button);
-  expect(await screen.findByRole('heading', { name: 'Login' })).toBeInTheDocument();
+  expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
   expect(window.location.pathname).toBe('/login');
 });
 
@@ -88,5 +88,6 @@ test('the Lexicon dashboard does not show the printer', async () => {
   render(<App />);
   await screen.findByText('Lexicon Media Center');
   expect(screen.queryByText(/3D Printer/i)).not.toBeInTheDocument();
-  expect(document.querySelector('a[href="/printer-monitor"]')).not.toBeInTheDocument();
+  const hrefs = screen.queryAllByRole('link').map((a) => a.getAttribute('href'));
+  expect(hrefs).not.toContain('/printer-monitor');
 });

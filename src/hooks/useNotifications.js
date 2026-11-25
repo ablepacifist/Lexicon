@@ -66,7 +66,16 @@ export function useNotifications(user) {
     }
     loadInitial();
 
-    const es = new EventSource(`${lexiconApiUrl}/api/notifications/stream?userId=${userId}`);
+    // No EventSource (very old browsers, and the test environment): history and counts
+    // still load above; only live delivery is skipped.
+    if (typeof EventSource === 'undefined') {
+      return () => { cancelled = true; };
+    }
+
+    // withCredentials: the API is a different origin from the site, so without it the
+    // session cookie is not sent and the server cannot tell whose stream this is. The
+    // server takes the user from that session; userId is kept only for older servers.
+    const es = new EventSource(`${lexiconApiUrl}/api/notifications/stream?userId=${userId}`, { withCredentials: true });
     esRef.current = es;
 
     es.addEventListener('init', (e) => {
