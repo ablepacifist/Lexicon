@@ -23,6 +23,7 @@ const AudioPlayer = lazy(() => import('./pages/AudioPlayer'));
 const Audiobooks = lazy(() => import('./pages/Audiobooks'));
 const About = lazy(() => import('./pages/About'));
 const Profile = lazy(() => import('./components/Profile'));
+const AdminUsers = lazy(() => import('./pages/AdminUsers'));
 const KnowledgeBook = lazy(() => import('./pages/KnowledgeBook'));
 const PlaylistManager = lazy(() => import('./pages/PlaylistManager'));
 const MusicLiveStream = lazy(() => import('./pages/MusicLiveStream'));
@@ -158,6 +159,7 @@ function AppRoutes() {
         <Route path="/live-stream" element={<Navigate to="/video-stream" replace />} />
         <Route path="/queue-manager" element={priv(<QueueManager />)} />
         <Route path="/profile" element={priv(<Profile />)} />
+        <Route path="/admin/users" element={priv(<AdminUsers />)} />
         <Route path="/events" element={priv(<Events />)} />
 
         {/* PokéWorld */}

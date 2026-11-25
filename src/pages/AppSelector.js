@@ -4,6 +4,7 @@ import { UserContext } from '../context/UserContext';
 import { useAvatar } from '../hooks/useAvatar';
 import Navbar from '../components/Navbar';
 import { navigateToVoice } from '../utils/voiceNavigation';
+import { hasPermission } from '../utils/sessionUser';
 import background from '../assets/images/background.webp';
 import './PageStyles.css';
 import './AppSelector.css';
@@ -56,6 +57,10 @@ const AppSelector = () => {
           </nav>
 
           <div className="apps-secondary">
+            {/* Shown when Lexicon lists the permission; the server checks it again on every call. */}
+            {hasPermission(user, 'MANAGE_USERS') && (
+              <Link className="lx-btn lx-btn--secondary" to="/admin/users">Users &amp; storage</Link>
+            )}
             <Link className="lx-btn lx-btn--secondary" to="/profile">Profile</Link>
             <Link className="lx-btn lx-btn--secondary" to="/">Home</Link>
           </div>
