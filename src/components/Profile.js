@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
 import { useAvatar } from '../hooks/useAvatar';
 import { getApiUrls } from '../utils/apiUrls';
-import { clearMobileToken } from '../utils/apiFetch';
+import apiFetch, { clearMobileToken } from '../utils/apiFetch';
+import { alchemyFetch, alchemyError } from '../utils/alchemyApi';
 import NotificationSettings from './NotificationSettings';
-import background from '../assets/images/lexicon_room.jpg';
+import background from '../assets/images/lexicon_room.webp';
 import './NotificationBell.css';
 import './Profile.css';
 
@@ -92,14 +93,14 @@ const Profile = () => {
     if (!user) return;
     setLevelUpMsg('');
     try {
-      const res = await fetch(`${alchemyApiUrl}/api/player/levelup`, {
+      // Carries the caller's identity, so Alchemy can confirm it is really this player.
+      const res = await alchemyFetch('/api/player/levelup', {
         method: 'POST',
-        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ playerId: user.id, secretPassword }),
       });
       if (!res.ok) {
-        setLevelUpMsg(`Failed: ${await res.text()}`);
+        setLevelUpMsg(await alchemyError(res, "Couldn't level up. Check the password and try again."));
       } else {
         setAlchemyPlayer(await res.json());
         setLevelUpMsg('Leveled up successfully!');
@@ -111,7 +112,17 @@ const Profile = () => {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    // End the session on the server first. Clearing only local state left the session
+    // and remember-me cookie alive, so the next page load's /api/auth/me signed the user
+    // straight back in, and the Android shell's bearer token was never revoked. apiFetch
+    // attaches that token in the shell; the server revokes it along with the session.
+    try {
+      const { lexiconApiUrl } = getApiUrls();
+      await apiFetch(`${lexiconApiUrl}/api/auth/logout`, { method: 'POST', credentials: 'include' });
+    } catch {
+      // Offline or the server is down: still sign out locally rather than trap the user.
+    }
     setUser(null);
     localStorage.removeItem('user');
     sessionStorage.removeItem('user');

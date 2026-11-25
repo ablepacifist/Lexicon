@@ -1,4 +1,5 @@
 import { getApiUrls } from './apiUrls';
+import devLog from './devLog';
 
 const { lexiconApiUrl } = getApiUrls();
 
@@ -84,7 +85,7 @@ export async function subscribeToPush(userId) {
         })
     });
 
-    console.log('Push subscription registered');
+    devLog('Push subscription registered');
     return subscription;
 }
 
@@ -111,7 +112,7 @@ export async function unsubscribeFromPush() {
         body: JSON.stringify({ endpoint: subscription.endpoint })
     });
 
-    console.log('Push subscription removed');
+    devLog('Push subscription removed');
 }
 
 /**

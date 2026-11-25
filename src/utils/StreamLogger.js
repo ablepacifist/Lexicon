@@ -1,3 +1,4 @@
+import devLog from './devLog';
 /**
  * StreamLogger — persistent diagnostic logger for media streaming issues.
  * Stores timestamped entries in memory and exposes them for UI display.
@@ -30,7 +31,7 @@ const StreamLogger = {
     const prefix = `[${entry.time}] [${source}]`;
     if (level === 'error') console.error(prefix, message, data || '');
     else if (level === 'warn') console.warn(prefix, message, data || '');
-    else console.log(prefix, message, data || '');
+    else devLog(prefix, message, data || '');
   },
 
   info(source, msg, data) { this.log('info', source, msg, data); },

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import StreamLogger from '../utils/StreamLogger';
+import pressable from '../utils/pressable';
 
 const LEVEL_COLORS = {
   info: '#61dafb',
@@ -20,8 +21,7 @@ function StreamLogPanel() {
   if (!expanded) {
     const hasErrors = logs.some(l => l.level === 'error');
     return (
-      <div
-        onClick={() => setExpanded(true)}
+      <div {...pressable(() => setExpanded(true))} aria-label="Open stream log"
         style={{
           position: 'fixed', bottom: 10, right: 10, zIndex: 9999,
           background: hasErrors ? '#ff4444' : '#333', color: '#fff',
