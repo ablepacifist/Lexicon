@@ -3,10 +3,11 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getApiUrls } from '../utils/apiUrls';
 import Navbar from '../components/Navbar';
 import './Events.css';
+import { parseLocalDate } from '../utils/dates';
 
 function formatEventDate(dateStr) {
   if (!dateStr) return '';
-  const d = new Date(dateStr);
+  const d = parseLocalDate(dateStr);
   if (isNaN(d.getTime())) return dateStr;
   return d.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
 }
