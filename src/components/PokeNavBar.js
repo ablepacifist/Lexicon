@@ -38,7 +38,7 @@ export default function PokeNavBar() {
                         WebkitTapHighlightColor: 'transparent',
                     }}>
                         <span style={{ fontSize: 20 }}>{item.icon}</span>
-                        <span style={{ fontSize: 9, fontWeight: active ? 700 : 400, letterSpacing: 0.1 }}>
+                        <span style={{ fontSize: 11, fontWeight: active ? 700 : 400, letterSpacing: 0.1 }}>
                             {item.label}
                         </span>
                     </button>

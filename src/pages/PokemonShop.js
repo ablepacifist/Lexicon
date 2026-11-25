@@ -5,14 +5,6 @@ import { getApiUrls } from '../utils/apiUrls';
 
 const { pokemonApiUrl } = getApiUrls();
 
-const ITEM_ICONS = {
-    POKEBALL:   '🔴',
-    GREAT_BALL: '🔵',
-    ULTRA_BALL: '⚫',
-    POTION:     '💊',
-    REVIVE:     '⭐',
-};
-
 export default function PokemonShop() {
     const navigate = useNavigate();
     const [catalog, setCatalog] = useState([]);
@@ -138,22 +130,22 @@ export default function PokemonShop() {
 }
 
 const s = {
-    page:     { padding: '16px', maxWidth: 600, margin: '0 auto', minHeight: '100vh', background: '#f9fafb' },
-    center:   { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: '#6b7280', flexDirection: 'column', gap: 16 },
+    page:     { padding: '16px', maxWidth: 600, margin: '0 auto', minHeight: '100vh', background: '#0a0a0f' },
+    center:   { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: '#a0a0b0', flexDirection: 'column', gap: 16 },
     header:   { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 },
-    backBtn:  { background: 'none', border: '1px solid #d1d5db', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', color: '#374151', flexShrink: 0 },
+    backBtn:  { background: 'none', border: '1px solid rgba(255, 255, 255, 0.14)', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', color: '#e0e0e8', flexShrink: 0 },
     title:    { margin: 0, fontSize: 22, fontWeight: 'bold', flex: 1 },
-    coins:    { background: '#fef3c7', border: '1px solid #fbbf24', borderRadius: 20, padding: '6px 14px', fontWeight: 700, fontSize: 15, color: '#92400e', whiteSpace: 'nowrap' },
-    msg:      { background: 'white', border: '1px solid #e5e7eb', borderRadius: 10, padding: '10px 14px', marginBottom: 12, fontSize: 14, textAlign: 'center', fontWeight: 600 },
-    hint:     { color: '#6b7280', fontSize: 13, marginBottom: 16, textAlign: 'center' },
+    coins:    { background: 'rgba(245, 158, 11, 0.14)', border: '1px solid #fbbf24', borderRadius: 20, padding: '6px 14px', fontWeight: 700, fontSize: 15, color: '#fde68a', whiteSpace: 'nowrap' },
+    msg:      { background: '#0e0e14', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: 10, padding: '10px 14px', marginBottom: 12, fontSize: 14, textAlign: 'center', fontWeight: 600 },
+    hint:     { color: '#a0a0b0', fontSize: 13, marginBottom: 16, textAlign: 'center' },
     list:     { display: 'flex', flexDirection: 'column', gap: 10 },
-    row:      { background: 'white', borderRadius: 12, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, boxShadow: '0 1px 3px rgba(0,0,0,.06)' },
+    row:      { background: '#0e0e14', borderRadius: 12, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, boxShadow: '0 1px 3px rgba(0,0,0,.06)' },
     iconCol:  { flexShrink: 0 },
     sprite:   { width: 48, height: 48, objectFit: 'contain' },
     info:     { flex: 1 },
-    itemName: { fontWeight: 700, fontSize: 15, color: '#111827' },
-    owned:    { color: '#6b7280', fontSize: 12, marginTop: 2 },
+    itemName: { fontWeight: 700, fontSize: 15, color: '#f0f0f5' },
+    owned:    { color: '#a0a0b0', fontSize: 12, marginTop: 2 },
     priceCol: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 },
-    price:    { fontWeight: 700, color: '#92400e', fontSize: 14 },
+    price:    { fontWeight: 700, color: '#fde68a', fontSize: 14 },
     buyBtn:   { background: '#ef4444', color: 'white', border: 'none', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontWeight: 700, fontSize: 13 },
 };

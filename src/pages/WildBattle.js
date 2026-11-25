@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { getApiUrls } from '../utils/apiUrls';
+import { errorMessage, responseError } from '../utils/responseError';
 
 const { pokemonApiUrl } = getApiUrls();
 
@@ -85,7 +86,7 @@ export default function WildBattle({ spawn, playerPos, onRequestCatch, onClose }
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body),
         });
-        if (!r.ok) throw new Error(await r.text());
+        if (!r.ok) throw new Error(await responseError(r, 'The battle server had a problem.'));
         return r.json();
     }
 
@@ -142,7 +143,7 @@ export default function WildBattle({ spawn, playerPos, onRequestCatch, onClose }
             setPhase('battle');
             setMenu('main');
         } catch (e) {
-            setLog(prev => [...prev, '⚠️ ' + e.message]);
+            setLog(prev => [...prev, '⚠️ ' + errorMessage(e)]);
         } finally { setBusy(false); }
     }
 
@@ -150,7 +151,7 @@ export default function WildBattle({ spawn, playerPos, onRequestCatch, onClose }
         if (busy || !battle) return;
         setBusy(true); setMenu('main');
         try { await revealTurn(await post('turn', { battleId: battle.battleId, moveId })); }
-        catch (e) { setLog(prev => [...prev, '⚠️ ' + e.message]); }
+        catch (e) { setLog(prev => [...prev, '⚠️ ' + errorMessage(e)]); }
         finally { setBusy(false); }
     }
 
@@ -158,7 +159,7 @@ export default function WildBattle({ spawn, playerPos, onRequestCatch, onClose }
         if (busy || !battle) return;
         setBusy(true); setPhase('battle');
         try { await revealTurn(await post('switch', { battleId: battle.battleId, caughtId: caught.id })); }
-        catch (e) { setLog(prev => [...prev, '⚠️ ' + e.message]); }
+        catch (e) { setLog(prev => [...prev, '⚠️ ' + errorMessage(e)]); }
         finally { setBusy(false); }
     }
 
@@ -169,7 +170,7 @@ export default function WildBattle({ spawn, playerPos, onRequestCatch, onClose }
             const state = await post('flee', { battleId: battle.battleId });
             await revealTurn(state);
             if (state.outcome === 'FLED') setTimeout(() => onClose(false, false), 600);
-        } catch (e) { setLog(prev => [...prev, '⚠️ ' + e.message]); }
+        } catch (e) { setLog(prev => [...prev, '⚠️ ' + errorMessage(e)]); }
         finally { setBusy(false); }
     }
 

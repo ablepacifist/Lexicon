@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PokeNavBar from '../components/PokeNavBar';
 import { getApiUrls } from '../utils/apiUrls';
+import { responseError } from '../utils/responseError';
 
 const { pokemonApiUrl } = getApiUrls();
 
@@ -20,7 +21,7 @@ function EggProgress({ egg }) {
                 <div style={s.track}>
                     <div style={{ ...s.fill, width: `${pct}%`, background: TIER_COLOR[egg.distanceKm] || '#3b82f6' }} />
                 </div>
-                <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+                <div style={{ fontSize: 11, color: '#a0a0b0', marginTop: 2 }}>
                     {egg.progressKm.toFixed(2)} / {egg.distanceKm.toFixed(1)} km · {Math.floor(pct)}%
                 </div>
             </div>
@@ -55,7 +56,7 @@ export default function EggsPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ eggId }),
             });
-            if (!r.ok) { setMsg(await r.text()); setTimeout(() => setMsg(''), 2500); return; }
+            if (!r.ok) { setMsg(await responseError(r, 'Failed to incubate')); setTimeout(() => setMsg(''), 2500); return; }
             load();
         } catch { setMsg('Failed to incubate'); setTimeout(() => setMsg(''), 2500); }
     }
@@ -110,20 +111,20 @@ export default function EggsPage() {
 }
 
 const s = {
-    page:     { padding: 16, maxWidth: 600, margin: '0 auto', minHeight: '100vh', background: '#f9fafb' },
-    center:   { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: '#6b7280' },
+    page:     { padding: 16, maxWidth: 600, margin: '0 auto', minHeight: '100vh', background: '#0a0a0f' },
+    center:   { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: '#a0a0b0' },
     header:   { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 },
-    backBtn:  { background: 'none', border: '1px solid #d1d5db', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', color: '#374151' },
+    backBtn:  { background: 'none', border: '1px solid rgba(255, 255, 255, 0.14)', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', color: '#e0e0e8' },
     title:    { margin: 0, fontSize: 22, fontWeight: 'bold', flex: 1 },
-    km:       { fontSize: 14, fontWeight: 700, color: '#0f172a', background: '#e2e8f0', borderRadius: 20, padding: '5px 12px' },
-    msg:      { background: '#fef3c7', color: '#92400e', padding: '8px 14px', borderRadius: 10, marginBottom: 12, fontWeight: 600, fontSize: 13 },
-    section:  { fontSize: 13, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '14px 0 8px' },
-    incCard:  { display: 'flex', alignItems: 'center', gap: 12, background: 'white', borderRadius: 12, padding: 12, boxShadow: '0 1px 3px rgba(0,0,0,.06)' },
-    empty:    { color: '#94a3b8', fontSize: 13, textAlign: 'center', padding: 18, background: 'white', borderRadius: 12 },
+    km:       { fontSize: 14, fontWeight: 700, color: '#f0f0f5', background: 'rgba(255, 255, 255, 0.08)', borderRadius: 20, padding: '5px 12px' },
+    msg:      { background: 'rgba(245, 158, 11, 0.14)', color: '#fde68a', padding: '8px 14px', borderRadius: 10, marginBottom: 12, fontWeight: 600, fontSize: 13 },
+    section:  { fontSize: 13, fontWeight: 800, color: '#a0a0b0', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '14px 0 8px' },
+    incCard:  { display: 'flex', alignItems: 'center', gap: 12, background: '#0e0e14', borderRadius: 12, padding: 12, boxShadow: '0 1px 3px rgba(0,0,0,.06)' },
+    empty:    { color: '#94a3b8', fontSize: 13, textAlign: 'center', padding: 18, background: '#0e0e14', borderRadius: 12 },
     grid:     { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 10 },
-    eggCard:  { background: 'white', borderRadius: 12, padding: 12, textAlign: 'center', boxShadow: '0 1px 3px rgba(0,0,0,.06)' },
+    eggCard:  { background: '#0e0e14', borderRadius: 12, padding: 12, textAlign: 'center', boxShadow: '0 1px 3px rgba(0,0,0,.06)' },
     incBtn:   { marginTop: 6, width: '100%', padding: '6px 0', border: 'none', borderRadius: 8, background: '#3b82f6', color: 'white', fontWeight: 700, fontSize: 12, cursor: 'pointer' },
-    track:    { height: 7, background: '#e5e7eb', borderRadius: 4, overflow: 'hidden', marginTop: 4 },
+    track:    { height: 7, background: '#1c1c26', borderRadius: 4, overflow: 'hidden', marginTop: 4 },
     fill:     { height: '100%', borderRadius: 4, transition: 'width .4s' },
     tierDot:  { display: 'inline-block', width: 8, height: 8, borderRadius: '50%', marginLeft: 6, verticalAlign: 'middle' },
 };
