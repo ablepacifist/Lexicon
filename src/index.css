@@ -1,13 +1,51 @@
+/* Global foundation. These rules used to live in App.css, which nothing imported, so the
+   site rendered on a white body in the system font and box-sizing applied only below
+   768px. Inter itself is loaded once by a <link> in public/index.html. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  background: #0a0a0f;
+}
+
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  padding: 0;
+  background: #0a0a0f;
+  color: #e0e0e8;
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+a {
+  color: inherit;
+}
+
 code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+}
+
+/* Focus that is visible for keyboard users everywhere, unless a component draws its own. */
+:focus-visible {
+  outline: 2px solid #8b8bf5;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  /* A spinner that stops dead reads as frozen, so it keeps turning, slowly. */
+  .lx-spinner { animation-duration: 2.4s !important; animation-iteration-count: infinite !important; }
 }
