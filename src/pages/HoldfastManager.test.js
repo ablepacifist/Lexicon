@@ -17,7 +17,7 @@ const HOLDFAST = {
 };
 // Shaped like alchemyServer's GET /api/holdfast/{group}: every derived value is precomputed there.
 const STATUS = {
-  holdfast: HOLDFAST, buildingMenu: [], netDailyGold: 1, dailyIncome: 2, dailyUpkeep: 1, protection: 50, raidChance: 1,
+  holdfast: HOLDFAST, buildingMenu: [], netDailyGold: 1, dailyIncome: 2, dailyUpkeep: 1, protection: 50, raidChance: 1, raidChanceWeek: 6.79,
   targetHappiness: 75, daysOfFood: 999, nextSpoilIn: -1,
   calendar: { day: 9, week: 2, weeksElapsed: 1, dayOfWeek: 2 },
   castleName: 'Wood Fort', populationTrend: null, happinessLevel: 'ok',
@@ -163,4 +163,11 @@ test('event lines are coloured by the tone the server gives them', async () => {
   fireEvent.click(screen.getByRole('button', { name: /Log/ }));
   await screen.findByText('Something odd');
   expect(screen.getByText((_, el) => el.classList?.contains('event-line') && el.textContent.includes('Something odd'))).toHaveClass('event-danger');
+});
+
+test('the raid chance says it is per day and shows the weekly figure from the server', async () => {
+  global.fetch = fakeBackend();
+  renderAs(player);
+  await openHoldfast();
+  expect(screen.getByText(/raid: 1\.0%\/day · 7%\/week/)).toBeInTheDocument();
 });

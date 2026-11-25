@@ -465,7 +465,7 @@ function HoldfastManager() {
                     </div>
                     <div className="stat-card">
                       <div className="stat-label"><HoldfastIcon k="resource.protection" fallback="🛡️" /> Protection</div>
-                      <div className="stat-value">{status.protection?.toFixed(1)}<span className="stat-sub"> (raid: {status.raidChance?.toFixed(1)}%)</span></div>
+                      <div className="stat-value">{status.protection?.toFixed(1)}<span className="stat-sub"> (raid: {status.raidChance?.toFixed(1)}%/day{status.raidChanceWeek != null ? ` · ${status.raidChanceWeek.toFixed(0)}%/week` : ''})</span></div>
                     </div>
                     <div className="stat-card accent">
                       <div className="stat-label"><HoldfastIcon k="resource.gold" fallback="💰" /> Net Gold/Day</div>
@@ -842,8 +842,8 @@ function HoldfastManager() {
                     <h3>Raids & Defense</h3>
                     <ul>
                       <li><strong>Protection score</strong> = 50 + towers + walls + barracks + castle bonuses − population penalty − wealth penalty</li>
-                      <li><strong>Raid chance</strong> = max(0.5%, 8% − protection × 0.075)</li>
-                      <li>When raided: bandits steal 30–40% of gold, destroy 1–3 random buildings, cause 5–15% population casualties</li>
+                      <li><strong>Raid chance</strong> is checked every day: max(0.25%, 4% − protection × 0.0375). A small daily chance adds up over a long advance: 4% a day is about 25% over a week</li>
+                      <li>When raided: bandits steal 15–20% of gold, destroy up to 2 random buildings, cause 2.5–7.5% population casualties</li>
                       <li>Build towers, walls, and barracks to reduce raid chance</li>
                     </ul>
 
