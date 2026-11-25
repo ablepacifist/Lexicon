@@ -4,6 +4,8 @@ import { UserContext } from '../context/UserContext';
 import { getApiUrls } from '../utils/apiUrls';
 import '../styles/MediaPlayer.css';
 import './MusicLiveStream.css';
+import devLog from '../utils/devLog';
+import ModalFrame from '../components/ModalFrame';
 
 const CHANNEL = 'music';
 
@@ -120,7 +122,6 @@ function MusicLiveStream() {
         if (!user) return;
 
         let retryCount = 0;
-        const maxRetries = 50;
         const baseRetryDelay = 1000;
         let lastHeartbeat = Date.now();
         let staleCheckInterval = null;
@@ -218,7 +219,7 @@ function MusicLiveStream() {
             if (staleCheckInterval) clearInterval(staleCheckInterval);
             staleCheckInterval = setInterval(() => {
                 if (Date.now() - lastHeartbeat > 90000) {
-                    console.log('SSE stale — no heartbeat in 90s, reconnecting');
+                    devLog('SSE stale — no heartbeat in 90s, reconnecting');
                     if (eventSourceRef.current) eventSourceRef.current.close();
                     setConnectionStatus('disconnected');
                     retryCount = 0;
@@ -296,7 +297,7 @@ function MusicLiveStream() {
             audioRef.current.src = newSrc;
         }
         audioRef.current.load();
-        audioRef.current.play().catch(e => console.log('Auto-play after track change:', e));
+        audioRef.current.play().catch(e => devLog('Auto-play after track change:', e));
     }, [currentMedia, lexiconApiUrl]);
 
     const handleSkip = useCallback(async () => {
@@ -367,7 +368,7 @@ function MusicLiveStream() {
             if (newMedia && audioRef.current) {
                 audioRef.current.src = `${lexiconApiUrl}/api/media/stream/${newMedia.id}`;
                 audioRef.current.currentTime = 0;
-                try { await audioRef.current.play(); } catch (e) { console.log('Lock screen play failed:', e); }
+                try { await audioRef.current.play(); } catch (e) { devLog('Lock screen play failed:', e); }
                 navigator.mediaSession.playbackState = 'playing';
             }
         });
@@ -397,7 +398,7 @@ function MusicLiveStream() {
             } else {
                 audioRef.current.currentTime = 0;
             }
-            audioRef.current.play().catch(err => console.log('Autoplay prevented:', err));
+            audioRef.current.play().catch(err => devLog('Autoplay prevented:', err));
         }
     }, [streamState, calculateCurrentPosition]);
 
@@ -662,8 +663,7 @@ function MusicLiveStream() {
 
             {/* Add to Queue Modal */}
             {showAddModal && (
-                <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
-                    <div className="add-queue-modal" onClick={e => e.stopPropagation()}>
+                <ModalFrame onClose={() => setShowAddModal(false)} overlayClassName="modal-overlay" className="add-queue-modal">
                         <div className="modal-header">
                             <h2>🎵 Add Music to Queue</h2>
                             <button className="modal-close-x" onClick={() => setShowAddModal(false)}>✕</button>
@@ -722,14 +722,12 @@ function MusicLiveStream() {
                                 ))
                             )}
                         </div>
-                    </div>
-                </div>
+                    </ModalFrame>
             )}
 
             {/* Add Playlist to Queue Modal */}
             {showPlaylistModal && (
-                <div className="modal-overlay" onClick={() => setShowPlaylistModal(false)}>
-                    <div className="add-queue-modal" onClick={e => e.stopPropagation()}>
+                <ModalFrame onClose={() => setShowPlaylistModal(false)} overlayClassName="modal-overlay" className="add-queue-modal">
                         <div className="modal-header">
                             <h2>📋 Add Playlist to Queue</h2>
                             <button className="modal-close-x" onClick={() => setShowPlaylistModal(false)}>✕</button>
@@ -765,8 +763,7 @@ function MusicLiveStream() {
                                 ))
                             )}
                         </div>
-                    </div>
-                </div>
+                    </ModalFrame>
             )}
         </div>
     );

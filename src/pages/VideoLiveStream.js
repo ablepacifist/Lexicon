@@ -4,6 +4,8 @@ import { UserContext } from '../context/UserContext';
 import { getApiUrls } from '../utils/apiUrls';
 import '../styles/MediaPlayer.css';
 import './VideoLiveStream.css';
+import devLog from '../utils/devLog';
+import ModalFrame from '../components/ModalFrame';
 
 const CHANNEL = 'video';
 
@@ -122,7 +124,6 @@ function VideoLiveStream() {
         if (!user) return;
 
         let retryCount = 0;
-        const maxRetries = 50;
         const baseRetryDelay = 1000;
         let lastHeartbeat = Date.now();
         let staleCheckInterval = null;
@@ -217,7 +218,7 @@ function VideoLiveStream() {
             if (staleCheckInterval) clearInterval(staleCheckInterval);
             staleCheckInterval = setInterval(() => {
                 if (Date.now() - lastHeartbeat > 90000) {
-                    console.log('SSE stale — no heartbeat in 90s, reconnecting');
+                    devLog('SSE stale — no heartbeat in 90s, reconnecting');
                     if (eventSourceRef.current) eventSourceRef.current.close();
                     setConnectionStatus('disconnected');
                     retryCount = 0;
@@ -294,7 +295,7 @@ function VideoLiveStream() {
             videoRef.current.src = newSrc;
         }
         videoRef.current.load();
-        videoRef.current.play().catch(e => console.log('Auto-play after track change:', e));
+        videoRef.current.play().catch(e => devLog('Auto-play after track change:', e));
     }, [currentMedia, lexiconApiUrl]);
 
     const handleSkip = useCallback(async () => {
@@ -362,7 +363,7 @@ function VideoLiveStream() {
             if (newMedia && videoRef.current) {
                 videoRef.current.src = `${lexiconApiUrl}/api/media/stream/${newMedia.id}`;
                 videoRef.current.currentTime = 0;
-                try { await videoRef.current.play(); } catch (e) { console.log('Lock screen play failed:', e); }
+                try { await videoRef.current.play(); } catch (e) { devLog('Lock screen play failed:', e); }
                 navigator.mediaSession.playbackState = 'playing';
             }
         });
@@ -391,7 +392,7 @@ function VideoLiveStream() {
             } else {
                 videoRef.current.currentTime = 0;
             }
-            videoRef.current.play().catch(err => console.log('Autoplay prevented:', err));
+            videoRef.current.play().catch(err => devLog('Autoplay prevented:', err));
         }
     }, [streamState, calculateCurrentPosition]);
 
@@ -673,8 +674,7 @@ function VideoLiveStream() {
 
             {/* Add to Queue Modal */}
             {showAddModal && (
-                <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
-                    <div className="add-queue-modal" onClick={e => e.stopPropagation()}>
+                <ModalFrame onClose={() => setShowAddModal(false)} overlayClassName="modal-overlay" className="add-queue-modal">
                         <div className="modal-header">
                             <h2>🎬 Add Video to Queue</h2>
                             <button className="modal-close-x" onClick={() => setShowAddModal(false)}>✕</button>
@@ -733,14 +733,12 @@ function VideoLiveStream() {
                                 ))
                             )}
                         </div>
-                    </div>
-                </div>
+                    </ModalFrame>
             )}
 
             {/* Add Playlist to Queue Modal */}
             {showPlaylistModal && (
-                <div className="modal-overlay" onClick={() => setShowPlaylistModal(false)}>
-                    <div className="add-queue-modal" onClick={e => e.stopPropagation()}>
+                <ModalFrame onClose={() => setShowPlaylistModal(false)} overlayClassName="modal-overlay" className="add-queue-modal">
                         <div className="modal-header">
                             <h2>📋 Add Playlist to Queue</h2>
                             <button className="modal-close-x" onClick={() => setShowPlaylistModal(false)}>✕</button>
@@ -776,8 +774,7 @@ function VideoLiveStream() {
                                 ))
                             )}
                         </div>
-                    </div>
-                </div>
+                    </ModalFrame>
             )}
         </div>
     );

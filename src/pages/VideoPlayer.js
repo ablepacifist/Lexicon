@@ -3,6 +3,18 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
 import { getApiUrls } from '../utils/apiUrls';
 import '../styles/MediaPlayer.css';
+import './PageStyles.css';
+import { NETWORK_ERROR } from '../utils/responseError';
+import devLog from '../utils/devLog';
+import ModalFrame from '../components/ModalFrame';
+import pressable from '../utils/pressable';
+
+/** MediaError codes: 2 network, 3 decode, 4 source not supported. */
+function videoErrorText(code) {
+    if (code === 2) return 'The video stopped loading. Check your connection and press play to try again.';
+    if (code === 3 || code === 4) return "This video can't be played in this browser.";
+    return "This video couldn't be played.";
+}
 
 function VideoPlayer() {
     const { user } = useContext(UserContext);
@@ -13,6 +25,8 @@ function VideoPlayer() {
     const [filterType, setFilterType] = useState('all'); // all, personal, public
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [error, setError] = useState('');
+    // True until the first library fetch settles, so an empty list is not shown while loading.
+    const [loading, setLoading] = useState(true);
     const [playlists, setPlaylists] = useState([]);
     const [selectedPlaylist, setSelectedPlaylist] = useState(null);
     const [playlistMode, setPlaylistMode] = useState(false);
@@ -58,6 +72,7 @@ function VideoPlayer() {
     }, [urlPlaylistId, user]);
 
     const fetchVideos = async () => {
+        setLoading(true);
         try {
             // fetch user's personal media and public media and merge
             const [userResp, publicResp] = await Promise.all([
@@ -71,7 +86,7 @@ function VideoPlayer() {
             }
 
             if (!userResp.ok && !publicResp.ok) {
-                setError('Failed to fetch videos');
+                setError("Couldn't load your videos.");
                 return;
             }
 
@@ -96,7 +111,10 @@ function VideoPlayer() {
             });
             setVideos(videoFiles);
         } catch (err) {
-            setError('Error connecting to server: ' + err.message);
+            devLog('fetchVideos failed:', err);
+            setError(NETWORK_ERROR);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -118,7 +136,7 @@ function VideoPlayer() {
                 setPlaylists(videoPlaylists);
             }
         } catch (err) {
-            console.log('Could not fetch playlists:', err.message);
+            devLog('Could not fetch playlists:', err.message);
         }
     };
 
@@ -144,7 +162,8 @@ function VideoPlayer() {
                 }
             }
         } catch (err) {
-            setError('Failed to load playlist: ' + err.message);
+            devLog('loadPlaylist failed:', err);
+            setError("Couldn't load that playlist.");
         }
     };
 
@@ -195,10 +214,11 @@ function VideoPlayer() {
                 await fetchVideos();
                 closeEditModal();
             } else {
-                setError('Failed to update media');
+                setError("Couldn't save those changes.");
             }
         } catch (err) {
-            setError('Error updating media: ' + err.message);
+            devLog('update media failed:', err);
+            setError("Couldn't save those changes.");
         }
     };
 
@@ -244,7 +264,8 @@ function VideoPlayer() {
                 el.removeEventListener('error', onLoadError);
                 const code = el.error?.code;
                 const msg = el.error?.message || 'no message';
-                setError(`[Code ${code}] ${msg} | net:${el.networkState} ready:${el.readyState} | src: ${newSrc}`);
+                devLog('video load error', { code, msg, net: el.networkState, ready: el.readyState, src: newSrc });
+                setError(videoErrorText(code));
             };
             el.addEventListener('canplay', onCanPlay);
             el.addEventListener('error', onLoadError);
@@ -326,7 +347,8 @@ function VideoPlayer() {
                     const code = el?.error?.code;
                     if (code === 1) return;
                     const msg = el?.error?.message || 'no message';
-                    setError(`[Code ${code}] ${msg} | net:${el.networkState} ready:${el.readyState} | src: ${el.currentSrc}`);
+                    devLog('video error', { code, msg, net: el.networkState, ready: el.readyState, src: el.currentSrc });
+                    setError(videoErrorText(code));
                 }}
             >
                 Your browser does not support the video tag.
@@ -458,14 +480,15 @@ function VideoPlayer() {
                             )}
 
                             <div className="video-list">
-                                {getFilteredVideos().length === 0 ? (
+                                {loading && videos.length === 0 ? (
+                                    <div className="lx-state" aria-busy="true" style={{ minHeight: 160 }}><div className="lx-spinner" aria-hidden="true" /></div>
+                                ) : getFilteredVideos().length === 0 ? (
                                     <p className="no-videos">No videos found</p>
                                 ) : (
                                     getFilteredVideos().map((video, index) => (
                                         <div
                                             key={video.id}
-                                            className={`video-item ${currentVideo?.id === video.id ? 'active' : ''}`}
-                                            onClick={() => playVideo(video, index)}
+                                            className={`video-item ${currentVideo?.id === video.id ? 'active' : ''}`} {...pressable(() => playVideo(video, index))}
                                         >
                                             <div className="video-item-info">
                                                 <h4>{video.title}</h4>
@@ -515,8 +538,7 @@ function VideoPlayer() {
                                         .map(pl => (
                                             <div 
                                                 key={pl.id} 
-                                                className="playlist-card-mini"
-                                                onClick={() => loadPlaylist(pl.id)}
+                                                className="playlist-card-mini" {...pressable(() => loadPlaylist(pl.id))}
                                             >
                                                 <div className="playlist-icon">🎬</div>
                                                 <div className="playlist-info">
@@ -543,8 +565,7 @@ function VideoPlayer() {
 
             {/* Edit Media Modal */}
             {showEditModal && (
-                <div className="modal-overlay" onClick={closeEditModal}>
-                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                <ModalFrame onClose={closeEditModal} overlayClassName="modal-overlay" className="modal-content">
                         <h2>✏️ Edit Media</h2>
                         <form onSubmit={handleEditSubmit}>
                             <div className="form-group">
@@ -581,8 +602,7 @@ function VideoPlayer() {
                                 <button type="button" onClick={closeEditModal} className="cancel-btn">Cancel</button>
                             </div>
                         </form>
-                    </div>
-                </div>
+                    </ModalFrame>
             )}
         </div>
     );

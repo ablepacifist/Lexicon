@@ -366,7 +366,6 @@
     transition: border-color 0.2s;
 }
 .search-input:focus {
-    outline: none;
     border-color: rgba(124, 58, 237, 0.6);
     background: rgba(255, 255, 255, 0.12);
 }
