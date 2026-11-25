@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import Navbar from '../components/Navbar';
-import beachImg from '../assets/images/extra_photos/beach.JPEG';
+import beachImg from '../assets/images/extra_photos/beach.webp';
 import './PageStyles.css';
+import { parseLocalDate } from '../utils/dates';
 
 // Starter blog posts — these can later be replaced with a backend/CMS
 const initialPosts = [
@@ -94,14 +95,6 @@ Where to buy: A local tea shop is ideal for recommendations and samples. Special
     tags: ['Wishlist', 'Gaming', 'Tech', 'Hobbies'],
   },
   {
-    id: 1,
-    title: 'Welcome to My Blog',
-    date: '2026-02-20',
-    excerpt: 'Hey everyone! This is the first post on my new personal blog. I built this site as a hub for all my interests — career updates, baking adventures, D&D campaigns, and software projects. Stay tuned for more content!',
-    content: `Hey everyone!\n\nThis is the first post on my new personal blog. I've been meaning to set up a space like this for a while — somewhere I can share thoughts, document projects, and keep a record of the things I'm passionate about.\n\nA bit about what you'll find here:\n\n• Career updates from my work at MMCD as a Field Operations Supervisor\n• Baking and cooking experiments (with plenty of photos)\n• D&D campaign logs and world-building notes\n• Software project updates and technical write-ups\n• Nature adventures and travel stories\n\nI'm excited to start sharing. Thanks for stopping by!`,
-    tags: ['Personal', 'Update'],
-  },
-  {
     id: 2,
     title: 'Building a Metrics System for MMCD',
     date: '2026-02-20',
@@ -155,7 +148,7 @@ const Blog = () => {
                   {selectedPost.title}
                 </h1>
                 <p style={{ color: '#8b8bf5', fontSize: '0.9rem', fontWeight: 600, margin: '0 0 0.5rem' }}>
-                  {new Date(selectedPost.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                  {parseLocalDate(selectedPost.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
                 </p>
                 <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
                   {selectedPost.tags.map(tag => (
@@ -170,7 +163,7 @@ const Blog = () => {
           ) : (
             /* Post list view */
             <div>
-              <p style={{ color: '#888', fontSize: '1rem', marginBottom: '2.5rem', lineHeight: 1.6 }}>
+              <p style={{ color: '#a0a0b0', fontSize: '1rem', marginBottom: '2.5rem', lineHeight: 1.6 }}>
                 Welcome to my blog. I write about tech, work, baking, D&D, and whatever else is on my mind.
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -179,12 +172,23 @@ const Blog = () => {
                     key={post.id}
                     className="content-card"
                     onClick={() => setSelectedPost(post)}
+                    // Reachable and openable from the keyboard, not just by clicking.
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Read: ${post.title}`}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setSelectedPost(post);
+                      }
+                    }}
                     style={{ cursor: 'pointer' }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                      <h3 style={{ margin: 0, flex: 1 }}>{post.title}</h3>
-                      <span style={{ color: '#666', fontSize: '0.85rem', whiteSpace: 'nowrap', marginLeft: '1rem' }}>
-                        {new Date(post.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    {/* Wraps the date under the title on a phone instead of squeezing the title into a column. */}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'baseline', gap: '0.25rem 1rem', marginBottom: '0.5rem' }}>
+                      <h3 style={{ margin: 0, flex: '1 1 14rem' }}>{post.title}</h3>
+                      <span style={{ color: '#a0a0b0', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
+                        {parseLocalDate(post.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </span>
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>

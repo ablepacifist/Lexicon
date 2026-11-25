@@ -1,5 +1,4 @@
 /* ===== Landing Page Styles ===== */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
 .landing-page {
   font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
@@ -12,6 +11,7 @@
 .hero-section {
   position: relative;
   height: 100vh;
+  height: 100dvh; /* the visible viewport on mobile, not the one under the address bar */
   min-height: 600px;
   display: flex;
   align-items: center;

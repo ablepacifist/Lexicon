@@ -1,9 +1,9 @@
 import React from 'react';
 import Navbar from '../components/Navbar';
-import mmcd1 from '../assets/images/extra_photos/mmcd_1.JPG';
-import mmcd3 from '../assets/images/extra_photos/mmcd_3.JPG';
-import swamp1 from '../assets/images/extra_photos/cool_in_swamp_1.jpg';
-import cityImg from '../assets/images/extra_photos/city_landscape.JPG';
+import mmcd1 from '../assets/images/extra_photos/mmcd_1.webp';
+import mmcd3 from '../assets/images/extra_photos/mmcd_3.webp';
+import swamp1 from '../assets/images/extra_photos/cool_in_swamp_1.webp';
+import cityImg from '../assets/images/extra_photos/city_landscape.webp';
 import './PageStyles.css';
 
 const Career = () => {
@@ -27,7 +27,7 @@ const Career = () => {
           <h2 className="page-section-title">Current Role</h2>
           <div className="page-section-divider"></div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', alignItems: 'center' }}>
+          <div className="grid-2" style={{ gap: '2rem', alignItems: 'center' }}>
             <div>
               <h3 style={{ color: '#fff', fontSize: '1.4rem', fontWeight: 700, margin: '0 0 0.5rem' }}>
                 Field Operations Supervisor
@@ -57,13 +57,13 @@ const Career = () => {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
               <div className="image-card">
-                <img src={mmcd1} alt="MMCD fieldwork" />
+                <img loading="lazy" decoding="async" src={mmcd1} alt="MMCD fieldwork" />
               </div>
               <div className="image-card">
-                <img src={mmcd3} alt="MMCD fieldwork" />
+                <img loading="lazy" decoding="async" src={mmcd3} alt="MMCD fieldwork" />
               </div>
               <div className="image-card" style={{ gridColumn: 'span 2' }}>
-                <img src={swamp1} alt="In the field" style={{ aspectRatio: '2/1' }} />
+                <img loading="lazy" decoding="async" src={swamp1} alt="In the field" style={{ aspectRatio: '2/1' }} />
               </div>
             </div>
           </div>

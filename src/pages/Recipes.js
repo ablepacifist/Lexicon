@@ -1,17 +1,17 @@
 import React, { useState } from 'react';
 import Navbar from '../components/Navbar';
-import bakingHero from '../assets/images/extra_photos/baking_1.JPG';
-import cakeImg from '../assets/images/extra_photos/alex_cake.JPG';
-import cookiesImg from '../assets/images/extra_photos/cookies.JPG';
-import cooking1 from '../assets/images/extra_photos/cooking_1.JPG';
-import cooking2 from '../assets/images/extra_photos/cooking_2.JPG';
-import baking2 from '../assets/images/extra_photos/baking_2.JPG';
-import happyCake from '../assets/images/extra_photos/happy_cake.JPEG';
-import byteMeCake from '../assets/images/extra_photos/byteMe_cake.JPEG';
-import cakeFridge from '../assets/images/extra_photos/cake_in_fridge.JPEG';
-import dndCake from '../assets/images/extra_photos/dnd_cake.JPG';
-import meAlexCake from '../assets/images/extra_photos/me_and_alex_cake.JPG';
-import meByteCake from '../assets/images/extra_photos/me_and_byteme_cake.JPEG';
+import bakingHero from '../assets/images/extra_photos/baking_1.webp';
+import cakeImg from '../assets/images/extra_photos/alex_cake.webp';
+import cookiesImg from '../assets/images/extra_photos/cookies.webp';
+import cooking1 from '../assets/images/extra_photos/cooking_1.webp';
+import cooking2 from '../assets/images/extra_photos/cooking_2.webp';
+import baking2 from '../assets/images/extra_photos/baking_2.webp';
+import happyCake from '../assets/images/extra_photos/happy_cake.webp';
+import byteMeCake from '../assets/images/extra_photos/byteMe_cake.webp';
+import cakeFridge from '../assets/images/extra_photos/cake_in_fridge.webp';
+import dndCake from '../assets/images/extra_photos/dnd_cake.webp';
+import meAlexCake from '../assets/images/extra_photos/me_and_alex_cake.webp';
+import meByteCake from '../assets/images/extra_photos/me_and_byteme_cake.webp';
 import './PageStyles.css';
 
 const CATEGORIES = ['All', 'Baking', 'Cooking'];
@@ -135,7 +135,7 @@ const Recipes = () => {
           <div className="grid-3">
             {filtered.map(recipe => (
               <div key={recipe.id} className="image-card">
-                <img src={recipe.image} alt={recipe.title} />
+                <img loading="lazy" decoding="async" src={recipe.image} alt={recipe.title} />
                 <div className="image-card-body">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                     <h3 style={{ margin: 0 }}>{recipe.title}</h3>
@@ -156,14 +156,14 @@ const Recipes = () => {
           <div className="page-section-divider"></div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div className="image-card">
-              <img src={meAlexCake} alt="Baking together" style={{ aspectRatio: '4/3' }} />
+              <img loading="lazy" decoding="async" src={meAlexCake} alt="Baking together" style={{ aspectRatio: '4/3' }} />
               <div className="image-card-body">
                 <h3>Baking with Friends</h3>
                 <p>Some of the best cakes are made together.</p>
               </div>
             </div>
             <div className="image-card">
-              <img src={meByteCake} alt="Cake presentation" style={{ aspectRatio: '4/3' }} />
+              <img loading="lazy" decoding="async" src={meByteCake} alt="Cake presentation" style={{ aspectRatio: '4/3' }} />
               <div className="image-card-body">
                 <h3>The Finished Product</h3>
                 <p>The best part — showing off the final creation.</p>

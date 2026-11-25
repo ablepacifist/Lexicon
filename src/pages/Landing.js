@@ -2,16 +2,16 @@ import React from 'react';
 import Navbar from '../components/Navbar';
 import { navigateToVoice } from '../utils/voiceNavigation';
 import { getApiUrls } from '../utils/apiUrls';
-import heroImg from '../assets/images/extra_photos/wide_me_landing.JPG';
-import natureImg from '../assets/images/extra_photos/me_nature_great_landing.JPG';
-import suitImg from '../assets/images/extra_photos/suit.JPEG';
-import friendsImg from '../assets/images/extra_photos/Me_and_friends.PNG';
-import mountainImg from '../assets/images/extra_photos/me_top_of_mountain.JPEG';
-import campingImg from '../assets/images/extra_photos/camping_trip.JPEG';
-import renfestImg from '../assets/images/extra_photos/me_and_frens_renfest.JPEG';
-import bakingImg from '../assets/images/extra_photos/byteMe_cake.JPEG';
-import cityImg from '../assets/images/extra_photos/real_landscape_city.JPG';
-import smilingImg from '../assets/images/extra_photos/smiling_image.JPEG';
+import heroImg from '../assets/images/extra_photos/wide_me_landing.webp';
+import natureImg from '../assets/images/extra_photos/me_nature_great_landing.webp';
+import suitImg from '../assets/images/extra_photos/suit.webp';
+import friendsImg from '../assets/images/extra_photos/Me_and_friends.webp';
+import mountainImg from '../assets/images/extra_photos/me_top_of_mountain.webp';
+import campingImg from '../assets/images/extra_photos/camping_trip.webp';
+import renfestImg from '../assets/images/extra_photos/me_and_frens_renfest.webp';
+import bakingImg from '../assets/images/extra_photos/byteMe_cake.webp';
+import cityImg from '../assets/images/extra_photos/real_landscape_city.webp';
+import smilingImg from '../assets/images/extra_photos/smiling_image.webp';
 import './Landing.css';
 
 const Landing = () => {
@@ -51,7 +51,7 @@ const Landing = () => {
           <div className="about-grid">
             <div className="about-image-col">
               <div className="about-image-wrapper">
-                <img src={smilingImg} alt="Alex Dyakin" className="about-portrait" />
+                <img loading="lazy" decoding="async" src={smilingImg} alt="Alex Dyakin" className="about-portrait" />
               </div>
             </div>
             <div className="about-text-col">
@@ -128,35 +128,35 @@ const Landing = () => {
           <div className="section-divider center"></div>
           <div className="photo-mosaic">
             <div className="mosaic-item tall">
-              <img src={natureImg} alt="In nature" />
+              <img loading="lazy" decoding="async" src={natureImg} alt="In nature" />
               <div className="mosaic-overlay"><span>Exploring Nature</span></div>
             </div>
             <div className="mosaic-item">
-              <img src={suitImg} alt="Professional" />
+              <img loading="lazy" decoding="async" src={suitImg} alt="Professional" />
               <div className="mosaic-overlay"><span>Professional Life</span></div>
             </div>
             <div className="mosaic-item">
-              <img src={bakingImg} alt="Baking" />
+              <img loading="lazy" decoding="async" src={bakingImg} alt="Baking" />
               <div className="mosaic-overlay"><span>Baking Creations</span></div>
             </div>
             <div className="mosaic-item wide">
-              <img src={friendsImg} alt="Friends" />
+              <img loading="lazy" decoding="async" src={friendsImg} alt="Friends" />
               <div className="mosaic-overlay"><span>Good Times with Friends</span></div>
             </div>
             <div className="mosaic-item">
-              <img src={mountainImg} alt="Mountain summit" />
+              <img loading="lazy" decoding="async" src={mountainImg} alt="Mountain summit" />
               <div className="mosaic-overlay"><span>Summit Views</span></div>
             </div>
             <div className="mosaic-item">
-              <img src={campingImg} alt="Camping" />
+              <img loading="lazy" decoding="async" src={campingImg} alt="Camping" />
               <div className="mosaic-overlay"><span>Camping Adventures</span></div>
             </div>
             <div className="mosaic-item wide">
-              <img src={cityImg} alt="City" />
+              <img loading="lazy" decoding="async" src={cityImg} alt="City" />
               <div className="mosaic-overlay"><span>City Life</span></div>
             </div>
             <div className="mosaic-item">
-              <img src={renfestImg} alt="Renaissance festival" />
+              <img loading="lazy" decoding="async" src={renfestImg} alt="Renaissance festival" />
               <div className="mosaic-overlay"><span>Renaissance Festival</span></div>
             </div>
           </div>
