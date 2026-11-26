@@ -1,183 +1,72 @@
-import React, { useContext, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useContext } from 'react';
+import { Link, Navigate } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
 import { useAvatar } from '../hooks/useAvatar';
+import Navbar from '../components/Navbar';
 import { navigateToVoice } from '../utils/voiceNavigation';
-import background from '../assets/images/background.jpg';
+import { hasPermission } from '../utils/sessionUser';
+import background from '../assets/images/background.webp';
+import './PageStyles.css';
+import './AppSelector.css';
+
+/** Every signed-in app, in one place. */
+const APPS = [
+  { to: '/lexicon-dashboard', name: 'Lexicon', desc: 'Music, video, audiobooks and playlists.' },
+  { to: '/pokemon', name: 'PokéWorld', desc: 'Catch Pokémon around you, spin stops, take gyms.' },
+  { to: '/alchemy-dashboard', name: 'Alchemy', desc: 'Forage ingredients and brew potions.' },
+  { to: '/holdfast', name: 'Holdfast', desc: 'Run your settlement.' },
+  { to: '/events', name: 'Events', desc: 'Plans and polls you can share by link.' },
+];
 
 const AppSelector = () => {
   const { user } = useContext(UserContext);
-  const navigate = useNavigate();
-  const [hover, setHover] = useState({});
   const { avatarUrl } = useAvatar(user?.username);
 
-  // Redirect to login if not authenticated
-  if (!user) {
-    navigate('/login');
-    return null;
-  }
-
-  const containerStyle = {
-    backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url(${background})`,
-    backgroundSize: 'cover',
-    backgroundPosition: 'center',
-    minHeight: '100vh',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-  };
-
-  const cardStyle = {
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    padding: '3rem 4rem',
-    borderRadius: '12px',
-    textAlign: 'center',
-    boxShadow: '0 0 30px rgba(0, 0, 0, 0.8)',
-    maxWidth: '700px',
-  };
-
-  const headingStyle = {
-    color: '#fff',
-    fontSize: '2.5rem',
-    marginBottom: '0.5rem',
-    textShadow: '2px 2px 8px rgba(0, 0, 0, 0.9)',
-  };
-
-  const welcomeStyle = {
-    color: '#61dafb',
-    fontSize: '1.3rem',
-    marginBottom: '2rem',
-  };
-
-  const buttonStyle = {
-    margin: '1rem',
-    padding: '1.5rem 3rem',
-    fontSize: '1.3rem',
-    borderRadius: '10px',
-    border: 'none',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-    boxShadow: '3px 3px 15px rgba(0, 0, 0, 0.6)',
-    transition: 'transform 0.2s, box-shadow 0.2s',
-    width: '300px',
-  };
-
-  const alchemyButtonStyle = {
-    ...buttonStyle,
-    backgroundColor: '#61dafb',
-    color: '#000',
-  };
-
-  const lexiconButtonStyle = {
-    ...buttonStyle,
-    backgroundColor: '#9b59b6',
-    color: '#fff',
-  };
-
-  const buttonHoverStyle = {
-    transform: 'scale(1.08)',
-    boxShadow: '5px 5px 20px rgba(0, 0, 0, 0.8)',
-  };
-
-  const backButtonStyle = {
-    marginTop: '2rem',
-    padding: '0.75rem 2rem',
-    fontSize: '1rem',
-    borderRadius: '8px',
-    border: 'none',
-    cursor: 'pointer',
-    backgroundColor: '#555',
-    color: '#fff',
-    fontWeight: 'bold',
-    transition: 'background-color 0.2s',
-  };
+  // The route is behind PrivateRoute, so there is always a user here; this only guards a
+  // render racing a sign-out.
+  if (!user) return <Navigate to="/login" replace />;
 
   return (
-    <div style={containerStyle}>
-      <div style={cardStyle}>
-        <h1 style={headingStyle}>Choose Your App</h1>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
-          <img
-            src={avatarUrl}
-            alt=""
-            style={{
-              width: 48, height: 48, borderRadius: '50%', objectFit: 'cover',
-              border: '2px solid #61dafb', boxShadow: '0 0 10px rgba(97,218,251,0.3)',
-            }}
-          />
-          <p style={{ ...welcomeStyle, marginBottom: 0 }}>Welcome back, {user.username}!</p>
-        </div>
+    <>
+      <Navbar />
+      <main className="apps-page">
+        <div className="apps-page__bg" style={{ backgroundImage: `url(${background})` }} aria-hidden="true" />
+        <div className="apps-shell">
+          <header className="apps-welcome">
+            {avatarUrl && <img src={avatarUrl} alt="" />}
+            <div>
+              <h1>Welcome back, {user.username}</h1>
+              <p>Where to?</p>
+            </div>
+          </header>
 
-        <div>
-          <Link to="/alchemy-dashboard">
-            <button
-              style={{
-                ...alchemyButtonStyle,
-                ...(hover.alchemy ? buttonHoverStyle : {}),
-              }}
-              onMouseEnter={() => setHover({ ...hover, alchemy: true })}
-              onMouseLeave={() => setHover({ ...hover, alchemy: false })}
-            >
-              Alchemy Game
-            </button>
-          </Link>
-          <br />
-          <Link to="/lexicon-dashboard">
-            <button
-              style={{
-                ...lexiconButtonStyle,
-                ...(hover.lexicon ? buttonHoverStyle : {}),
-              }}
-              onMouseEnter={() => setHover({ ...hover, lexicon: true })}
-              onMouseLeave={() => setHover({ ...hover, lexicon: false })}
-            >
-              Lexicon Media
-            </button>
-          </Link>
-          <br />
-          <button
-            style={{
-              ...buttonStyle,
-              backgroundColor: '#06b6d4',
-              color: '#fff',
-              ...(hover.voice ? buttonHoverStyle : {}),
-            }}
-            onMouseEnter={() => setHover({ ...hover, voice: true })}
-            onMouseLeave={() => setHover({ ...hover, voice: false })}
-            onClick={() => navigateToVoice()}
-          >
-            🎙️ Voice Bridge
-          </button>
-        </div>
+          <nav aria-label="Apps">
+            <div className="apps-grid">
+              {APPS.map((app) => (
+                <Link key={app.to} to={app.to} className="app-card">
+                  <span className="app-card__name">{app.name}</span>
+                  <span className="app-card__desc">{app.desc}</span>
+                </Link>
+              ))}
+              {/* The voice chat is a separate site, opened by its own helper. */}
+              <button type="button" className="app-card" onClick={() => navigateToVoice()}>
+                <span className="app-card__name">Voice</span>
+                <span className="app-card__desc">Voice and text chat with everyone.</span>
+              </button>
+            </div>
+          </nav>
 
-        <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-          <Link to="/profile">
-            <button
-              style={{
-                ...backButtonStyle,
-                backgroundColor: '#8e44ad',
-                ...(hover.profile ? buttonHoverStyle : {}),
-              }}
-              onMouseEnter={() => setHover({ ...hover, profile: true })}
-              onMouseLeave={() => setHover({ ...hover, profile: false })}
-            >
-              👤 Profile
-            </button>
-          </Link>
+          <div className="apps-secondary">
+            {/* Shown when Lexicon lists the permission; the server checks it again on every call. */}
+            {hasPermission(user, 'MANAGE_USERS') && (
+              <Link className="lx-btn lx-btn--secondary" to="/admin/users">Users &amp; storage</Link>
+            )}
+            <Link className="lx-btn lx-btn--secondary" to="/profile">Profile</Link>
+            <Link className="lx-btn lx-btn--secondary" to="/">Home</Link>
+          </div>
         </div>
-
-        <Link to="/">
-          <button
-            style={backButtonStyle}
-            onMouseEnter={(e) => (e.target.style.backgroundColor = '#777')}
-            onMouseLeave={(e) => (e.target.style.backgroundColor = '#555')}
-          >
-            Back to Home
-          </button>
-        </Link>
-      </div>
-    </div>
+      </main>
+    </>
   );
 };
 

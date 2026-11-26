@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getApiUrls } from '../utils/apiUrls';
 import PokeNavBar from '../components/PokeNavBar';
+import pressable from '../utils/pressable';
 
 const { pokemonApiUrl } = getApiUrls();
 
@@ -87,7 +88,7 @@ export default function MyPokemon() {
     return (
         <div style={styles.page}>
             {grindMsg && (
-                <div style={{ background: '#fde68a', color: '#92400e', padding: '10px 16px', borderRadius: 10, marginBottom: 12, fontWeight: 700, textAlign: 'center' }}>
+                <div style={{ background: 'rgba(245, 158, 11, 0.16)', color: '#fde68a', padding: '10px 16px', borderRadius: 10, marginBottom: 12, fontWeight: 700, textAlign: 'center' }}>
                     {grindMsg}
                 </div>
             )}
@@ -98,14 +99,14 @@ export default function MyPokemon() {
 
             {/* Buddy */}
             {buddy && (
-                <div style={styles.buddyCard} onClick={() => navigate(`/pokemon/${buddy.caughtId}`)}>
+                <div style={styles.buddyCard} {...pressable(() => navigate(`/pokemon/${buddy.caughtId}`))}>
                     <span style={styles.buddyTag}>🤝 Buddy</span>
                     <img src={`${pokemonApiUrl}/api/pokemon/sprites/${buddy.spriteKey}`} alt={buddy.speciesName}
                         style={{ width: 46, height: 46, objectFit: 'contain' }}
                         onError={e => { e.target.style.display = 'none'; }} />
                     <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: 800, fontSize: 14 }}>{buddy.nickname || buddy.speciesName}</div>
-                        <div style={{ fontSize: 11, color: '#64748b', marginBottom: 3 }}>
+                        <div style={{ fontSize: 11, color: '#a0a0b0', marginBottom: 3 }}>
                             {(buddy.kmSinceCandy || 0).toFixed(1)} / {buddy.kmPerCandy} km to next 🍬
                         </div>
                         <div style={styles.buddyTrack}>
@@ -131,8 +132,8 @@ export default function MyPokemon() {
                             flexShrink: 0, padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: 'none',
                             background: filterType === t
                                 ? (t === 'ALL' ? '#1e293b' : TYPE_COLORS[t] || '#9ca3af')
-                                : '#f1f5f9',
-                            color: filterType === t ? 'white' : '#374151',
+                                : 'rgba(255, 255, 255, 0.06)',
+                            color: filterType === t ? 'white' : '#e0e0e8',
                             boxShadow: filterType === t ? '0 2px 6px rgba(0,0,0,.2)' : 'none',
                         }}>
                         {t === 'ALL' ? `All (${pokemon.length})` : t}
@@ -152,8 +153,7 @@ export default function MyPokemon() {
 
             <div style={styles.grid}>
                 {filtered.map(p => (
-                    <div key={p.id} style={{ ...styles.card, borderColor: p.favourite ? '#f59e0b' : '#e5e7eb' }}
-                        onClick={() => navigate(`/pokemon/${p.id}`)}>
+                    <div key={p.id} style={{ ...styles.card, borderColor: p.favourite ? '#f59e0b' : 'rgba(255, 255, 255, 0.1)' }} {...pressable(() => navigate(`/pokemon/${p.id}`))}>
                         {p.favourite && <div style={styles.favStar}>⭐</div>}
                         <img src={`${pokemonApiUrl}/api/pokemon/sprites/${p.spriteKey}`}
                             alt={p.speciesName} style={styles.sprite}
@@ -185,14 +185,14 @@ export default function MyPokemon() {
 
 const styles = {
     page:       { padding: '16px', maxWidth: 900, margin: '0 auto' },
-    center:     { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh', color: '#6b7280' },
+    center:     { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh', color: '#a0a0b0' },
     header:     { display: 'flex', alignItems: 'center', gap: 16, marginBottom: 12 },
     title:      { margin: 0, fontSize: 22, fontWeight: 'bold' },
-    search:     { width: '100%', padding: '10px 14px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, marginBottom: 16, boxSizing: 'border-box' },
-    sortSelect: { padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 13, background: 'white', cursor: 'pointer' },
+    search:     { width: '100%', padding: '10px 14px', border: '1px solid rgba(255, 255, 255, 0.14)', borderRadius: 8, fontSize: 14, marginBottom: 16, boxSizing: 'border-box' },
+    sortSelect: { padding: '8px 10px', border: '1px solid rgba(255, 255, 255, 0.14)', borderRadius: 8, fontSize: 13, background: '#0e0e14', cursor: 'pointer' },
     empty:      { color: '#9ca3af', textAlign: 'center', padding: 40 },
     grid:       { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 12 },
-    card:       { background: 'white', border: '2px solid #e5e7eb', borderRadius: 12, padding: 12, textAlign: 'center', cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,.05)', position: 'relative' },
+    card:       { background: '#0e0e14', border: '2px solid rgba(255, 255, 255, 0.1)', borderRadius: 12, padding: 12, textAlign: 'center', cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,.05)', position: 'relative' },
     favStar:    { position: 'absolute', top: 6, right: 8, fontSize: 14 },
     sprite:     { width: 72, height: 72, objectFit: 'contain' },
     cardName:   { fontWeight: 'bold', fontSize: 13, marginTop: 4 },
@@ -202,6 +202,6 @@ const styles = {
     moveChip:   { color: 'white', fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 8, lineHeight: 1.3 },
     buddyCard:  { display: 'flex', alignItems: 'center', gap: 12, background: 'linear-gradient(135deg,#fff,#fdf2f8)', border: '1px solid #fbcfe8', borderRadius: 12, padding: 10, marginBottom: 12, cursor: 'pointer', position: 'relative' },
     buddyTag:   { position: 'absolute', top: -8, left: 12, background: '#ec4899', color: 'white', fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 8 },
-    buddyTrack: { height: 6, background: '#fce7f3', borderRadius: 4, overflow: 'hidden' },
+    buddyTrack: { height: 6, background: 'rgba(236, 72, 153, 0.14)', borderRadius: 4, overflow: 'hidden' },
     buddyFill:  { height: '100%', background: '#ec4899', borderRadius: 4, transition: 'width .4s' },
 };

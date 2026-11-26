@@ -1,5 +1,4 @@
 /* ===== Shared Page Styles ===== */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
 /* Page containers with navbar padding */
 .page {
@@ -117,7 +116,7 @@
 }
 
 .content-card p {
-  color: #888;
+  color: #a0a0b0;
   font-size: 0.95rem;
   line-height: 1.7;
   margin: 0;
@@ -206,7 +205,7 @@
 .empty-state {
   text-align: center;
   padding: 4rem 2rem;
-  color: #666;
+  color: #a0a0b0;
 }
 
 .empty-state-icon {
@@ -223,7 +222,7 @@
 }
 
 .empty-state p {
-  color: #666;
+  color: #a0a0b0;
   font-size: 1rem;
   line-height: 1.6;
   max-width: 400px;
@@ -292,7 +291,7 @@
 }
 
 .page-footer p {
-  color: #555;
+  color: #8a8a99;
   font-size: 0.85rem;
   margin: 0;
 }
@@ -308,3 +307,131 @@
     padding: 3rem 1rem;
   }
 }
+
+/* ===== Shared controls and states =====
+   Prefixed lx- on purpose: `.btn-primary` is already defined globally, and differently,
+   by Landing.css and HoldfastManager.css, so an unprefixed shared class would depend on
+   CSS load order. Everything new reuses these instead of inventing its own. */
+
+.lx-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  padding: 0.65rem 1.25rem;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font: inherit;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.lx-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.lx-btn:focus-visible { outline: 3px solid #c7d2fe; outline-offset: 3px; }
+.lx-btn--primary { background: #6366f1; color: #fff; }
+.lx-btn--primary:hover:not(:disabled) { background: #4f46e5; }
+.lx-btn--secondary { background: transparent; color: #e0e0e8; border-color: rgba(255, 255, 255, 0.18); }
+.lx-btn--secondary:hover:not(:disabled) { border-color: #8b8bf5; color: #fff; }
+.lx-btn--danger { background: transparent; color: #f87171; border-color: rgba(239, 68, 68, 0.5); }
+.lx-btn--danger:hover:not(:disabled) { background: rgba(239, 68, 68, 0.12); }
+
+/* A whole-page state: loading, error, not found. */
+.lx-state {
+  min-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 2rem 1rem;
+  text-align: center;
+  color: #a0a0b0;
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+.lx-state h1, .lx-state h2 { color: #f0f0f5; margin: 0; letter-spacing: -0.02em; }
+.lx-state p { margin: 0; max-width: 32rem; line-height: 1.6; }
+.lx-state__actions { display: flex; flex-wrap: wrap; gap: 0.75rem; justify-content: center; }
+
+.lx-spinner {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 3px solid rgba(99, 102, 241, 0.25);
+  border-top-color: #6366f1;
+  animation: lx-spin 0.8s linear infinite;
+}
+@keyframes lx-spin { to { transform: rotate(360deg); } }
+
+/* Field label + input pairs for forms. */
+.lx-field { display: flex; flex-direction: column; gap: 0.4rem; text-align: left; }
+.lx-field label { color: #c0c0cc; font-size: 0.9rem; font-weight: 500; }
+.lx-field input,
+.lx-field textarea,
+.lx-field select {
+  min-height: 44px;
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: #12121a;
+  color: #f0f0f5;
+  font: inherit;
+}
+.lx-field input:focus-visible,
+.lx-field textarea:focus-visible,
+.lx-field select:focus-visible { outline: 2px solid #6366f1; outline-offset: 1px; border-color: transparent; }
+
+/* Inline messages: errors read as errors, successes as successes. */
+.lx-alert { padding: 0.75rem 1rem; border-radius: 8px; line-height: 1.5; text-align: left; }
+.lx-alert--error { background: rgba(239, 68, 68, 0.12); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.35); }
+.lx-alert--success { background: rgba(76, 175, 80, 0.12); color: #a5d6a7; border: 1px solid rgba(76, 175, 80, 0.35); }
+
+/* Dialogs */
+.lx-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(5, 5, 10, 0.72);
+}
+.lx-dialog {
+  width: 100%;
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  padding: 1.5rem;
+  border-radius: 16px;
+  background: #12121a;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
+  color: #e0e0e8;
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+.lx-dialog--sm { max-width: 420px; }
+.lx-dialog--md { max-width: 520px; }
+.lx-dialog__title { margin: 0 0 0.75rem; color: #f0f0f5; font-size: 1.25rem; letter-spacing: -0.01em; }
+.lx-dialog__body { color: #c0c0cc; line-height: 1.6; }
+.lx-dialog__body p { margin: 0 0 0.75rem; }
+.lx-dialog__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.75rem; margin-top: 1.25rem; }
+
+/* Toasts */
+.lx-toast {
+  position: fixed;
+  left: 50%;
+  bottom: max(1.25rem, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 2100;
+  max-width: min(92vw, 480px);
+  padding: 0.85rem 1.1rem;
+  border-radius: 10px;
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  line-height: 1.45;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+}
+.lx-toast--success { background: #1b2e1f; color: #c8f2cc; border: 1px solid rgba(76, 175, 80, 0.45); }
+.lx-toast--error { background: #33161a; color: #fecaca; border: 1px solid rgba(239, 68, 68, 0.5); }

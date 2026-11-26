@@ -4,7 +4,7 @@ import { UserContext } from '../context/UserContext';
 import { useAvatar } from '../hooks/useAvatar';
 import { getApiUrls } from '../utils/apiUrls';
 import Navbar from '../components/Navbar';
-import background from '../assets/images/lexicon_room.jpg';
+import background from '../assets/images/lexicon_room.webp';
 import './LexiconDashboard.css';
 
 const SECTIONS = [
@@ -91,8 +91,9 @@ const LexiconDashboard = () => {
       {/* Storage bar */}
       {storageInfo && (
         <div className="storage-bar-section">
-          {storageInfo.volumes.map((v, idx) => {
-            const pct = (v.usedBytes / v.totalBytes) * 100;
+          {(Array.isArray(storageInfo.volumes) ? storageInfo.volumes : []).map((v, idx) => {
+            // A volume reporting 0 total (unmounted, or a stat that failed) would be NaN%.
+            const pct = v.totalBytes > 0 ? (v.usedBytes / v.totalBytes) * 100 : 0;
             const colorClass = pct > 90 ? 'fill-red' : pct > 70 ? 'fill-yellow' : 'fill-green';
             return (
               <div key={idx} className="storage-bar-row">

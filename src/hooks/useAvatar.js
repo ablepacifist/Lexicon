@@ -37,6 +37,11 @@ export const useAvatar = (username) => {
       );
       if (res.ok) {
         const data = await res.json();
+        if (!data?.avatarUrl) {
+          // A player who never uploaded one: the default, not a TypeError from .replace.
+          setAvatarUrl(DEFAULT_AVATAR);
+          return;
+        }
         // Route avatar image through same-origin proxy to avoid Brave Shields blocking
         // data.avatarUrl is like "/uploads/avatars/user.jpg"
         const filename = data.avatarUrl.replace(/^\/uploads\/avatars\//, '');

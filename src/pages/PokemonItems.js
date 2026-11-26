@@ -106,14 +106,14 @@ function Section({ title, items }) {
     if (!items || items.length === 0) return null;
     return (
         <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>{title}</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#a0a0b0', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>{title}</div>
             <div style={s.grid}>
                 {items.map(item => (
                     <div key={item.type} style={{ ...s.card, opacity: item.qty === 0 ? 0.4 : 1 }}>
                         <img src={`${pokemonApiUrl}/api/pokemon/item-sprites/${item.sprite}`}
                             alt={item.label} style={s.sprite}
                             onError={e => { e.target.style.display = 'none'; }} />
-                        <div style={{ fontSize: 20, fontWeight: 800, color: '#111827' }}>×{item.qty}</div>
+                        <div style={{ fontSize: 20, fontWeight: 800, color: '#f0f0f5' }}>×{item.qty}</div>
                         <div style={s.name}>{item.label}</div>
                         <div style={s.desc}>{item.desc}</div>
                     </div>
@@ -124,20 +124,20 @@ function Section({ title, items }) {
 }
 
 const s = {
-    page:          { padding: 16, maxWidth: 600, margin: '0 auto', minHeight: '100vh', background: '#f9fafb' },
-    center:        { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: '#6b7280', flexDirection: 'column', gap: 16 },
+    page:          { padding: 16, maxWidth: 600, margin: '0 auto', minHeight: '100vh', background: '#0a0a0f' },
+    center:        { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: '#a0a0b0', flexDirection: 'column', gap: 16 },
     header:        { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 },
-    backBtn:       { background: 'none', border: '1px solid #d1d5db', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', color: '#374151' },
+    backBtn:       { background: 'none', border: '1px solid rgba(255, 255, 255, 0.14)', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', color: '#e0e0e8' },
     title:         { margin: 0, fontSize: 22, fontWeight: 'bold' },
     tabs:          { display: 'flex', gap: 4, marginBottom: 16 },
-    tab:           { flex: 1, padding: '8px 0', borderRadius: 8, border: '1px solid #d1d5db', background: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#374151' },
+    tab:           { flex: 1, padding: '8px 0', borderRadius: 8, border: '1px solid rgba(255, 255, 255, 0.14)', background: '#0e0e14', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#e0e0e8' },
     tabActive:     { background: '#ef4444', color: 'white', border: '1px solid #ef4444' },
     grid:          { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 10 },
-    card:          { background: 'white', borderRadius: 12, padding: '12px 10px', textAlign: 'center', boxShadow: '0 1px 3px rgba(0,0,0,.06)' },
+    card:          { background: '#0e0e14', borderRadius: 12, padding: '12px 10px', textAlign: 'center', boxShadow: '0 1px 3px rgba(0,0,0,.06)' },
     sprite:        { width: 52, height: 52, objectFit: 'contain', display: 'block', margin: '0 auto 6px' },
-    name:          { fontSize: 11, fontWeight: 700, color: '#374151', marginTop: 4 },
+    name:          { fontSize: 11, fontWeight: 700, color: '#e0e0e8', marginTop: 4 },
     desc:          { fontSize: 10, color: '#9ca3af', marginTop: 2 },
     empty:         { textAlign: 'center', color: '#9ca3af', padding: 32 },
-    shopNote:      { textAlign: 'center', color: '#6b7280', fontSize: 14, marginTop: 24 },
+    shopNote:      { textAlign: 'center', color: '#a0a0b0', fontSize: 14, marginTop: 24 },
     link:          { background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 700, fontSize: 14 },
 };

@@ -1,4 +1,6 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect, useCallback, useRef } from 'react';
+import { useConfirm } from '../components/ConfirmDialog';
+import Navbar from '../components/Navbar';
 import { Link } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
 import ChunkedUpload from '../components/ChunkedUpload';
@@ -8,9 +10,49 @@ import { getApiUrls } from '../utils/apiUrls';
 
 const { lexiconApiUrl: API_URL } = getApiUrls();
 
+// The progress bar's own status vocabulary, so torrent rows are coloured like uploads.
+const torrentBarStatus = (torrent) => {
+  if (torrent.status === 'FAILED') return 'error';
+  if (torrent.status === 'COMPLETED') return 'completed';
+  if (torrent.status === 'IMPORTING') return 'assembling';
+  if (torrent.stalled) return 'paused';
+  return 'uploading';
+};
+
+const torrentStatusText = (torrent) => {
+  if (torrent.status === 'FAILED') return 'Failed';
+  if (torrent.status === 'COMPLETED') return 'Added to your library';
+  if (torrent.status === 'IMPORTING') return 'Adding to Lexicon…';
+  if (torrent.status === 'PREPARING') return 'Looking up the torrent…';
+  if (torrent.stalled) return 'Stalled — check that the VPN is still connected';
+  const speed = torrent.downloadSpeed > 0
+    ? `${(torrent.downloadSpeed / (1024 * 1024)).toFixed(1)} MB/s`
+    : 'no peers yet';
+  return `${torrent.percent}% · ${speed}`;
+};
+
+const torrentRowStyle = {
+  border: '1px solid #e0e0e0',
+  borderRadius: '10px',
+  padding: '14px',
+  marginBottom: '12px',
+  background: 'rgba(255, 255, 255, 0.03)',
+};
+
+const torrentRemoveStyle = {
+  background: 'none',
+  border: '1px solid #c62828',
+  color: '#fca5a5',
+  borderRadius: '6px',
+  padding: '4px 10px',
+  cursor: 'pointer',
+  whiteSpace: 'nowrap',
+};
+
 const MediaUploadDownload = () => {
   const { user } = useContext(UserContext);
-  const [activeMode, setActiveMode] = useState('file'); // 'file', 'link', 'playlist'
+  const { confirm, confirmDialog } = useConfirm();
+  const [activeMode, setActiveMode] = useState('file'); // 'file', 'link', 'playlist', 'browse', 'torrent'
   
   // File upload state
   const [uploadFile, setUploadFile] = useState(null);
@@ -39,6 +81,16 @@ const MediaUploadDownload = () => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   
+  // Torrent state. Only .mp3 and .mp4 files are taken out of a torrent, so there is no
+  // media-type picker here: each file's own extension decides where it lands.
+  const [torrentFile, setTorrentFile] = useState(null);
+  const [torrentUrl, setTorrentUrl] = useState('');
+  const [torrentTitle, setTorrentTitle] = useState('');
+  const [torrentIsPublic, setTorrentIsPublic] = useState(false);
+  const [torrents, setTorrents] = useState([]);
+  const [torrentReady, setTorrentReady] = useState(null); // null until the first check
+  const [torrentBlockedReason, setTorrentBlockedReason] = useState('');
+
   // Browse/Download state
   const [mediaFiles, setMediaFiles] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -167,6 +219,155 @@ const MediaUploadDownload = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  // ── Torrents ──────────────────────────────────────────────────────────────────
+  // qBittorrent on this machine does the downloading, bound to the VPN tunnel. It is not
+  // started automatically (launching it before the tunnel is up would expose the server's
+  // real IP), so the panel asks the server whether it is usable before offering the form.
+
+  // The playlist-import progress stream, closed if the page unmounts mid-import.
+  const importStreamRef = useRef(null);
+  useEffect(() => () => {
+    if (importStreamRef.current) importStreamRef.current.close();
+  }, []);
+  const torrentsRef = useRef(torrents);
+  torrentsRef.current = torrents;
+
+  const refreshTorrents = useCallback(async (signal) => {
+    if (!user) return;
+    const response = await fetch(`${API_URL}/api/torrents/active/${user.id}`, {
+      credentials: 'include',
+      cache: 'no-store',
+      signal,
+    });
+    if (!response.ok) throw new Error(`status ${response.status}`);
+    const data = await response.json();
+    setTorrents(data.torrents || []);
+  }, [user]);
+
+  useEffect(() => {
+    if (activeMode !== 'torrent' || !user) return undefined;
+
+    let active = true;
+    let timer = null;
+    const controller = new AbortController();
+
+    const check = async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/torrents/status`, {
+          credentials: 'include',
+          cache: 'no-store',
+          signal: controller.signal,
+        });
+        const data = await response.json();
+        if (!active) return;
+        setTorrentReady(Boolean(data.ready));
+        setTorrentBlockedReason(data.ready ? '' : (data.message || 'Torrent downloads are unavailable.'));
+      } catch (error) {
+        if (active) {
+          setTorrentReady(false);
+          setTorrentBlockedReason('Could not reach the server.');
+        }
+      }
+    };
+
+    const poll = async () => {
+      try {
+        await refreshTorrents(controller.signal);
+      } catch (error) {
+        // A failed poll is not worth a banner; the next one usually succeeds.
+      } finally {
+        // Re-armed after each response rather than on a fixed interval, so a slow answer
+        // cannot stack requests up behind it.
+        if (active) timer = setTimeout(poll, 3000);
+      }
+    };
+
+    check();
+    poll();
+    return () => {
+      active = false;
+      if (timer) clearTimeout(timer);
+      controller.abort();
+    };
+  }, [activeMode, user, refreshTorrents]);
+
+  const handleTorrentFileSelect = (e) => {
+    const file = e.target.files[0];
+    setTorrentFile(file || null);
+    if (file) {
+      // A file and a link are alternatives, not both.
+      setTorrentUrl('');
+      if (!torrentTitle) setTorrentTitle(file.name.replace(/\.torrent$/i, ''));
+    }
+  };
+
+  const handleTorrentSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!torrentFile && !torrentUrl.trim()) {
+      setMessage('❌ Choose a .torrent file or paste a magnet link');
+      return;
+    }
+
+    const formData = new FormData();
+    if (torrentFile) {
+      formData.append('file', torrentFile);
+    } else {
+      formData.append('url', torrentUrl.trim());
+    }
+    formData.append('userId', user.id);
+    formData.append('title', torrentTitle);
+    formData.append('isPublic', torrentIsPublic);
+
+    try {
+      setLoading(true);
+      setMessage('');
+      const response = await fetch(`${API_URL}/api/torrents`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (response.ok && data.success) {
+        setMessage(`🔄 Downloading "${data.name}". Only .mp3 and .mp4 files will be added.`);
+        setTorrentFile(null);
+        setTorrentUrl('');
+        setTorrentTitle('');
+        refreshTorrents().catch(() => {});
+      } else {
+        setMessage(`❌ ${data.error || 'Could not queue that torrent'}`);
+      }
+    } catch (error) {
+      setMessage('❌ Error talking to the server');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleTorrentRemove = async (infoHash) => {
+    if (!(await confirm({
+      title: 'Remove this torrent?',
+      message: 'This removes the torrent and everything it downloaded.',
+      confirmLabel: 'Remove',
+      danger: true,
+    }))) return;
+    try {
+      const response = await fetch(`${API_URL}/api/torrents/${infoHash}?userId=${user.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (response.ok) {
+        setMessage('✅ Torrent removed');
+        refreshTorrents().catch(() => {});
+      } else {
+        setMessage('❌ Could not remove that torrent');
+      }
+    } catch (error) {
+      setMessage('❌ Error talking to the server');
+    }
+  };
+
   const handleLinkUpload = async (e) => {
     e.preventDefault();
     
@@ -253,14 +454,11 @@ const MediaUploadDownload = () => {
           setMessage('🔄 Connecting to progress stream...');
           
           const eventSource = new EventSource(`${API_URL}/api/playlists/import-progress/${importId}`);
+          // Tracked so leaving the page closes it; it used to stay open for up to 10 minutes.
+          importStreamRef.current = eventSource;
           
           eventSource.addEventListener('connected', function(event) {
-            try {
-              const data = JSON.parse(event.data);
-              setMessage('✅ Connected! Waiting for playlist processing to begin...');
-            } catch (e) {
-              console.error('Error parsing connected event:', e);
-            }
+            setMessage('✅ Connected! Waiting for playlist processing to begin...');
           });
           
           eventSource.addEventListener('progress', function(event) {
@@ -485,9 +683,12 @@ const MediaUploadDownload = () => {
   };
 
   const handleDelete = async (mediaId) => {
-    if (!window.confirm('Are you sure you want to delete this file?')) {
-      return;
-    }
+    if (!(await confirm({
+      title: 'Delete this file?',
+      message: "It's removed from the server for everyone. This can't be undone.",
+      confirmLabel: 'Delete',
+      danger: true,
+    }))) return;
     try {
       const response = await fetch(`${API_URL}/api/media/${mediaId}?userId=${user.id}`, {
         method: 'DELETE',
@@ -512,6 +713,8 @@ const MediaUploadDownload = () => {
   };
 
   return (
+    <>
+    <Navbar />
     <div className="upload-download-container">
       <div className="upload-header">
         <h1>Upload & Download Media</h1>
@@ -543,6 +746,12 @@ const MediaUploadDownload = () => {
             📋 Import YouTube Playlist
           </div>
           <div 
+            className={`upload-tab ${activeMode === 'torrent' ? 'active' : ''}`}
+            onClick={() => setActiveMode('torrent')}
+          >
+            🧲 Torrent
+          </div>
+          <div
             className={`upload-tab ${activeMode === 'browse' ? 'active' : ''}`}
             onClick={() => setActiveMode('browse')}
           >
@@ -553,11 +762,11 @@ const MediaUploadDownload = () => {
         {/* Message Display */}
         {message && (
           <div className="upload-card" style={{ 
-            background: message.includes('✅') ? 'linear-gradient(135deg, #d4edda 0%, #c8e6c9 100%)' : 
-                       message.includes('🔄') ? 'linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%)' :
-                       'linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%)',
-            color: message.includes('✅') ? '#155724' : 
-                   message.includes('🔄') ? '#0c5460' : '#721c24',
+            background: message.includes('✅') ? 'rgba(76, 175, 80, 0.12)' :
+                       message.includes('🔄') ? 'rgba(56, 189, 248, 0.1)' :
+                       'rgba(239, 68, 68, 0.12)',
+            color: message.includes('✅') ? '#a5d6a7' :
+                   message.includes('🔄') ? '#bae6fd' : '#fca5a5',
             fontWeight: '600',
             fontSize: '1.1rem',
             padding: '20px'
@@ -569,7 +778,7 @@ const MediaUploadDownload = () => {
         {/* File Upload Mode */}
         {activeMode === 'file' && (
           <div className="upload-card">
-            <h2 style={{ marginBottom: '30px', color: '#333' }}>📁 Upload File</h2>
+            <h2 style={{ marginBottom: '30px', color: '#e0e0e8' }}>📁 Upload File</h2>
             <form className="upload-form" onSubmit={handleFileUpload}>
               {/* File Selector */}
               <div 
@@ -650,11 +859,11 @@ const MediaUploadDownload = () => {
                 }}>
                   <strong>File Size:</strong> {formatFileSize(uploadFile.size)}<br />
                   {uploadFile.size >= LARGE_FILE_THRESHOLD ? (
-                    <span style={{ color: '#856404' }}>
+                    <span style={{ color: '#fde68a' }}>
                       📦 <strong>Large file detected</strong> - will use chunked upload for better reliability and resumability
                     </span>
                   ) : (
-                    <span style={{ color: '#155724' }}>
+                    <span style={{ color: '#a5d6a7' }}>
                       ⚡ <strong>Standard upload</strong> - file will be uploaded normally
                     </span>
                   )}
@@ -704,7 +913,7 @@ const MediaUploadDownload = () => {
         {/* Link Upload Mode */}
         {activeMode === 'link' && (
           <div className="upload-card">
-            <h2 style={{ marginBottom: '30px', color: '#333' }}>🔗 Download from Link</h2>
+            <h2 style={{ marginBottom: '30px', color: '#e0e0e8' }}>🔗 Download from Link</h2>
             <form className="upload-form" onSubmit={handleLinkUpload}>
               <div className="form-group">
                 <label>URL *</label>
@@ -795,10 +1004,134 @@ const MediaUploadDownload = () => {
           </div>
         )}
 
+        {/* Torrent Mode */}
+        {activeMode === 'torrent' && (
+          <div className="upload-card">
+            <h2 style={{ marginBottom: '10px', color: '#e0e0e8' }}>🧲 Torrent</h2>
+            <p className="info-note" style={{ marginBottom: '24px' }}>
+              This machine downloads the torrent over its VPN and adds only the
+              <strong> .mp3 and .mp4 </strong> files to Lexicon — nothing else in the torrent is
+              downloaded at all. Deleting an added file later also removes it from the torrent.
+            </p>
+
+            {torrentReady === false && (
+              <div className="info-note" style={{
+                background: 'rgba(239, 68, 68, 0.12)',
+                color: '#fca5a5',
+                marginBottom: '20px',
+                fontWeight: 600,
+              }}>
+                ⚠️ {torrentBlockedReason}
+              </div>
+            )}
+
+            <form className="upload-form" onSubmit={handleTorrentSubmit}>
+              <div className="form-group">
+                <label>.torrent file</label>
+                <div
+                  className={`file-upload-area ${torrentFile ? 'has-file' : ''}`}
+                  onClick={() => document.getElementById('torrentFileInput').click()}
+                >
+                  <div className="file-upload-icon">🧲</div>
+                  <div className="file-upload-text">
+                    {torrentFile ? torrentFile.name : 'Choose a .torrent file'}
+                  </div>
+                  <div className="file-upload-hint">or paste a magnet link below</div>
+                  <input
+                    id="torrentFileInput"
+                    type="file"
+                    accept=".torrent,application/x-bittorrent"
+                    style={{ display: 'none' }}
+                    onChange={handleTorrentFileSelect}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Magnet link or .torrent URL</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="magnet:?xt=urn:btih:... or https://example.org/file.torrent"
+                  value={torrentUrl}
+                  onChange={(e) => {
+                    setTorrentUrl(e.target.value);
+                    if (e.target.value) setTorrentFile(null);
+                  }}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Name (optional)</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Defaults to the torrent's own name"
+                  value={torrentTitle}
+                  onChange={(e) => setTorrentTitle(e.target.value)}
+                />
+              </div>
+
+              <div className="checkbox-group">
+                <input
+                  type="checkbox"
+                  id="torrentPublic"
+                  checked={torrentIsPublic}
+                  onChange={(e) => setTorrentIsPublic(e.target.checked)}
+                />
+                <label htmlFor="torrentPublic">Make the added files public (visible to all users)</label>
+              </div>
+
+              <button
+                type="submit"
+                className="upload-button"
+                disabled={loading || torrentReady === false}
+              >
+                {loading ? '⏳ Adding...' : '🧲 Start download'}
+              </button>
+            </form>
+
+            {torrents.length > 0 && (
+              <div style={{ marginTop: '30px' }}>
+                <h3 style={{ color: '#e0e0e8', marginBottom: '14px' }}>Your torrents</h3>
+                {torrents.map((torrent) => (
+                  <div key={torrent.infoHash} style={torrentRowStyle}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
+                      <strong style={{ wordBreak: 'break-word' }}>{torrent.name}</strong>
+                      <button
+                        type="button"
+                        onClick={() => handleTorrentRemove(torrent.infoHash)}
+                        style={torrentRemoveStyle}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                    <UploadProgressBar
+                      progress={torrent.percent}
+                      status={torrentBarStatus(torrent)}
+                      showDetails={false}
+                    />
+                    <div style={{ fontSize: '0.85rem', color: '#a0a0b0', marginTop: '6px' }}>
+                      {torrentStatusText(torrent)}
+                      {torrent.mediaFileIds && torrent.mediaFileIds.length > 0
+                        && ` · ${torrent.mediaFileIds.length} in Lexicon`}
+                    </div>
+                    {torrent.error && (
+                      <div style={{ fontSize: '0.85rem', color: '#fca5a5', marginTop: '4px' }}>
+                        {torrent.error}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Browse & Download Mode */}
         {activeMode === 'browse' && (
           <div className="upload-card">
-            <h2 style={{ marginBottom: '30px', color: '#333' }}>🔍 Browse & Download Media</h2>
+            <h2 style={{ marginBottom: '30px', color: '#e0e0e8' }}>🔍 Browse & Download Media</h2>
             
             <div style={{ display: 'flex', gap: '15px', marginBottom: '30px', flexWrap: 'wrap' }}>
               <button onClick={fetchMyMedia} className="upload-button" disabled={loading}>
@@ -825,7 +1158,7 @@ const MediaUploadDownload = () => {
             </div>
 
             <div style={{ marginBottom: '30px' }}>
-              <label style={{ display: 'block', marginBottom: '10px', fontWeight: '600', color: '#333' }}>Filter by Type:</label>
+              <label style={{ display: 'block', marginBottom: '10px', fontWeight: '600', color: '#e0e0e8' }}>Filter by Type:</label>
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                 {['ALL', 'MUSIC', 'VIDEO', 'AUDIOBOOK', 'OTHER'].map(type => (
                   <button
@@ -848,10 +1181,10 @@ const MediaUploadDownload = () => {
               </div>
             </div>
 
-            {loading && <div style={{ textAlign: 'center', padding: '40px', color: '#667eea', fontSize: '1.2rem' }}>Loading...</div>}
+            {loading && <div style={{ textAlign: 'center', padding: '40px', color: '#8b8bf5', fontSize: '1.2rem' }}>Loading...</div>}
             
             {!loading && mediaFiles.length === 0 && (
-              <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
+              <div style={{ textAlign: 'center', padding: '40px', color: '#a0a0b0' }}>
                 No files to display. Click a button above to browse.
               </div>
             )}
@@ -862,7 +1195,7 @@ const MediaUploadDownload = () => {
                   <div
                     key={file.id}
                     style={{
-                      background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+                      background: 'rgba(255, 255, 255, 0.03)',
                       padding: '20px',
                       borderRadius: '12px',
                       border: '2px solid #e0e0e0'
@@ -872,7 +1205,7 @@ const MediaUploadDownload = () => {
                       /* Edit Mode */
                       <div>
                         <div style={{ marginBottom: '15px' }}>
-                          <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600', color: '#333' }}>Title *</label>
+                          <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600', color: '#e0e0e8' }}>Title *</label>
                           <input
                             type="text"
                             className="form-input"
@@ -881,7 +1214,7 @@ const MediaUploadDownload = () => {
                           />
                         </div>
                         <div style={{ marginBottom: '15px' }}>
-                          <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600', color: '#333' }}>Description</label>
+                          <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600', color: '#e0e0e8' }}>Description</label>
                           <textarea
                             className="form-textarea"
                             value={editDescription}
@@ -905,7 +1238,7 @@ const MediaUploadDownload = () => {
                           <button 
                             onClick={handleCancelEdit} 
                             className="upload-button" 
-                            style={{ padding: '10px 20px', background: '#6c757d' }}
+                            style={{ padding: '10px 20px', background: '#2a2a35' }}
                           >
                             ❌ Cancel
                           </button>
@@ -914,9 +1247,9 @@ const MediaUploadDownload = () => {
                     ) : (
                       /* Display Mode */
                       <div>
-                        <h3 style={{ color: '#667eea', marginBottom: '10px' }}>{file.title}</h3>
-                        <p style={{ color: '#666', marginBottom: '10px' }}>{file.description || 'No description'}</p>
-                        <p style={{ fontSize: '0.9rem', color: '#999', marginBottom: '15px' }}>
+                        <h3 style={{ color: '#8b8bf5', marginBottom: '10px' }}>{file.title}</h3>
+                        <p style={{ color: '#a0a0b0', marginBottom: '10px' }}>{file.description || 'No description'}</p>
+                        <p style={{ fontSize: '0.9rem', color: '#a0a0b0', marginBottom: '15px' }}>
                           Type: {file.mediaType || file.fileType} | Size: {(file.fileSize / 1024 / 1024).toFixed(2)} MB | 
                           {file.isPublic ? ' Public' : ' Private'}
                         </p>
@@ -933,14 +1266,14 @@ const MediaUploadDownload = () => {
                               <button
                                 onClick={() => handleEdit(file)}
                                 className="upload-button"
-                                style={{ padding: '10px 20px', fontSize: '1rem', background: '#3498db' }}
+                                style={{ padding: '10px 20px', fontSize: '1rem', background: '#6366f1' }}
                               >
                                 ✏️ Edit
                               </button>
                               <button
                                 onClick={() => handleDelete(file.id)}
                                 className="upload-button"
-                                style={{ padding: '10px 20px', fontSize: '1rem', background: '#e74c3c' }}
+                                style={{ padding: '10px 20px', fontSize: '1rem', background: '#b91c1c' }}
                               >
                                 🗑️ Delete
                               </button>
@@ -959,7 +1292,7 @@ const MediaUploadDownload = () => {
         {/* Playlist Import Mode */}
         {activeMode === 'playlist' && (
           <div className="upload-card">
-            <h2 style={{ marginBottom: '30px', color: '#333' }}>📋 Import YouTube Playlist</h2>
+            <h2 style={{ marginBottom: '30px', color: '#e0e0e8' }}>📋 Import YouTube Playlist</h2>
             <form className="upload-form" onSubmit={handlePlaylistImport}>
               <div className="form-group">
                 <label>Playlist URL *</label>
@@ -1064,7 +1397,9 @@ const MediaUploadDownload = () => {
           </div>
         )}
       </div>
+      {confirmDialog}
     </div>
+    </>
   );
 };
 

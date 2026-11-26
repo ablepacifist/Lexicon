@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import aboutBackground from '../assets/images/profile.jpg'; // Replace with an appropriate image file name
+import aboutBackground from '../assets/images/profile.webp'; // Replace with an appropriate image file name
 
 const About = () => {
   const containerStyle = {

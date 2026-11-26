@@ -3,19 +3,26 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
 import { getApiUrls } from '../utils/apiUrls';
 import '../styles/MediaPlayer.css';
+import './PageStyles.css';
+import { NETWORK_ERROR } from '../utils/responseError';
+import devLog from '../utils/devLog';
+import ModalFrame from '../components/ModalFrame';
+import pressable from '../utils/pressable';
 
 function Audiobooks() {
     const { user } = useContext(UserContext);
     const { id: urlBookId } = useParams();
     const [audiobooks, setAudiobooks] = useState([]);
     const [currentBook, setCurrentBook] = useState(null);
-    const [currentIndex, setCurrentIndex] = useState(0);
+    const [, setCurrentIndex] = useState(0);
     const [isPlaying, setIsPlaying] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
     const [volume, setVolume] = useState(1);
     const [playbackSpeed, setPlaybackSpeed] = useState(1);
     const [error, setError] = useState('');
+    // True until the first library fetch settles, so an empty list is not shown while loading.
+    const [loading, setLoading] = useState(true);
     const [filterType, setFilterType] = useState('all');
     const [playlists, setPlaylists] = useState([]);
     const [selectedPlaylist, setSelectedPlaylist] = useState(null);
@@ -53,6 +60,7 @@ function Audiobooks() {
     }, [urlBookId, audiobooks]);
 
     const fetchAudiobooks = async () => {
+        setLoading(true);
         try {
             const [userResp, publicResp] = await Promise.all([
                 fetch(`${lexiconApiUrl}/api/media/user/${user.id}`, { credentials: 'include' }),
@@ -83,7 +91,10 @@ function Audiobooks() {
             
             setAudiobooks(audiobooksOnly);
         } catch (err) {
-            setError('Error connecting to server: ' + err.message);
+            devLog('fetchAudiobooks failed:', err);
+            setError(NETWORK_ERROR);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -104,7 +115,7 @@ function Audiobooks() {
                 setPlaylists(audiobookPlaylists);
             }
         } catch (err) {
-            console.log('Could not fetch playlists:', err.message);
+            devLog('Could not fetch playlists:', err.message);
         }
     };
 
@@ -128,7 +139,8 @@ function Audiobooks() {
                 }
             }
         } catch (err) {
-            setError('Failed to load playlist: ' + err.message);
+            devLog('loadPlaylist failed:', err);
+            setError("Couldn't load that playlist.");
         }
     };
 
@@ -190,13 +202,12 @@ function Audiobooks() {
                         if (audioRef.current) {
                             audioRef.current.currentTime = data.position;
                             setCurrentTime(data.position);
-                            console.log(`Resumed audiobook at ${Math.floor(data.position)}s (${Math.floor(data.progressPercentage)}%)`);
                         }
                     }, 100);
                 }
             }
         } catch (err) {
-            console.log('Could not load playback position:', err.message);
+            devLog('Could not load playback position:', err.message);
         }
     };
 
@@ -218,7 +229,7 @@ function Audiobooks() {
                 })
             });
         } catch (err) {
-            console.log('Could not save playback position:', err.message);
+            devLog('Could not save playback position:', err.message);
         }
     };
 
@@ -403,10 +414,11 @@ function Audiobooks() {
                 await fetchAudiobooks();
                 closeEditModal();
             } else {
-                setError('Failed to update media');
+                setError("Couldn't save those changes.");
             }
         } catch (err) {
-            setError('Error updating media: ' + err.message);
+            devLog('update media failed:', err);
+            setError("Couldn't save those changes.");
         }
     };
 
@@ -597,14 +609,15 @@ function Audiobooks() {
                             </div>
 
                     <div className="audio-list">
-                        {getFilteredAudiobooks().length === 0 ? (
+                        {loading && audiobooks.length === 0 ? (
+                                    <div className="lx-state" aria-busy="true" style={{ minHeight: 160 }}><div className="lx-spinner" aria-hidden="true" /></div>
+                                ) : getFilteredAudiobooks().length === 0 ? (
                             <p className="no-audio">No audiobooks found</p>
                         ) : (
                             getFilteredAudiobooks().map((book, index) => (
                                 <div
                                     key={book.id}
-                                    className={`audio-item ${currentBook?.id === book.id ? 'active' : ''}`}
-                                    onClick={() => playBook(book, index)}
+                                    className={`audio-item ${currentBook?.id === book.id ? 'active' : ''}`} {...pressable(() => playBook(book, index))}
                                 >
                                     <div className="audio-item-info">
                                         <h4>📖 {book.title}</h4>
@@ -657,8 +670,7 @@ function Audiobooks() {
                                         .map(pl => (
                                             <div
                                                 key={pl.id}
-                                                className="playlist-card"
-                                                onClick={() => loadPlaylist(pl.id)}
+                                                className="playlist-card" {...pressable(() => loadPlaylist(pl.id))}
                                             >
                                                 <div className="playlist-icon">📚</div>
                                                 <div className="playlist-info">
@@ -686,8 +698,7 @@ function Audiobooks() {
 
             {/* Edit Modal */}
             {showEditModal && (
-                <div className="modal-overlay" onClick={closeEditModal}>
-                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                <ModalFrame onClose={closeEditModal} overlayClassName="modal-overlay" className="modal-content">
                         <h2>✏️ Edit Audiobook</h2>
                         <form onSubmit={handleEditSubmit}>
                             <div className="form-group">
@@ -722,8 +733,7 @@ function Audiobooks() {
                                 <button type="button" onClick={closeEditModal} className="cancel-btn">Cancel</button>
                             </div>
                         </form>
-                    </div>
-                </div>
+                    </ModalFrame>
             )}
         </div>
     );

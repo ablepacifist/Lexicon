@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { getApiUrls } from '../utils/apiUrls';
 import PokeNavBar from '../components/PokeNavBar';
 
@@ -42,7 +41,6 @@ export default function Pokedex() {
     const [search, setSearch] = useState('');
     const [filter, setFilter] = useState('all');    // 'all' | 'caught' | 'unseen'
     const [genFilter, setGenFilter] = useState(0);  // index into GEN_RANGES
-    const navigate = useNavigate();
 
     useEffect(() => {
         Promise.all([
@@ -86,8 +84,8 @@ export default function Pokedex() {
                     <button key={g.label}
                         onClick={() => setGenFilter(i)}
                         style={{ flexShrink: 0, padding: '5px 12px', borderRadius: 20, border: 'none', fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                            background: genFilter === i ? '#ef4444' : '#f1f5f9',
-                            color:      genFilter === i ? 'white'   : '#374151' }}>
+                            background: genFilter === i ? '#6366f1' : 'rgba(255, 255, 255, 0.06)',
+                            color:      genFilter === i ? 'white'   : '#e0e0e8' }}>
                         {g.label}
                     </button>
                 ))}
@@ -141,18 +139,18 @@ export default function Pokedex() {
 
 const styles = {
     page:        { padding: '16px', maxWidth: 900, margin: '0 auto' },
-    center:      { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh', color: '#6b7280' },
+    center:      { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh', color: '#a0a0b0' },
     header:      { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 },
     title:       { margin: 0, fontSize: 22, fontWeight: 'bold', flex: 1 },
-    progress:    { fontSize: 14, color: '#6b7280', fontWeight: 600 },
+    progress:    { fontSize: 14, color: '#a0a0b0', fontWeight: 600 },
     filterRow:   { display: 'flex', gap: 8, marginBottom: 10 },
-    filterBtn:   { padding: '6px 14px', borderRadius: 20, border: '1px solid #d1d5db', background: 'white', cursor: 'pointer', fontSize: 13, color: '#374151' },
+    filterBtn:   { padding: '6px 14px', borderRadius: 20, border: '1px solid rgba(255, 255, 255, 0.14)', background: '#0e0e14', cursor: 'pointer', fontSize: 13, color: '#e0e0e8' },
     filterActive:{ background: '#ef4444', color: 'white', borderColor: '#ef4444' },
-    search:      { width: '100%', padding: '10px 14px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, marginBottom: 14, boxSizing: 'border-box' },
+    search:      { width: '100%', padding: '10px 14px', border: '1px solid rgba(255, 255, 255, 0.14)', borderRadius: 8, fontSize: 14, marginBottom: 14, boxSizing: 'border-box' },
     grid:        { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 10 },
-    card:        { background: 'white', border: '1px solid #e5e7eb', borderRadius: 12, padding: '10px 8px', textAlign: 'center', boxShadow: '0 1px 3px rgba(0,0,0,.05)' },
+    card:        { background: '#0e0e14', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: 12, padding: '10px 8px', textAlign: 'center', boxShadow: '0 1px 3px rgba(0,0,0,.05)' },
     dexNum:      { fontSize: 10, color: '#9ca3af', fontWeight: 600, marginBottom: 2 },
     sprite:      { width: 64, height: 64, objectFit: 'contain' },
     cardName:    { fontWeight: 'bold', fontSize: 12, marginTop: 4 },
-    baseStats:   { fontSize: 10, color: '#6b7280', marginTop: 3 },
+    baseStats:   { fontSize: 10, color: '#a0a0b0', marginTop: 3 },
 };

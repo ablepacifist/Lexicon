@@ -3,8 +3,10 @@ import { Link } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
 import { getApiUrls } from '../utils/apiUrls';
 import Navbar from '../components/Navbar';
-import background from '../assets/images/lexicon_room.jpg';
+import background from '../assets/images/lexicon_room.webp';
 import './Events.css';
+import { parseLocalDate } from '../utils/dates';
+import { authFetch } from '../utils/session';
 
 // One option per line for the seed-options textarea: trim, drop blank lines.
 const parseSeedOptions = (raw) =>
@@ -41,7 +43,7 @@ const Events = () => {
 
   const fetchEvents = useCallback(async () => {
     try {
-      const res = await fetch(`${lexiconApiUrl}/api/events`, { credentials: 'include' });
+      const res = await authFetch(`${lexiconApiUrl}/api/events`, { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to load events');
       setEvents(await res.json());
       setLoadError('');
@@ -79,7 +81,7 @@ const Events = () => {
     setCreating(true);
     setCreateStatus(null);
     try {
-      const res = await fetch(`${lexiconApiUrl}/api/events`, {
+      const res = await authFetch(`${lexiconApiUrl}/api/events`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -123,7 +125,7 @@ const Events = () => {
     setPollSubmitting(true);
     setPollStatus(null);
     try {
-      const res = await fetch(`${lexiconApiUrl}/api/events/${eventId}/polls`, {
+      const res = await authFetch(`${lexiconApiUrl}/api/events/${eventId}/polls`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -182,7 +184,7 @@ const Events = () => {
                     <h3 className="event-card-title">{ev.title}</h3>
                     {ev.eventDate && (
                       <span className="event-card-date">
-                        {new Date(ev.eventDate).toLocaleDateString()}
+                        {parseLocalDate(ev.eventDate).toLocaleDateString()}
                       </span>
                     )}
                   </div>

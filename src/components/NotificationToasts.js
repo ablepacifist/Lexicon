@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TYPE_ICON, followLink } from './notificationUtils';
 import './NotificationBell.css';
+import pressable from '../utils/pressable';
 
 /**
  * Single fixed-position toast stack for live notifications. Rendered once
@@ -16,8 +17,7 @@ function NotificationToasts({ toasts, dismissToast }) {
       {toasts.map((t) => (
         <div
           key={t._toastId}
-          className="notif-toast"
-          onClick={() => { dismissToast(t._toastId); followLink(t.link, navigate); }}
+          className="notif-toast" {...pressable(() => { dismissToast(t._toastId); followLink(t.link, navigate); })}
         >
           <span className="notif-toast-icon">{TYPE_ICON[t.type] || '🔔'}</span>
           <span className="notif-toast-body">

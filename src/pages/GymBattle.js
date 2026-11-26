@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { getApiUrls } from '../utils/apiUrls';
+import ModalFrame from '../components/ModalFrame';
+import { errorMessage, responseError } from '../utils/responseError';
 
 const { pokemonApiUrl } = getApiUrls();
 
@@ -70,7 +72,7 @@ export default function GymBattle({ gym, onClose }) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body),
         });
-        if (!r.ok) throw new Error(await r.text());
+        if (!r.ok) throw new Error(await responseError(r, 'The battle server had a problem.'));
         return r.json();
     }
 
@@ -101,7 +103,7 @@ export default function GymBattle({ gym, onClose }) {
         try {
             const state = await post('start', { gymId: gym.id, team: picked });
             setBattle(state); setLog(state.log || []); setPhase('battle'); setMenu('main');
-        } catch (e) { setLog(prev => [...prev, '⚠️ ' + e.message]); }
+        } catch (e) { setLog(prev => [...prev, '⚠️ ' + errorMessage(e)]); }
         finally { setBusy(false); }
     }
 
@@ -109,7 +111,7 @@ export default function GymBattle({ gym, onClose }) {
         if (busy || !battle) return;
         setBusy(true); setMenu('main');
         try { await revealTurn(await post('turn', { battleId: battle.battleId, moveId })); }
-        catch (e) { setLog(prev => [...prev, '⚠️ ' + e.message]); }
+        catch (e) { setLog(prev => [...prev, '⚠️ ' + errorMessage(e)]); }
         finally { setBusy(false); }
     }
 
@@ -117,7 +119,7 @@ export default function GymBattle({ gym, onClose }) {
         if (busy || !battle) return;
         setBusy(true); setPhase('battle'); setMenu('main');
         try { await revealTurn(await post('switch', { battleId: battle.battleId, caughtId })); }
-        catch (e) { setLog(prev => [...prev, '⚠️ ' + e.message]); setPhase('battle'); }
+        catch (e) { setLog(prev => [...prev, '⚠️ ' + errorMessage(e)]); setPhase('battle'); }
         finally { setBusy(false); }
     }
 
@@ -262,8 +264,7 @@ export default function GymBattle({ gym, onClose }) {
 
             {/* Switch overlay */}
             {phase === 'switch' && (
-                <div style={s.switchOverlay} onClick={() => setPhase('battle')}>
-                    <div style={s.panel} onClick={e => e.stopPropagation()}>
+                <ModalFrame onClose={() => setPhase('battle')} overlayStyle={s.switchOverlay} style={s.panel}>
                         <div style={{ fontWeight: 800, marginBottom: 8 }}>Switch to…</div>
                         <div style={s.partyList}>
                             {(battle.party || []).map((p, i) => {
@@ -284,8 +285,7 @@ export default function GymBattle({ gym, onClose }) {
                             })}
                         </div>
                         <button style={{ ...s.closeBtn, marginTop: 10, background: '#475569' }} onClick={() => setPhase('battle')}>Cancel</button>
-                    </div>
-                </div>
+                    </ModalFrame>
             )}
         </div>
     );

@@ -5,7 +5,7 @@ import { useAvatar } from '../hooks/useAvatar';
 import { navigateToVoice } from '../utils/voiceNavigation';
 import NotificationBell from './NotificationBell';
 import NotificationToasts from './NotificationToasts';
-import { useNotifications } from '../hooks/useNotifications';
+import { useNotificationsContext } from '../context/NotificationsContext';
 import './Navbar.css';
 
 const Navbar = () => {
@@ -13,7 +13,8 @@ const Navbar = () => {
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const { avatarUrl } = useAvatar(user?.username);
-  const notif = useNotifications(user);
+  // Shared, so navigating between pages no longer reopens the notification stream.
+  const notif = useNotificationsContext();
 
   const navItems = [
     { path: '/', label: 'About Me' },
@@ -24,8 +25,8 @@ const Navbar = () => {
     { path: '/dnd', label: 'D&D' },
     { path: '/lexicon-dashboard', label: 'Lexicon', requiresAuth: true },
     { path: '/events', label: 'Events', requiresAuth: true },
-    { path: '/pokemon', label: 'PokeWorld', requiresAuth: true },
-    { path: '#voice', label: '🎙️ Voice', requiresAuth: true, external: true },
+    { path: '/pokemon', label: 'PokéWorld', requiresAuth: true },
+    { path: '#voice', label: 'Voice', requiresAuth: true, external: true },
   ];
 
   const isActive = (path) => location.pathname === path;

@@ -1,97 +1,96 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useCallback, useContext, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
-import { useNavigate } from 'react-router-dom';
-import background from '../assets/images/dashboard_background.jpg';
-import { getApiUrls } from '../utils/apiUrls';
+import Navbar from '../components/Navbar';
+import { alchemyFetch, alchemyError } from '../utils/alchemyApi';
+import background from '../assets/images/dashboard_background.webp';
+import './PageStyles.css';
+import './AlchemyDashboard.css';
 
-const { alchemyApiUrl: API_URL } = getApiUrls();
-
+/** Every effect the player has discovered, grouped by ingredient. */
 const KnowledgeBook = () => {
-    const { user } = useContext(UserContext);
-    const navigate = useNavigate();
-    const [knowledge, setKnowledge] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
+  const { user } = useContext(UserContext);
+  const [knowledge, setKnowledge] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const playerId = user?.id;
 
-    const fetchKnowledge = async () => {
-        if (!user || (user.id === undefined && user.id !== 0)) return;
-        setLoading(true);
-        try {
-            const response = await fetch(
-                `${API_URL}/api/player/knowledge/${user.id}`,
-                { credentials: 'include' }
-            );
+  const fetchKnowledge = useCallback(async () => {
+    if (playerId === undefined || playerId === null) return;
+    setLoading(true);
+    setError('');
+    try {
+      const response = await alchemyFetch(`/api/player/knowledge/${playerId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setKnowledge(Array.isArray(data) ? data : []);
+      } else {
+        // The raw response body used to be shown here as the error.
+        setError(await alchemyError(response, "Couldn't load your knowledge book."));
+      }
+    } catch (e) {
+      setError(e.message || "Couldn't reach the Alchemy server.");
+    } finally {
+      setLoading(false);
+    }
+  }, [playerId]);
 
-            if (response.ok) {
-                const data = await response.json();
-                setKnowledge(data);
-            } else {
-                const errMsg = await response.text();
-                setError(errMsg);
-            }
-        } catch (error) {
-            console.error("Error fetching knowledge book:", error);
-            setError("Error fetching knowledge book");
-        } finally {
-            setLoading(false);
-        }
-    };
+  useEffect(() => { fetchKnowledge(); }, [fetchKnowledge]);
 
-    useEffect(() => {
-        fetchKnowledge();
-    }, [user]);
+  return (
+    <>
+      <Navbar />
+      <main className="alchemy-page">
+        <div className="alchemy-page__bg" style={{ backgroundImage: `url(${background})` }} aria-hidden="true" />
+        <div className="alchemy-shell">
+          <header className="alchemy-header">
+            <div>
+              <h1>Knowledge book</h1>
+              <p>Every effect you have discovered, by ingredient.</p>
+            </div>
+          </header>
 
-    const goBack = () => {
-        navigate('/alchemy-dashboard');
-    };
+          {loading && knowledge.length === 0 && (
+            <div className="lx-state" aria-busy="true" style={{ minHeight: '30vh' }}>
+              <div className="lx-spinner" aria-hidden="true" />
+            </div>
+          )}
 
-    return (
-        <div style={{
-            backgroundImage: `url(${background})`,
-            backgroundSize: 'cover',
-            minHeight: '100vh',
-            color: '#fff',
-            textAlign: 'center',
-            padding: '2rem'
-        }}>
-            <h1>Knowledge Book</h1>
-            {loading ? (
-                <p>Loading...</p>
-            ) : error ? (
-                <p style={{ color: 'red' }}>{error}</p>
-            ) : knowledge.length === 0 ? (
-                <p>You have not learned any effects yet.</p>
-            ) : (
-                <div>
-                    {knowledge.map((entry, index) => (
-                        <div key={index} style={{
-                            border: '1px solid #fff',
-                            padding: '1rem',
-                            margin: '1rem',
-                            borderRadius: '8px',
-                            backgroundColor: 'rgba(0,0,0,0.5)'
-                        }}>
-                            <h2 style={{ fontSize: '1.8rem', fontWeight: 'bold', textDecoration: 'underline' }}>
-                                {entry.ingredientName} {/* Ensure this is displayed! */}
-                            </h2>
-                            <ul style={{ listStyleType: 'none', padding: 0 }}>
-                                {entry.effects.map((eff) => (
-                                    <li key={eff.id} style={{ marginBottom: '0.5rem' }}>
-                                        <strong>{eff.title}</strong>: {eff.description}
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
+          {error && (
+            <div className="lx-alert lx-alert--error" role="alert">
+              {error}{' '}
+              <button type="button" className="lx-btn lx-btn--secondary" onClick={fetchKnowledge}>Try again</button>
+            </div>
+          )}
+
+          {!loading && !error && knowledge.length === 0 && (
+            <section className="alchemy-panel">
+              <p className="alchemy-muted">You haven't discovered any effects yet. Eat ingredients to learn what they do.</p>
+            </section>
+          )}
+
+          {knowledge.length > 0 && (
+            <div className="alchemy-panels">
+              {knowledge.map((entry) => (
+                <section className="alchemy-panel" key={entry.ingredientId ?? entry.ingredientName}>
+                  <h2>{entry.ingredientName}</h2>
+                  <ul className="item-modal__list">
+                    {(entry.effects || []).map((eff) => (
+                      <li key={eff.id}><strong>{eff.title}</strong>: {eff.description}</li>
                     ))}
+                  </ul>
+                </section>
+              ))}
+            </div>
+          )}
 
-
-                </div>
-            )}
-            <button onClick={goBack} style={{ padding: '0.5rem 1rem', marginTop: '1rem' }}>
-                Back to Dashboard
-            </button>
+          <div className="alchemy-footer">
+            <Link className="lx-btn lx-btn--secondary" to="/alchemy-dashboard">Back to Alchemy</Link>
+          </div>
         </div>
-    );
+      </main>
+    </>
+  );
 };
 
 export default KnowledgeBook;

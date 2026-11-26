@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getApiUrls } from '../utils/apiUrls';
+import './PageStyles.css';
+import ModalFrame from '../components/ModalFrame';
+import pressable from '../utils/pressable';
+import { errorMessage, responseError } from '../utils/responseError';
 
 const { pokemonApiUrl } = getApiUrls();
 
@@ -54,6 +58,7 @@ export default function PokemonDetail() {
     const [evolveModal,  setEvolveModal] = useState(false);
     const [evolving,     setEvolving]    = useState(false);
     const [evolveFlash,  setEvolveFlash] = useState(null);  // { name, spriteKey } on success
+    const [loadError,    setLoadError]   = useState('');
 
     const loadMoves = useCallback(() => {
         fetch(`${pokemonApiUrl}/api/pokemon/moves/${id}`, { credentials: 'include' })
@@ -70,14 +75,23 @@ export default function PokemonDetail() {
     }, [id]);
 
     const loadPokemon = useCallback(() => {
+        setLoadError('');
         fetch(`${pokemonApiUrl}/api/pokemon/collection`, { credentials: 'include' })
-            .then(r => { if (r.status === 401) throw new Error('unauthed'); return r.json(); })
+            .then(r => {
+                if (r.status === 401) throw new Error('unauthed');
+                if (!r.ok) throw new Error('failed');
+                return r.json();
+            })
             .then(data => {
-                const found = data.find(p => String(p.id) === String(id));
+                const found = Array.isArray(data) ? data.find(p => String(p.id) === String(id)) : null;
                 if (found) { setPokemon(found); setNickname(found.nickname || ''); }
                 else navigate('/pokemon/pokemon');
             })
-            .catch(e => { if (e.message === 'unauthed') navigate('/pokemon'); });
+            .catch(e => {
+                if (e.message === 'unauthed') { navigate('/pokemon'); return; }
+                // Used to be swallowed, leaving the page on "Loading…" for good.
+                setLoadError("Couldn't load this Pokémon. Check your connection and try again.");
+            });
     }, [id, navigate]);
 
     useEffect(() => { loadPokemon(); }, [loadPokemon]);
@@ -117,13 +131,13 @@ export default function PokemonDetail() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ caughtId: parseInt(id) }),
             });
-            if (!r.ok) throw new Error(await r.text());
+            if (!r.ok) throw new Error(await responseError(r, "That didn't work. Please try again."));
             const data = await r.json();
             navigate('/pokemon/pokemon', {
                 state: { grindMsg: `Received ${data.amount}× ${CANDY_LABELS[data.candyType]?.label || data.candyType}!` }
             });
         } catch (e) {
-            setFlash('Error: ' + e.message);
+            setFlash(errorMessage(e));
             setBusy(false);
             setGrindModal(false);
         }
@@ -140,7 +154,7 @@ export default function PokemonDetail() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ targetId: parseInt(id), candyType: selectedCandy, amount: candyAmount }),
             });
-            if (!r.ok) throw new Error(await r.text());
+            if (!r.ok) throw new Error(await responseError(r, "That didn't work. Please try again."));
             const data = await r.json();
             setCandyInv(prev => ({ ...prev, [selectedCandy]: (prev[selectedCandy] || 0) - candyAmount }));
             setCandyModal(false);
@@ -159,7 +173,7 @@ export default function PokemonDetail() {
                 setReplaceSlot(null);
             }
         } catch (e) {
-            setFlash('Error: ' + e.message);
+            setFlash(errorMessage(e));
         } finally {
             setBusy(false);
             setTimeout(() => setFlash(''), 3000);
@@ -186,7 +200,7 @@ export default function PokemonDetail() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ targetSpeciesId }),
             });
-            if (!r.ok) throw new Error(await r.text());
+            if (!r.ok) throw new Error(await responseError(r, "That didn't work. Please try again."));
             const data = await r.json();
             setEvolveModal(false);
             setEvolveFlash(data);
@@ -197,7 +211,7 @@ export default function PokemonDetail() {
                 loadEvolutions();
             }, 2500);
         } catch (e) {
-            setFlash('Evolution failed: ' + e.message);
+            setFlash('Evolution failed: ' + errorMessage(e));
             setTimeout(() => setFlash(''), 3000);
         } finally {
             setEvolving(false);
@@ -222,7 +236,7 @@ export default function PokemonDetail() {
             }
             setTimeout(() => setFlash(''), 2500);
         } catch (e) {
-            setFlash('Heal failed: ' + e.message); setTimeout(() => setFlash(''), 2500);
+            setFlash('Heal failed: ' + errorMessage(e)); setTimeout(() => setFlash(''), 2500);
         } finally { setBusy(false); }
     }
 
@@ -238,6 +252,14 @@ export default function PokemonDetail() {
         } catch { setFlash('Could not set buddy'); setTimeout(() => setFlash(''), 2500); }
     }
 
+    if (loadError) {
+        return (
+            <div className="lx-state" role="alert">
+                <p>{loadError}</p>
+                <button type="button" className="lx-btn lx-btn--primary" onClick={loadPokemon}>Try again</button>
+            </div>
+        );
+    }
     if (!pokemon) return <div style={styles.center}>Loading…</div>;
 
     const { pct, curr, needed } = expProgress(pokemon.exp || 0, pokemon.pokemonLevel);
@@ -316,7 +338,7 @@ export default function PokemonDetail() {
 
                 {/* HP bar + healing */}
                 <div style={{ margin: '0 0 14px', textAlign: 'left' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#64748b', marginBottom: 4 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#a0a0b0', marginBottom: 4 }}>
                         <span>HP {fainted && <b style={{ color: '#ef4444' }}>· Fainted</b>}</span>
                         <span>{Math.max(0, curHp)} / {maxHp}</span>
                     </div>
@@ -346,7 +368,7 @@ export default function PokemonDetail() {
 
                 {/* EXP Bar */}
                 <div style={{ margin: '0 0 18px', textAlign: 'left' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#64748b', marginBottom: 4 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#a0a0b0', marginBottom: 4 }}>
                         <span>EXP</span>
                         {pokemon.pokemonLevel < 100
                             ? <span>{curr.toLocaleString()} / {needed.toLocaleString()}</span>
@@ -373,24 +395,23 @@ export default function PokemonDetail() {
                 {/* Moves */}
                 {moves.length > 0 && (
                     <div style={{ textAlign: 'left', marginBottom: 16 }}>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: '#64748b', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Moves</div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: '#a0a0b0', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Moves</div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                             {moves.map(m => (
-                                <div key={m.slot} style={{ background: '#f8fafc', borderRadius: 10, padding: '8px 10px', border: '1px solid #e2e8f0', cursor: 'pointer' }}
-                                    onClick={() => { setPendingMove(null); setReplaceSlot(m.slot); }}>
+                                <div key={m.slot} style={{ background: '#0e0e14', borderRadius: 10, padding: '8px 10px', border: '1px solid #e2e8f0', cursor: 'pointer' }} {...pressable(() => { setPendingMove(null); setReplaceSlot(m.slot); })}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
                                         <span style={{ ...styles.moveBadge, background: TYPE_COLORS[m.type] || '#9ca3af' }}>{m.type}</span>
                                         <span style={{ fontSize: 11, color: '#94a3b8' }}>{m.category}</span>
                                     </div>
                                     <div style={{ fontWeight: 700, fontSize: 14, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.name}</div>
-                                    <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+                                    <div style={{ fontSize: 11, color: '#a0a0b0', marginTop: 2 }}>
                                         {m.power > 0 ? `Pwr ${m.power}` : '—'} · {m.accuracy > 0 ? `Acc ${m.accuracy}%` : '∞'} · PP {m.pp}
                                     </div>
                                 </div>
                             ))}
                             {/* Empty slots */}
                             {Array.from({ length: 4 - moves.length }).map((_, i) => (
-                                <div key={`empty-${i}`} style={{ background: '#f1f5f9', borderRadius: 10, padding: '8px 10px', border: '1px dashed #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 70 }}>
+                                <div key={`empty-${i}`} style={{ background: '#12121a', borderRadius: 10, padding: '8px 10px', border: '1px dashed rgba(255, 255, 255, 0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 70 }}>
                                     <span style={{ color: '#cbd5e1', fontSize: 22 }}>–</span>
                                 </div>
                             ))}
@@ -405,7 +426,7 @@ export default function PokemonDetail() {
                     <button
                         onClick={() => setCandyModal(true)}
                         disabled={!hasAnyCandy}
-                        style={{ ...styles.actionBtn, background: hasAnyCandy ? 'linear-gradient(135deg,#8b5cf6,#6d28d9)' : '#e5e7eb', color: hasAnyCandy ? 'white' : '#9ca3af', flex: 1, minWidth: 120 }}
+                        style={{ ...styles.actionBtn, background: hasAnyCandy ? 'linear-gradient(135deg,#8b5cf6,#6d28d9)' : 'rgba(255, 255, 255, 0.06)', color: hasAnyCandy ? 'white' : '#8a8a99', flex: 1, minWidth: 120 }}
                     >
                         🍬 Use Candy
                     </button>
@@ -448,11 +469,10 @@ export default function PokemonDetail() {
 
             {/* ── Evolve modal ── */}
             {evolveModal && (
-                <div style={styles.modalOverlay} onClick={() => !evolving && setEvolveModal(false)}>
-                    <div style={styles.modal} onClick={e => e.stopPropagation()}>
+                <ModalFrame onClose={() => !evolving && setEvolveModal(false)} overlayStyle={styles.modalOverlay} style={styles.modal}>
                         <div style={{ fontSize: 32, marginBottom: 8 }}>✨</div>
-                        <h3 style={{ margin: '0 0 4px', color: '#111827' }}>Evolve {pokemon.nickname || pokemon.speciesName}?</h3>
-                        <p style={{ margin: '0 0 16px', color: '#6b7280', fontSize: 13 }}>Choose an evolution path.</p>
+                        <h3 style={{ margin: '0 0 4px', color: '#f0f0f5' }}>Evolve {pokemon.nickname || pokemon.speciesName}?</h3>
+                        <p style={{ margin: '0 0 16px', color: '#a0a0b0', fontSize: 13 }}>Choose an evolution path.</p>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                             {evolutions.map(opt => (
                                 <button
@@ -461,8 +481,8 @@ export default function PokemonDetail() {
                                     onClick={() => confirmEvolve(opt.evolvesToId)}
                                     style={{
                                         display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
-                                        borderRadius: 14, border: `2px solid ${opt.eligible ? '#f59e0b' : '#e5e7eb'}`,
-                                        background: opt.eligible ? '#fffbeb' : '#f9fafb',
+                                        borderRadius: 14, border: `2px solid ${opt.eligible ? '#f59e0b' : 'rgba(255, 255, 255, 0.1)'}`,
+                                        background: opt.eligible ? 'rgba(245, 158, 11, 0.12)' : 'rgba(255, 255, 255, 0.03)',
                                         cursor: opt.eligible ? 'pointer' : 'not-allowed', textAlign: 'left',
                                         opacity: opt.eligible ? 1 : 0.6,
                                     }}>
@@ -471,26 +491,24 @@ export default function PokemonDetail() {
                                         style={{ width: 48, height: 48, objectFit: 'contain' }}
                                         onError={e => { e.target.style.display = 'none'; }} />
                                     <div style={{ flex: 1 }}>
-                                        <div style={{ fontWeight: 700, fontSize: 15, color: '#111827' }}>{opt.evolvesToName}</div>
+                                        <div style={{ fontWeight: 700, fontSize: 15, color: '#f0f0f5' }}>{opt.evolvesToName}</div>
                                         <div style={{ fontSize: 12, color: opt.eligible ? '#d97706' : '#9ca3af', marginTop: 2 }}>{opt.reason}</div>
-                                        {opt.itemRequired && <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Uses: {opt.itemRequired.replace(/_/g,' ')}</div>}
+                                        {opt.itemRequired && <div style={{ fontSize: 11, color: '#a0a0b0', marginTop: 2 }}>Uses: {opt.itemRequired.replace(/_/g,' ')}</div>}
                                     </div>
                                     {opt.eligible && <span style={{ fontSize: 20 }}>{evolving ? '…' : '→'}</span>}
                                 </button>
                             ))}
                         </div>
                         <button onClick={() => setEvolveModal(false)} style={{ ...styles.cancelBtn2, marginTop: 14, width: '100%' }} disabled={evolving}>Cancel</button>
-                    </div>
-                </div>
+                    </ModalFrame>
             )}
 
             {/* ── Grind confirmation modal ── */}
             {grindModal && (
-                <div style={styles.modalOverlay} onClick={() => !busy && setGrindModal(false)}>
-                    <div style={styles.modal} onClick={e => e.stopPropagation()}>
+                <ModalFrame onClose={() => !busy && setGrindModal(false)} overlayStyle={styles.modalOverlay} style={styles.modal}>
                         <div style={{ fontSize: 40, marginBottom: 8 }}>⚠️</div>
-                        <h3 style={{ margin: '0 0 8px', color: '#111827' }}>Grind Up {pokemon.speciesName}?</h3>
-                        <p style={{ margin: '0 0 16px', color: '#6b7280', fontSize: 14 }}>
+                        <h3 style={{ margin: '0 0 8px', color: '#f0f0f5' }}>Grind Up {pokemon.speciesName}?</h3>
+                        <p style={{ margin: '0 0 16px', color: '#a0a0b0', fontSize: 14 }}>
                             This <b>permanently</b> removes {pokemon.nickname || pokemon.speciesName} from your collection.
                         </p>
                         <GrindPreview level={pokemon.pokemonLevel} />
@@ -500,16 +518,14 @@ export default function PokemonDetail() {
                                 {busy ? 'Grinding…' : '⚡ Grind!'}
                             </button>
                         </div>
-                    </div>
-                </div>
+                    </ModalFrame>
             )}
 
             {/* ── Use Candy modal ── */}
             {candyModal && (
-                <div style={styles.modalOverlay} onClick={() => !busy && setCandyModal(false)}>
-                    <div style={styles.modal} onClick={e => e.stopPropagation()}>
-                        <h3 style={{ margin: '0 0 4px', color: '#111827' }}>Use EXP Candy</h3>
-                        <p style={{ margin: '0 0 14px', color: '#6b7280', fontSize: 13 }}>
+                <ModalFrame onClose={() => !busy && setCandyModal(false)} overlayStyle={styles.modalOverlay} style={styles.modal}>
+                        <h3 style={{ margin: '0 0 4px', color: '#f0f0f5' }}>Use EXP Candy</h3>
+                        <p style={{ margin: '0 0 14px', color: '#a0a0b0', fontSize: 13 }}>
                             Give EXP to <b>{pokemon.nickname || pokemon.speciesName}</b> (Lv. {pokemon.pokemonLevel})
                         </p>
 
@@ -523,12 +539,12 @@ export default function PokemonDetail() {
                                     <button
                                         key={t}
                                         onClick={() => { setSelectedCandy(t); setCandyAmount(1); }}
-                                        style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 12, border: `2px solid ${selectedCandy === t ? '#7c3aed' : '#e5e7eb'}`, background: selectedCandy === t ? '#f5f3ff' : 'white', cursor: 'pointer', textAlign: 'left' }}
+                                        style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 12, border: `2px solid ${selectedCandy === t ? '#7c3aed' : 'rgba(255, 255, 255, 0.1)'}`, background: selectedCandy === t ? 'rgba(124, 58, 237, 0.16)' : 'rgba(255, 255, 255, 0.03)', cursor: 'pointer', textAlign: 'left' }}
                                     >
                                         <span style={{ fontSize: 22, background: info.color, borderRadius: 8, padding: '2px 6px' }}>{info.emoji}</span>
                                         <span style={{ flex: 1, fontWeight: 600 }}>{info.label}</span>
-                                        <span style={{ fontSize: 13, color: '#64748b' }}>+{info.exp.toLocaleString()} EXP</span>
-                                        <span style={{ fontSize: 12, background: '#f1f5f9', borderRadius: 6, padding: '2px 7px', color: '#374151' }}>×{cnt}</span>
+                                        <span style={{ fontSize: 13, color: '#a0a0b0' }}>+{info.exp.toLocaleString()} EXP</span>
+                                        <span style={{ fontSize: 12, background: '#12121a', borderRadius: 6, padding: '2px 7px', color: '#e0e0e8' }}>×{cnt}</span>
                                     </button>
                                 );
                             })}
@@ -544,7 +560,7 @@ export default function PokemonDetail() {
                         )}
 
                         {selectedCandy && (
-                            <div style={{ background: '#f8fafc', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#475569', marginBottom: 14 }}>
+                            <div style={{ background: '#0e0e14', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#a0a0b0', marginBottom: 14 }}>
                                 Total: <b>+{((CANDY_LABELS[selectedCandy]?.exp || 0) * candyAmount).toLocaleString()} EXP</b>
                                 {pokemon.pokemonLevel < 100 && (
                                     <span style={{ marginLeft: 8, color: '#7c3aed' }}>
@@ -560,29 +576,27 @@ export default function PokemonDetail() {
                                 {busy ? 'Using…' : '✨ Use Candy'}
                             </button>
                         </div>
-                    </div>
-                </div>
+                    </ModalFrame>
             )}
 
             {/* ── Replace Move modal (pending move from level-up, or player tapped a slot) ── */}
             {(pendingMove || replaceSlot) && (
-                <div style={styles.modalOverlay} onClick={() => { setPendingMove(null); setReplaceSlot(null); }}>
-                    <div style={styles.modal} onClick={e => e.stopPropagation()}>
+                <ModalFrame onClose={() => { setPendingMove(null); setReplaceSlot(null); }} overlayStyle={styles.modalOverlay} style={styles.modal}>
                         {pendingMove ? (
                             <>
                                 <div style={{ fontSize: 28, marginBottom: 6 }}>📖</div>
-                                <h3 style={{ margin: '0 0 4px', color: '#111827' }}>New Move!</h3>
-                                <p style={{ margin: '0 0 12px', color: '#6b7280', fontSize: 13 }}>
+                                <h3 style={{ margin: '0 0 4px', color: '#f0f0f5' }}>New Move!</h3>
+                                <p style={{ margin: '0 0 12px', color: '#a0a0b0', fontSize: 13 }}>
                                     <b>{pokemon.nickname || pokemon.speciesName}</b> wants to learn <b>{pendingMove.name}</b>.<br />
                                     All 4 move slots are full. Choose a move to replace:
                                 </p>
                                 <div style={{ ...styles.badge, display: 'inline-block', background: TYPE_COLORS[pendingMove.type] || '#9ca3af', marginBottom: 8 }}>{pendingMove.type} · {pendingMove.category}</div>
-                                <div style={{ fontSize: 13, color: '#475569', marginBottom: 16 }}>
+                                <div style={{ fontSize: 13, color: '#a0a0b0', marginBottom: 16 }}>
                                     {pendingMove.power > 0 ? `Power ${pendingMove.power}` : 'Status'} · Acc {pendingMove.accuracy || '—'} · PP {pendingMove.pp}
                                 </div>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                                     {moves.map(m => (
-                                        <button key={m.slot} style={{ padding: '10px 14px', borderRadius: 12, border: '1px solid #e2e8f0', background: '#f8fafc', cursor: 'pointer', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                                        <button key={m.slot} style={{ padding: '10px 14px', borderRadius: 12, border: '1px solid #e2e8f0', background: '#0e0e14', cursor: 'pointer', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
                                             onClick={async () => {
                                                 try {
                                                     await fetch(`${pokemonApiUrl}/api/pokemon/moves/replace`, {
@@ -603,14 +617,13 @@ export default function PokemonDetail() {
                             </>
                         ) : replaceSlot ? (
                             <>
-                                <h3 style={{ margin: '0 0 8px', color: '#111827' }}>Swap Move in Slot {replaceSlot}</h3>
-                                <p style={{ margin: '0 0 12px', color: '#6b7280', fontSize: 13 }}>Choose a move from {pokemon.nickname || pokemon.speciesName}'s learnset to put here.</p>
+                                <h3 style={{ margin: '0 0 8px', color: '#f0f0f5' }}>Swap Move in Slot {replaceSlot}</h3>
+                                <p style={{ margin: '0 0 12px', color: '#a0a0b0', fontSize: 13 }}>Choose a move from {pokemon.nickname || pokemon.speciesName}'s learnset to put here.</p>
                                 <LearnsetPicker speciesId={pokemon.speciesId} caughtId={parseInt(id)} slot={replaceSlot} onDone={() => { setReplaceSlot(null); loadMoves(); }} />
                                 <button onClick={() => setReplaceSlot(null)} style={{ ...styles.cancelBtn2, marginTop: 12, width: '100%' }}>Cancel</button>
                             </>
                         ) : null}
-                    </div>
-                </div>
+                    </ModalFrame>
             )}
 
             <style>{`
@@ -639,12 +652,12 @@ function GrindPreview({ level }) {
     else                  { candyType = 'EXP_CANDY_XL'; amount = 1; }
     const info = CANDY_LABELS[candyType];
     return (
-        <div style={{ background: '#f1f5f9', borderRadius: 12, padding: '12px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ background: '#12121a', borderRadius: 12, padding: '12px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ fontSize: 32 }}>{info.emoji}</span>
             <div style={{ textAlign: 'left' }}>
                 <div style={{ fontWeight: 700, color: '#1e293b' }}>You'll receive:</div>
                 <div style={{ color: '#7c3aed', fontWeight: 700, fontSize: 17 }}>{amount}× {info.label}</div>
-                <div style={{ color: '#64748b', fontSize: 12 }}>+{(info.exp * amount).toLocaleString()} EXP total</div>
+                <div style={{ color: '#a0a0b0', fontSize: 12 }}>+{(info.exp * amount).toLocaleString()} EXP total</div>
             </div>
         </div>
     );
@@ -663,7 +676,7 @@ function LearnsetPicker({ speciesId, caughtId, slot, onDone }) {
         <div style={{ maxHeight: 260, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
             {learnset.map(m => (
                 <button key={`${m.id}-${m.levelLearned}`}
-                    style={{ padding: '8px 12px', borderRadius: 10, border: '1px solid #e2e8f0', background: '#f8fafc', cursor: 'pointer', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                    style={{ padding: '8px 12px', borderRadius: 10, border: '1px solid #e2e8f0', background: '#0e0e14', cursor: 'pointer', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
                     onClick={async () => {
                         try {
                             await fetch(`${pokemonApiUrl}/api/pokemon/moves/replace`, {
@@ -676,7 +689,7 @@ function LearnsetPicker({ speciesId, caughtId, slot, onDone }) {
                     }}>
                     <span>
                         <b style={{ marginRight: 6 }}>{m.name}</b>
-                        <span style={{ fontSize: 11, color: '#64748b' }}>Lv.{m.levelLearned}</span>
+                        <span style={{ fontSize: 11, color: '#a0a0b0' }}>Lv.{m.levelLearned}</span>
                     </span>
                     <span style={{ fontSize: 11, color: '#94a3b8' }}>{m.type} · {m.power > 0 ? `Pwr ${m.power}` : 'Status'}</span>
                 </button>
@@ -688,28 +701,28 @@ function LearnsetPicker({ speciesId, caughtId, slot, onDone }) {
 const styles = {
     page: { padding: 20, maxWidth: 480, margin: '0 auto' },
     center: { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' },
-    backBtn: { background: 'none', border: '1px solid #d1d5db', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', color: '#374151', marginBottom: 16 },
-    card: { background: 'white', borderRadius: 16, padding: 24, boxShadow: '0 4px 20px rgba(0,0,0,.08)', textAlign: 'center' },
+    backBtn: { background: 'none', border: '1px solid rgba(255, 255, 255, 0.14)', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', color: '#e0e0e8', marginBottom: 16 },
+    card: { background: '#0e0e14', borderRadius: 16, padding: 24, boxShadow: '0 4px 20px rgba(0,0,0,.08)', textAlign: 'center' },
     sprite: { width: 128, height: 128, objectFit: 'contain', display: 'block', margin: '0 auto 12px' },
-    name: { fontSize: 24, fontWeight: 'bold', color: '#111827' },
+    name: { fontSize: 24, fontWeight: 'bold', color: '#f0f0f5' },
     sub: { color: '#9ca3af', fontSize: 13 },
     editBtn: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, marginLeft: 6 },
-    nicknameInput: { padding: '6px 10px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, width: 160 },
+    nicknameInput: { padding: '6px 10px', border: '1px solid rgba(255, 255, 255, 0.14)', borderRadius: 8, fontSize: 14, width: 160 },
     saveBtn: { padding: '6px 12px', background: '#22c55e', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer' },
-    cancelBtn: { padding: '6px 10px', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: 8, cursor: 'pointer' },
+    cancelBtn: { padding: '6px 10px', background: '#12121a', border: '1px solid rgba(255, 255, 255, 0.14)', borderRadius: 8, cursor: 'pointer' },
     badge: { color: 'white', padding: '4px 12px', borderRadius: 20, fontWeight: 'bold', fontSize: 13 },
-    cpBox: { display: 'inline-block', background: '#f3f4f6', padding: '6px 20px', borderRadius: 20, fontWeight: 'bold', fontSize: 18, margin: '8px 0 12px' },
+    cpBox: { display: 'inline-block', background: '#12121a', padding: '6px 20px', borderRadius: 20, fontWeight: 'bold', fontSize: 18, margin: '8px 0 12px' },
     stats: { textAlign: 'left', marginBottom: 16 },
-    barBg: { background: '#e5e7eb', borderRadius: 4, height: 8, overflow: 'hidden' },
+    barBg: { background: '#1c1c26', borderRadius: 4, height: 8, overflow: 'hidden' },
     barFill: { background: '#ef4444', height: '100%', borderRadius: 4, transition: 'width .3s' },
     healBtn: { padding: '6px 12px', background: '#22c55e', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 },
     expBarFill: { background: 'linear-gradient(90deg,#8b5cf6,#6d28d9)', height: '100%', borderRadius: 4, transition: 'width .5s' },
     meta: { color: '#9ca3af', fontSize: 12, marginTop: 8 },
     actionBtn: { padding: '12px 16px', border: 'none', borderRadius: 12, cursor: 'pointer', fontSize: 15, fontWeight: 700, transition: 'opacity .15s' },
     modalOverlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000, padding: 20 },
-    modal: { background: 'white', borderRadius: 20, padding: 24, maxWidth: 380, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,.35)', textAlign: 'center' },
-    cancelBtn2: { flex: 1, padding: '12px 16px', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: 12, cursor: 'pointer', fontSize: 15, fontWeight: 600 },
+    modal: { background: '#0e0e14', borderRadius: 20, padding: 24, maxWidth: 380, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,.35)', textAlign: 'center' },
+    cancelBtn2: { flex: 1, padding: '12px 16px', background: '#12121a', border: '1px solid rgba(255, 255, 255, 0.14)', borderRadius: 12, cursor: 'pointer', fontSize: 15, fontWeight: 600 },
     grindConfirmBtn: { flex: 1, padding: '12px 16px', background: 'linear-gradient(135deg,#ef4444,#b91c1c)', color: 'white', border: 'none', borderRadius: 12, cursor: 'pointer', fontSize: 15, fontWeight: 700 },
-    amountBtn: { width: 38, height: 38, borderRadius: '50%', background: '#f1f5f9', border: '1px solid #e2e8f0', fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+    amountBtn: { width: 38, height: 38, borderRadius: '50%', background: '#12121a', border: '1px solid #e2e8f0', fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' },
     moveBadge: { color: 'white', padding: '2px 7px', borderRadius: 8, fontSize: 10, fontWeight: 700 },
 };

@@ -1,0 +1,88 @@
+/* Alchemy: dark panels over the dimmed dashboard art, two columns on wide screens and one
+   below 720px. The old page put two 40%-wide lists side by side on every screen, which
+   left about 130px per list on a phone, with white panels and a React-blue button. */
+
+.alchemy-page {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: calc(64px + 1.5rem) 1rem 3rem;
+  color: #e0e0e8;
+  background: #0a0a0f;
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+.alchemy-page__bg {
+  position: fixed;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  opacity: 0.22;
+  pointer-events: none;
+}
+.alchemy-shell { position: relative; max-width: 1000px; margin: 0 auto; display: flex; flex-direction: column; gap: 1.25rem; }
+
+.alchemy-header { display: flex; align-items: center; gap: 0.85rem; flex-wrap: wrap; }
+.alchemy-header img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: 2px solid #6366f1; }
+.alchemy-header h1 { margin: 0; font-size: clamp(1.35rem, 4vw, 1.9rem); color: #f0f0f5; letter-spacing: -0.02em; }
+.alchemy-header p { margin: 0; color: #a0a0b0; }
+
+.alchemy-panels { display: grid; grid-template-columns: 1fr; gap: 1rem; }
+@media (min-width: 720px) { .alchemy-panels { grid-template-columns: 1fr 1fr; } }
+
+.alchemy-panel {
+  padding: 1.1rem;
+  border-radius: 14px;
+  background: rgba(14, 14, 20, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.alchemy-panel h2 { margin: 0 0 0.75rem; font-size: 1.1rem; color: #f0f0f5; }
+.alchemy-list { list-style: none; margin: 0; padding: 0; max-height: 380px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.4rem; }
+.alchemy-item {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.03);
+  color: #e0e0e8;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.alchemy-item:hover { background: rgba(99, 102, 241, 0.08); border-color: rgba(99, 102, 241, 0.25); }
+.alchemy-item__name { font-weight: 600; color: #f0f0f5; }
+.alchemy-item__qty { color: #a0a0b0; font-weight: 500; }
+.alchemy-item__effects { display: block; margin-top: 0.2rem; color: #a0a0b0; font-size: 0.85rem; }
+.alchemy-muted { margin: 0; color: #a0a0b0; }
+
+.alchemy-brew { display: grid; grid-template-columns: 1fr; gap: 0.85rem; }
+@media (min-width: 560px) { .alchemy-brew { grid-template-columns: 1fr 1fr; } }
+
+.alchemy-actions { display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center; }
+.alchemy-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(14, 14, 20, 0.88);
+  color: #f0f0f5;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.alchemy-action:hover:not(:disabled) { border-color: #8b8bf5; }
+.alchemy-action:disabled { opacity: 0.5; cursor: not-allowed; }
+.alchemy-action img { width: 120px; height: 120px; border-radius: 10px; pointer-events: none; }
+
+.alchemy-footer { display: flex; flex-wrap: wrap; gap: 0.75rem; justify-content: center; }
+
+.item-modal__heading { margin: 1rem 0 0.4rem; font-size: 1rem; color: #f0f0f5; }
+.item-modal__list { margin: 0; padding-left: 1.2rem; }
+.item-modal__list li { margin-bottom: 0.35rem; }
+.item-modal__facts { display: grid; grid-template-columns: auto 1fr; gap: 0.3rem 1rem; margin: 0.5rem 0; }
+.item-modal__facts dt { color: #a0a0b0; }
+.item-modal__facts dd { margin: 0; color: #e0e0e8; }

@@ -5,6 +5,15 @@ import { getApiUrls } from '../utils/apiUrls';
 import StreamLogger from '../utils/StreamLogger';
 import StreamLogPanel from '../components/StreamLogPanel';
 import '../styles/MediaPlayer.css';
+import './PageStyles.css';
+import { NETWORK_ERROR } from '../utils/responseError';
+import devLog from '../utils/devLog';
+import ModalFrame from '../components/ModalFrame';
+import pressable from '../utils/pressable';
+
+// Read once: the flag is for whoever is debugging, not something to toggle while playing.
+const showStreamLog = typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('debug') === '1';
 
 function AudioPlayer() {
     const { user } = useContext(UserContext);
@@ -20,6 +29,8 @@ function AudioPlayer() {
     const [duration, setDuration] = useState(0);
     const [volume, setVolume] = useState(1);
     const [error, setError] = useState('');
+    // True until the first library fetch settles, so an empty list is not shown while loading.
+    const [loading, setLoading] = useState(true);
     const [playlists, setPlaylists] = useState([]);
     const [selectedPlaylist, setSelectedPlaylist] = useState(null);
     const [playlistMode, setPlaylistMode] = useState(false);
@@ -35,7 +46,6 @@ function AudioPlayer() {
     const pendingRetryRef = useRef(null); // track that failed all retries, auto-retry on focus
     const prefetchedRef = useRef({ trackId: null, blobUrl: null }); // pre-downloaded next track
     const prefetchNextTrackRef = useRef(null); // stable ref to latest prefetch function
-    const [audioReady, setAudioReady] = useState(false);
     const navigate = useNavigate();
 
     const { lexiconApiUrl } = getApiUrls();
@@ -83,6 +93,7 @@ function AudioPlayer() {
     }, [urlPlaylistId, user]);
 
     const fetchAudioFiles = async () => {
+        setLoading(true);
         try {
             // fetch both personal and public media then merge
             const [userResp, publicResp] = await Promise.all([
@@ -96,7 +107,7 @@ function AudioPlayer() {
             }
 
             if (!userResp.ok && !publicResp.ok) {
-                setError('Failed to fetch audio files');
+                setError("Couldn't load your music.");
                 return;
             }
 
@@ -112,8 +123,6 @@ function AudioPlayer() {
             combined.forEach(item => map.set(item.id, item));
             const allMedia = Array.from(map.values());
 
-            console.log('AudioPlayer: Fetched media files:', allMedia.length);
-            console.log('AudioPlayer: Media types:', allMedia.map(m => ({ id: m.id, title: m.title, mediaType: m.mediaType, type: m.type })));
 
             // Filter only audio/music files (exclude audiobooks - they have their own player)
             const audioOnly = allMedia.filter(media => {
@@ -123,11 +132,12 @@ function AudioPlayer() {
                        mediaTypeValue === 'MUSIC' ||
                        media.filePath?.match(/\.(mp3|wav|ogg|flac|m4a|aac)$/i);
             });
-            console.log('AudioPlayer: Filtered audio files:', audioOnly.length);
-            console.log('AudioPlayer: Audio files:', audioOnly.map(m => ({ id: m.id, title: m.title, mediaType: m.mediaType })));
             setAudioFiles(audioOnly);
         } catch (err) {
-            setError('Error connecting to server: ' + err.message);
+            devLog('fetchAudioFiles failed:', err);
+            setError(NETWORK_ERROR);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -149,7 +159,7 @@ function AudioPlayer() {
                 setPlaylists(audioPlaylists);
             }
         } catch (err) {
-            console.log('Could not fetch playlists:', err.message);
+            devLog('Could not fetch playlists:', err.message);
         }
     };
 
@@ -176,7 +186,8 @@ function AudioPlayer() {
                 }
             }
         } catch (err) {
-            setError('Failed to load playlist: ' + err.message);
+            devLog('loadPlaylist failed:', err);
+            setError("Couldn't load that playlist.");
         }
     };
 
@@ -271,10 +282,11 @@ function AudioPlayer() {
                 await fetchAudioFiles();
                 closeEditModal();
             } else {
-                setError('Failed to update media');
+                setError("Couldn't save those changes.");
             }
         } catch (err) {
-            setError('Error updating media: ' + err.message);
+            devLog('update media failed:', err);
+            setError("Couldn't save those changes.");
         }
     };
 
@@ -615,7 +627,10 @@ function AudioPlayer() {
                 }}
             />
 
-            <StreamLogPanel />
+            {/* The stream diagnostics console is a debugging tool, not a feature: it
+                shows only when the page is opened with ?debug=1. StreamLogger keeps
+                recording either way, so turning it on mid-problem still shows history. */}
+            {showStreamLog && <StreamLogPanel />}
 
             <div className="media-player-layout">
                 {/* Audio Player Controls */}
@@ -800,14 +815,15 @@ function AudioPlayer() {
                             )}
 
                             <div className="audio-list">
-                                {getFilteredAudio().length === 0 ? (
+                                {loading && audioFiles.length === 0 ? (
+                                    <div className="lx-state" aria-busy="true" style={{ minHeight: 160 }}><div className="lx-spinner" aria-hidden="true" /></div>
+                                ) : getFilteredAudio().length === 0 ? (
                                     <p className="no-audio">No audio files found</p>
                                 ) : (
                                     getFilteredAudio().map((audio, index) => (
                                         <div
                                             key={audio.id}
-                                            className={`audio-item ${currentTrack?.id === audio.id ? 'active' : ''}`}
-                                            onClick={() => playTrack(audio, index)}
+                                            className={`audio-item ${currentTrack?.id === audio.id ? 'active' : ''}`} {...pressable(() => playTrack(audio, index))}
                                             onDoubleClick={() => {
                                                 playTrack(audio, index);
                                                 togglePlayPause();
@@ -864,8 +880,7 @@ function AudioPlayer() {
                                         .map(pl => (
                                             <div 
                                                 key={pl.id} 
-                                                className="playlist-card-mini"
-                                                onClick={() => loadPlaylist(pl.id)}
+                                                className="playlist-card-mini" {...pressable(() => loadPlaylist(pl.id))}
                                             >
                                                 <div className="playlist-icon">🎵</div>
                                                 <div className="playlist-info">
@@ -892,8 +907,7 @@ function AudioPlayer() {
 
             {/* Edit Media Modal */}
             {showEditModal && (
-                <div className="modal-overlay" onClick={closeEditModal}>
-                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                <ModalFrame onClose={closeEditModal} overlayClassName="modal-overlay" className="modal-content">
                         <h2>✏️ Edit Media</h2>
                         <form onSubmit={handleEditSubmit}>
                             <div className="form-group">
@@ -930,8 +944,7 @@ function AudioPlayer() {
                                 <button type="button" onClick={closeEditModal} className="cancel-btn">Cancel</button>
                             </div>
                         </form>
-                    </div>
-                </div>
+                    </ModalFrame>
             )}
         </div>
     );

@@ -1,48 +1,62 @@
 import React, { useState, useContext } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
-import background from '../assets/images/background.jpg';
+import background from '../assets/images/background.webp';
+import Navbar from '../components/Navbar';
 import { getApiUrls } from '../utils/apiUrls';
 import { isNativePlatform } from '../utils/native';
 import { apiFetch, setMobileToken } from '../utils/apiFetch';
+import { toSessionUser } from '../utils/sessionUser';
+import './PageStyles.css';
+import './AuthPages.css';
 
 const { lexiconApiUrl: API_URL } = getApiUrls();
 
 const Login = () => {
-  const [username, setUsername] = useState('');
+  const location = useLocation();
+  // Set by Register on success, so the new account is confirmed instead of implied.
+  const registered = location.state?.registered;
+  const [username, setUsername] = useState(registered || '');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const { setUser } = useContext(UserContext);
   const [error, setError] = useState('');
   const navigate = useNavigate();
-  const location = useLocation();
   const redirectTo = location.state?.from || '/app-selector';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitting) return; // one request at a time; double-clicks used to send two
     setError('');
+    setSubmitting(true);
+
+    let response;
     try {
       const native = isNativePlatform();
-      const response = await apiFetch(`${API_URL}/api/auth/login`, {
-        credentials: "include",
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      response = await apiFetch(`${API_URL}/api/auth/login`, {
+        credentials: 'include',
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         // platform: 'mobile' asks the backend for a bearer token alongside the session
-        body: JSON.stringify({ username, password, rememberMe, ...(native ? { platform: 'mobile' } : {}) })
+        body: JSON.stringify({ username, password, rememberMe, ...(native ? { platform: 'mobile' } : {}) }),
       });
-
 
       if (response.status === 429) {
         // Too many wrong passwords in a row: the server asks the person to wait before trying again
-        setError("Too many failed attempts. Please wait a minute and try again.");
+        setError('Too many failed attempts. Please wait a minute and try again.');
+        return;
+      }
+      if (response.status === 401 || response.status === 400) {
+        setError('Invalid username or password.');
         return;
       }
       if (!response.ok) {
-        throw new Error('Login failed');
+        setError('The server had a problem signing you in. Please try again in a moment.');
+        return;
       }
 
       const data = await response.json();
-      console.log("Login successful:", data);
 
       // Android shell: persist the bearer token so the session survives app restarts
       if (native && data.mobileToken) {
@@ -50,92 +64,75 @@ const Login = () => {
       }
 
       // Update context with session-based info - use 'id' field which AuthController returns
-      setUser({ id: data.id, username: data.username, displayName: data.displayName });
+      setUser(toSessionUser(data));
       navigate(redirectTo, { replace: true });
-    } catch (err) {
-      console.error("Login error:", err);
-      setError("Invalid username or password.");
+    } catch {
+      // A failed fetch is not a wrong password: say what actually happened.
+      setError("Couldn't reach the server. Check your connection and try again.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const containerStyle = {
-    backgroundImage: `url(${background})`,
-    backgroundSize: 'cover',
-    backgroundPosition: 'center',
-    minHeight: '100vh',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontFamily: 'Arial, sans-serif'
-  };
-
-  const formStyle = {
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    padding: '2rem',
-    borderRadius: '10px',
-    boxShadow: '0 0 10px rgba(0,0,0,0.5)'
-  };
-
-  const inputStyle = {
-    width: '100%',
-    padding: '0.5rem',
-    marginTop: '0.5rem',
-    marginBottom: '1rem',
-    borderRadius: '4px',
-    border: '1px solid #ccc'
-  };
-
-  const buttonStyle = {
-    width: '100%',
-    padding: '0.75rem',
-    backgroundColor: '#61dafb',
-    border: 'none',
-    borderRadius: '5px',
-    cursor: 'pointer',
-    fontSize: '1rem'
-  };
-
   return (
-    <div style={containerStyle}>
-      <div style={formStyle}>
-        <h1>Login</h1>
-        <form onSubmit={handleSubmit}>
-          <div>
-            <label>Username:</label>
-            <input 
-              type="text" 
-              value={username} 
-              onChange={(e) => setUsername(e.target.value)}
-              style={inputStyle}
-            />
-          </div>
-          <div>
-            <label>Password:</label>
-            <input 
-              type="password" 
-              value={password} 
-              onChange={(e) => setPassword(e.target.value)}
-              style={inputStyle}
-            />
-          </div>
-          {error && <p style={{ color: 'red' }}>{error}</p>}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem' }}>
-            <input
-              type="checkbox"
-              id="rememberMe"
-              checked={rememberMe}
-              onChange={(e) => setRememberMe(e.target.checked)}
-              style={{ cursor: 'pointer', accentColor: '#61dafb' }}
-            />
-            <label htmlFor="rememberMe" style={{ cursor: 'pointer', fontSize: '0.9rem' }}>Remember me</label>
-          </div>
-          <button type="submit" style={buttonStyle}>Login</button>
-        </form>
-        <p>
-          Don't have an account? <Link to="/register">Register here</Link>.
-        </p>
-      </div>
-    </div>
+    <>
+      <Navbar />
+      <main className="auth-page">
+        <div className="auth-page__bg" style={{ backgroundImage: `url(${background})` }} aria-hidden="true" />
+        <div className="auth-card">
+          <h1>Sign in</h1>
+          {registered
+            ? <div className="lx-alert lx-alert--success" role="status">Account created. Sign in to get started.</div>
+            : <p className="auth-card__lede">Welcome back.</p>}
+          <form onSubmit={handleSubmit} noValidate>
+            <div className="lx-field">
+              <label htmlFor="login-username">Username</label>
+              <input
+                id="login-username"
+                type="text"
+                autoComplete="username"
+                autoCapitalize="none"
+                spellCheck={false}
+                required
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+              />
+            </div>
+            <div className="lx-field">
+              <label htmlFor="login-password">Password</label>
+              <input
+                id="login-password"
+                type="password"
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+            <div className="auth-check">
+              <input
+                type="checkbox"
+                id="rememberMe"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+              />
+              <label htmlFor="rememberMe">Remember me</label>
+            </div>
+            {error && <div className="lx-alert lx-alert--error" role="alert">{error}</div>}
+            <button
+              type="submit"
+              className="lx-btn lx-btn--primary"
+              disabled={submitting || !username || !password}
+            >
+              {submitting ? 'Signing in…' : 'Sign in'}
+            </button>
+          </form>
+          <p className="auth-switch">
+            Don't have an account? <Link to="/register" state={location.state}>Create one</Link>
+          </p>
+        </div>
+      </main>
+    </>
   );
 };
 

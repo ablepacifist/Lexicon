@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
 import { getApiUrls } from '../utils/apiUrls';
 import './QueueManager.css';
+import ModalFrame from '../components/ModalFrame';
 
 /**
  * Queue Manager — dedicated page for browsing eligible media and managing
@@ -229,10 +230,6 @@ function QueueManager() {
         });
 
     const upNext = queue.filter(q => q.status === 'QUEUED');
-    // nowPlaying from queue is unreliable (stale PLAYING items may exist)
-    // Prefer currentMedia from server state, fall back to last PLAYING queue item
-    const playingItems = queue.filter(q => q.status === 'PLAYING');
-    const nowPlaying = playingItems.length > 0 ? playingItems[playingItems.length - 1] : null;
 
     if (user === undefined) return null;
 
@@ -403,8 +400,7 @@ function QueueManager() {
 
             {/* Add Playlist to Queue Modal */}
             {showPlaylistModal && (
-                <div className="qm-modal-overlay" onClick={() => setShowPlaylistModal(false)}>
-                    <div className="qm-modal" onClick={e => e.stopPropagation()}>
+                <ModalFrame onClose={() => setShowPlaylistModal(false)} overlayClassName="qm-modal-overlay" className="qm-modal">
                         <div className="qm-modal-header">
                             <h2>📋 Add Playlist to Queue</h2>
                             <button className="qm-modal-close" onClick={() => setShowPlaylistModal(false)}>✕</button>
@@ -430,8 +426,7 @@ function QueueManager() {
                                 ))
                             )}
                         </div>
-                    </div>
-                </div>
+                    </ModalFrame>
             )}
         </div>
     );

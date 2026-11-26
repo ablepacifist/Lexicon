@@ -3,6 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
 import { getApiUrls } from '../utils/apiUrls';
 import '../styles/PlaylistManager.css';
+import './PageStyles.css';
+import Dialog from '../components/Dialog';
+import devLog from '../utils/devLog';
+import { NETWORK_ERROR, responseError } from '../utils/responseError';
+import ModalFrame from '../components/ModalFrame';
+import pressable from '../utils/pressable';
 
 function PlaylistManager() {
     const { user } = useContext(UserContext);
@@ -11,11 +17,11 @@ function PlaylistManager() {
     const [selectedPlaylist, setSelectedPlaylist] = useState(null);
     const [playlistItems, setPlaylistItems] = useState([]);
     const [availableMedia, setAvailableMedia] = useState([]);
-    const [mediaType, setMediaType] = useState('MUSIC');
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [showEditForm, setShowEditForm] = useState(false);
     const [showAddMediaModal, setShowAddMediaModal] = useState(false);
     const [error, setError] = useState('');
+    const [loading, setLoading] = useState(true);
     const [success, setSuccess] = useState('');
     const navigate = useNavigate();
 
@@ -42,6 +48,7 @@ function PlaylistManager() {
     }, [user]);
 
     const fetchPlaylists = async () => {
+        setLoading(true);
         try {
             const [userResp, publicResp] = await Promise.all([
                 fetch(`${lexiconApiUrl}/api/playlists/user/${user.id}`, { credentials: 'include' }),
@@ -59,7 +66,10 @@ function PlaylistManager() {
             setPlaylists(userPlaylists);
             setPublicPlaylists(publicPlaylistsData);
         } catch (err) {
-            setError('Failed to fetch playlists: ' + err.message);
+            devLog('Failed to fetch playlists:', err);
+            setError("Couldn't load your playlists.");
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -85,7 +95,8 @@ function PlaylistManager() {
 
             setAvailableMedia(allMedia);
         } catch (err) {
-            setError('Failed to fetch media: ' + err.message);
+            devLog('Failed to fetch media:', err);
+            setError("Couldn't load your media.");
         }
     };
 
@@ -105,7 +116,8 @@ function PlaylistManager() {
                 setPlaylistItems(playlist.items || []);
             }
         } catch (err) {
-            setError('Failed to fetch playlist items: ' + err.message);
+            devLog('Failed to fetch playlist items:', err);
+            setError("Couldn't load that playlist.");
         }
     };
 
@@ -133,11 +145,11 @@ function PlaylistManager() {
                 setFormData({ name: '', description: '', isPublic: false, mediaType: 'MUSIC' });
                 fetchPlaylists();
             } else {
-                const error = await resp.text();
-                setError('Failed to create playlist: ' + error);
+                setError(await responseError(resp, "Couldn't create the playlist."));
             }
         } catch (err) {
-            setError('Error creating playlist: ' + err.message);
+            devLog('Error creating playlist:', err);
+            setError(NETWORK_ERROR);
         }
     };
 
@@ -146,8 +158,6 @@ function PlaylistManager() {
         setError('');
         setSuccess('');
 
-        console.log('Updating playlist with data:', formData);
-        console.log('isPublic value being sent:', formData.isPublic, 'Type:', typeof formData.isPublic);
 
         try {
             const resp = await fetch(`${lexiconApiUrl}/api/playlists/${selectedPlaylist.id}?userId=${user.id}`, {
@@ -163,9 +173,6 @@ function PlaylistManager() {
             }
 
             if (resp.ok) {
-                const updated = await resp.json();
-                console.log('Playlist updated response:', updated);
-                console.log('Response isPublic:', updated.isPublic, 'Type:', typeof updated.isPublic);
                 setSuccess('Playlist updated successfully!');
                 setShowEditForm(false);
                 await fetchPlaylists();
@@ -176,82 +183,25 @@ function PlaylistManager() {
                     });
                     if (refreshResp.ok) {
                         const refreshedPlaylist = await refreshResp.json();
-                        console.log('Refreshed playlist:', refreshedPlaylist);
-                        console.log('Refreshed isPublic:', refreshedPlaylist.isPublic, 'Type:', typeof refreshedPlaylist.isPublic);
                         setSelectedPlaylist(refreshedPlaylist);
                     }
                 }
             } else {
-                const error = await resp.text();
-                setError('Failed to update playlist: ' + error);
+                setError(await responseError(resp, "Couldn't save the playlist."));
             }
         } catch (err) {
-            setError('Error updating playlist: ' + err.message);
+            devLog('Error updating playlist:', err);
+            setError(NETWORK_ERROR);
         }
     };
 
-    const showDeletePlaylistDialog = () => {
-        return new Promise((resolve) => {
-            const dialog = document.createElement('div');
-            dialog.style.cssText = `
-                position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-                background: rgba(0,0,0,0.5); z-index: 1000; 
-                display: flex; align-items: center; justify-content: center;
-            `;
-            
-            dialog.innerHTML = `
-                <div style="
-                    background: white; padding: 20px; border-radius: 8px; 
-                    max-width: 400px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-                ">
-                    <h3 style="margin-top: 0; color: #333;">Delete Playlist</h3>
-                    <p style="margin: 15px 0; color: #666;">
-                        What would you like to do with the media files in this playlist?
-                    </p>
-                    <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-                        <button id="deletePlaylistOnly" style="
-                            padding: 10px 15px; border: 1px solid #ddd; background: #f8f9fa; 
-                            border-radius: 4px; cursor: pointer; color: #333;
-                        ">Keep Media Files</button>
-                        <button id="deletePlaylistAndMedia" style="
-                            padding: 10px 15px; border: 1px solid #dc3545; background: #dc3545; 
-                            border-radius: 4px; cursor: pointer; color: white;
-                        ">Delete Media Files Too</button>
-                        <button id="cancelDelete" style="
-                            padding: 10px 15px; border: 1px solid #6c757d; background: #6c757d; 
-                            border-radius: 4px; cursor: pointer; color: white;
-                        ">Cancel</button>
-                    </div>
-                </div>
-            `;
-            
-            document.body.appendChild(dialog);
-            
-            const cleanup = () => document.body.removeChild(dialog);
-            
-            dialog.querySelector('#deletePlaylistOnly').onclick = () => {
-                cleanup();
-                resolve(false); // Don't delete media files
-            };
-            
-            dialog.querySelector('#deletePlaylistAndMedia').onclick = () => {
-                cleanup();
-                resolve(true); // Delete media files too
-            };
-            
-            dialog.querySelector('#cancelDelete').onclick = () => {
-                cleanup();
-                resolve(null); // Cancel
-            };
-            
-            // Close on outside click
-            dialog.onclick = (e) => {
-                if (e.target === dialog) {
-                    cleanup();
-                    resolve(null);
-                }
-            };
-        });
+    // Asks what to do with the playlist's media. Resolves false (keep files), true (delete
+    // them too) or null (cancel). It used to be a hand-built white innerHTML box outside React.
+    const [deletePrompt, setDeletePrompt] = useState(null);
+    const showDeletePlaylistDialog = () => new Promise((resolve) => setDeletePrompt({ resolve }));
+    const settleDeletePrompt = (answer) => {
+        deletePrompt?.resolve(answer);
+        setDeletePrompt(null);
     };
 
     const handleDeletePlaylist = async (playlistId) => {
@@ -281,19 +231,18 @@ function PlaylistManager() {
             }
 
             if (resp.ok) {
-                const message = await resp.text();
-                setSuccess(message);
+                setSuccess(deleteMediaFiles ? 'Playlist and its media files deleted.' : 'Playlist deleted.');
                 if (selectedPlaylist?.id === playlistId) {
                     setSelectedPlaylist(null);
                     setPlaylistItems([]);
                 }
                 fetchPlaylists();
             } else {
-                const error = await resp.text();
-                setError('Failed to delete playlist: ' + error);
+                setError(await responseError(resp, "Couldn't delete the playlist."));
             }
         } catch (err) {
-            setError('Error deleting playlist: ' + err.message);
+            devLog('Error deleting playlist:', err);
+            setError(NETWORK_ERROR);
         }
     };
 
@@ -321,11 +270,11 @@ function PlaylistManager() {
                 fetchPlaylistItems(selectedPlaylist.id);
                 setShowAddMediaModal(false);
             } else {
-                const error = await resp.text();
-                setError('Failed to add media: ' + error);
+                setError(await responseError(resp, "Couldn't add that to the playlist."));
             }
         } catch (err) {
-            setError('Error adding media: ' + err.message);
+            devLog('Error adding media:', err);
+            setError(NETWORK_ERROR);
         }
     };
 
@@ -350,11 +299,11 @@ function PlaylistManager() {
                 setSuccess('Media removed from playlist!');
                 fetchPlaylistItems(selectedPlaylist.id);
             } else {
-                const error = await resp.text();
-                setError('Failed to remove media: ' + error);
+                setError(await responseError(resp, "Couldn't remove that from the playlist."));
             }
         } catch (err) {
-            setError('Error removing media: ' + err.message);
+            devLog('Error removing media:', err);
+            setError(NETWORK_ERROR);
         }
     };
 
@@ -386,11 +335,11 @@ function PlaylistManager() {
             if (resp.ok) {
                 fetchPlaylistItems(selectedPlaylist.id);
             } else {
-                const error = await resp.text();
-                setError('Failed to reorder: ' + error);
+                setError(await responseError(resp, "Couldn't reorder the playlist."));
             }
         } catch (err) {
-            setError('Error reordering: ' + err.message);
+            devLog('Error reordering:', err);
+            setError(NETWORK_ERROR);
         }
     };
 
@@ -516,7 +465,9 @@ function PlaylistManager() {
                     </div>
 
                     <div className="playlists-list">
-                        {getFilteredPlaylists(playlists).length === 0 ? (
+                        {loading && playlists.length === 0 ? (
+                            <div className="lx-state" aria-busy="true" style={{ minHeight: 160 }}><div className="lx-spinner" aria-hidden="true" /></div>
+                        ) : getFilteredPlaylists(playlists).length === 0 ? (
                             <p className="no-data">
                                 {searchQuery ? 'No playlists match your search' : 'No playlists yet. Create one!'}
                             </p>
@@ -524,8 +475,7 @@ function PlaylistManager() {
                             getFilteredPlaylists(playlists).map(playlist => (
                                 <div
                                     key={playlist.id}
-                                    className={`playlist-card ${selectedPlaylist?.id === playlist.id ? 'active' : ''}`}
-                                    onClick={() => selectPlaylist(playlist)}
+                                    className={`playlist-card ${selectedPlaylist?.id === playlist.id ? 'active' : ''}`} {...pressable(() => selectPlaylist(playlist))}
                                 >
                                     <div className="playlist-card-header">
                                         <h3>{playlist.name}</h3>
@@ -567,8 +517,7 @@ function PlaylistManager() {
                                     getFilteredPlaylists(publicPlaylists).map(playlist => (
                                     <div
                                         key={playlist.id}
-                                        className={`playlist-card ${selectedPlaylist?.id === playlist.id ? 'active' : ''}`}
-                                        onClick={() => selectPlaylist(playlist)}
+                                        className={`playlist-card ${selectedPlaylist?.id === playlist.id ? 'active' : ''}`} {...pressable(() => selectPlaylist(playlist))}
                                     >
                                         <div className="playlist-card-header">
                                             <h3>{playlist.name}</h3>
@@ -656,8 +605,7 @@ function PlaylistManager() {
 
             {/* Create Playlist Modal */}
             {showCreateForm && (
-                <div className="modal-overlay" onClick={() => setShowCreateForm(false)}>
-                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                <ModalFrame onClose={() => setShowCreateForm(false)} overlayClassName="modal-overlay" className="modal-content">
                         <h2>Create New Playlist</h2>
                         <form onSubmit={handleCreatePlaylist}>
                             <div className="form-group">
@@ -705,14 +653,12 @@ function PlaylistManager() {
                                 </button>
                             </div>
                         </form>
-                    </div>
-                </div>
+                    </ModalFrame>
             )}
 
             {/* Edit Playlist Modal */}
             {showEditForm && (
-                <div className="modal-overlay" onClick={() => setShowEditForm(false)}>
-                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                <ModalFrame onClose={() => setShowEditForm(false)} overlayClassName="modal-overlay" className="modal-content">
                         <h2>Edit Playlist</h2>
                         <form onSubmit={handleUpdatePlaylist}>
                             <div className="form-group">
@@ -760,14 +706,12 @@ function PlaylistManager() {
                                 </button>
                             </div>
                         </form>
-                    </div>
-                </div>
+                    </ModalFrame>
             )}
 
             {/* Add Media Modal */}
             {showAddMediaModal && (
-                <div className="modal-overlay" onClick={() => setShowAddMediaModal(false)}>
-                    <div className="modal-content add-media-modal" onClick={(e) => e.stopPropagation()}>
+                <ModalFrame onClose={() => setShowAddMediaModal(false)} overlayClassName="modal-overlay" className="modal-content add-media-modal">
                         <div className="modal-top-bar">
                             <h2>Add Media to Playlist</h2>
                             <button 
@@ -820,8 +764,24 @@ function PlaylistManager() {
                                 ))
                             )}
                         </div>
-                    </div>
-                </div>
+                    </ModalFrame>
+            )}
+
+            {deletePrompt && (
+                <Dialog
+                    title="Delete playlist?"
+                    size="sm"
+                    onClose={() => settleDeletePrompt(null)}
+                    actions={(
+                        <>
+                            <button type="button" className="lx-btn lx-btn--secondary" onClick={() => settleDeletePrompt(null)}>Cancel</button>
+                            <button type="button" className="lx-btn lx-btn--secondary" data-autofocus onClick={() => settleDeletePrompt(false)}>Keep media files</button>
+                            <button type="button" className="lx-btn lx-btn--danger" onClick={() => settleDeletePrompt(true)}>Delete media files too</button>
+                        </>
+                    )}
+                >
+                    <p>What would you like to do with the media files in this playlist?</p>
+                </Dialog>
             )}
         </div>
     );

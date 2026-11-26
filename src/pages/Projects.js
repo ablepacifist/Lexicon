@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
-import photoshopImg from '../assets/images/extra_photos/cool_photoshop.PNG';
+import photoshopImg from '../assets/images/extra_photos/cool_photoshop.webp';
 import './PageStyles.css';
 
 const Projects = () => {
@@ -73,20 +73,6 @@ const Projects = () => {
                 </button>
               </div>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Coming Soon */}
-      <section className="page-section alt">
-        <div className="page-container">
-          <div className="empty-state">
-            <div className="empty-state-icon">🚧</div>
-            <h3>More Projects Coming Soon</h3>
-            <p>
-              I'm always building something new. Check back later for more projects,
-              or head over to the blog for updates.
-            </p>
           </div>
         </div>
       </section>
