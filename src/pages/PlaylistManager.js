@@ -1,41 +1,134 @@
-import React, { useState, useEffect, useContext, useMemo } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
 import { getApiUrls } from '../utils/apiUrls';
 import '../styles/PlaylistManager.css';
 import './PageStyles.css';
 import Dialog from '../components/Dialog';
+import ModalFrame from '../components/ModalFrame';
+import { Toast, useToast } from '../components/Toast';
 import devLog from '../utils/devLog';
 import { NETWORK_ERROR, responseError } from '../utils/responseError';
-import ModalFrame from '../components/ModalFrame';
-import pressable from '../utils/pressable';
+
+const TYPES = [
+    { value: 'ALL', label: 'All' },
+    { value: 'MUSIC', label: 'Music' },
+    { value: 'VIDEO', label: 'Video' },
+    { value: 'AUDIOBOOK', label: 'Audiobooks' },
+];
+const TYPE_LABEL = { MUSIC: 'Music', VIDEO: 'Video', AUDIOBOOK: 'Audiobook' };
+const EMPTY_FORM = { name: '', description: '', isPublic: false, mediaType: 'MUSIC' };
+
+/**
+ * A readable name for a media file. Many have no title (torrent and YouTube imports, old
+ * uploads), and the page used to show nothing for them; the stored file name starts with an
+ * upload stamp ("20261127_160046_5744b36b_") that means nothing to anyone.
+ */
+export function mediaTitle(media) {
+    if (!media) return 'Untitled';
+    const title = (media.title || '').trim();
+    if (title) return title;
+    const file = (media.originalFilename || media.filename || '').trim();
+    if (file) {
+        return file
+            .replace(/^\d{8}_\d{6}_[0-9a-f]{8}_/i, '')
+            .replace(/\.[a-z0-9]{2,5}$/i, '')
+            .replace(/[._]+/g, ' ')
+            .trim() || file;
+    }
+    return `Untitled #${media.id}`;
+}
+
+/** The server may send a date as text or as [year, month, day, ...]. */
+export function formatDate(value) {
+    if (!value) return '';
+    const date = Array.isArray(value)
+        ? new Date(value[0], (value[1] || 1) - 1, value[2] || 1)
+        : new Date(value);
+    return Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString();
+}
+
+function matchesPlaylistType(playlistType, media) {
+    const type = media.mediaType || media.type || '';
+    if (playlistType === 'MUSIC') return type === 'MUSIC' || type === 'AUDIO';
+    return type === playlistType;
+}
+
+function plural(n, word) {
+    return `${n} ${word}${n === 1 ? '' : 's'}`;
+}
 
 function PlaylistManager() {
     const { user } = useContext(UserContext);
-    const [playlists, setPlaylists] = useState([]);
-    const [publicPlaylists, setPublicPlaylists] = useState([]);
-    const [selectedPlaylist, setSelectedPlaylist] = useState(null);
-    const [playlistItems, setPlaylistItems] = useState([]);
-    const [availableMedia, setAvailableMedia] = useState([]);
-    const [showCreateForm, setShowCreateForm] = useState(false);
-    const [showEditForm, setShowEditForm] = useState(false);
-    const [showAddMediaModal, setShowAddMediaModal] = useState(false);
-    const [error, setError] = useState('');
-    const [loading, setLoading] = useState(true);
-    const [success, setSuccess] = useState('');
     const navigate = useNavigate();
-
     const { lexiconApiUrl } = getApiUrls();
+    const { toast, show: showToast, dismiss: dismissToast } = useToast();
 
-    const [formData, setFormData] = useState({
-        name: '',
-        description: '',
-        isPublic: false,
-        mediaType: 'MUSIC'
-    });
-    const [searchQuery, setSearchQuery] = useState('');
-    const [mediaSearchQuery, setMediaSearchQuery] = useState('');
-    const [playlistTypeFilter, setPlaylistTypeFilter] = useState('ALL');
+    const [mine, setMine] = useState([]);
+    const [shared, setShared] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState('');
+    const [tab, setTab] = useState('mine');
+    const [typeFilter, setTypeFilter] = useState('ALL');
+    const [search, setSearch] = useState('');
+
+    const [selected, setSelected] = useState(null);
+    const [items, setItems] = useState([]);
+    const [itemsLoading, setItemsLoading] = useState(false);
+    const [busyItem, setBusyItem] = useState(null);
+
+    const [form, setForm] = useState(null); // { mode: 'create' | 'edit', values }
+    const [saving, setSaving] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const [adding, setAdding] = useState(false);
+
+    const api = useCallback(async (path, options = {}) => {
+        const resp = await fetch(`${lexiconApiUrl}${path}`, { credentials: 'include', ...options });
+        if (resp.status === 401) {
+            navigate('/login');
+            throw new Error('signed out');
+        }
+        return resp;
+    }, [lexiconApiUrl, navigate]);
+
+    const loadPlaylists = useCallback(async () => {
+        setLoading(true);
+        setLoadError('');
+        try {
+            const [own, pub] = await Promise.all([
+                api(`/api/playlists/user/${user.id}`),
+                api('/api/playlists/public'),
+            ]);
+            setMine(own.ok ? await own.json() : []);
+            setShared(pub.ok ? await pub.json() : []);
+            if (!own.ok) setLoadError("Couldn't load your playlists.");
+        } catch (err) {
+            if (err.message !== 'signed out') {
+                devLog('Failed to load playlists:', err);
+                setLoadError("Couldn't load your playlists.");
+            }
+        } finally {
+            setLoading(false);
+        }
+    }, [api, user]);
+
+    const loadItems = useCallback(async (playlistId) => {
+        setItemsLoading(true);
+        try {
+            const resp = await api(`/api/playlists/${playlistId}`);
+            if (resp.ok) {
+                const full = await resp.json();
+                setItems(full.items || []);
+                setSelected((current) => (current && current.id === playlistId ? { ...current, ...full } : current));
+            } else {
+                showToast(await responseError(resp, "Couldn't open that playlist."), 'error');
+            }
+        } catch (err) {
+            if (err.message !== 'signed out') showToast(NETWORK_ERROR, 'error');
+        } finally {
+            setItemsLoading(false);
+        }
+    }, [api, showToast]);
 
     useEffect(() => {
         if (user === undefined) return;
@@ -43,747 +136,500 @@ function PlaylistManager() {
             navigate('/login');
             return;
         }
-        fetchPlaylists();
-        // Don't fetch available media on mount — defer to add-media modal
-    }, [user]);
+        loadPlaylists();
+    }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const fetchPlaylists = async () => {
-        setLoading(true);
+    const isOwner = selected && user && selected.createdBy === user.id;
+
+    const visible = useMemo(() => {
+        const source = tab === 'mine' ? mine : shared.filter((p) => !user || p.createdBy !== user.id);
+        const q = search.trim().toLowerCase();
+        return source.filter((p) => (typeFilter === 'ALL' || p.mediaType === typeFilter)
+            && (!q || p.name?.toLowerCase().includes(q) || p.description?.toLowerCase().includes(q)));
+    }, [tab, mine, shared, user, search, typeFilter]);
+
+    const openPlaylist = (playlist) => {
+        setSelected(playlist);
+        setItems([]);
+        loadItems(playlist.id);
+    };
+
+    // ── create / edit ───────────────────────────────────────────────────────────────
+    const savePlaylist = async (e) => {
+        e.preventDefault();
+        const { mode, values } = form;
+        if (!values.name.trim()) return;
+        setSaving(true);
         try {
-            const [userResp, publicResp] = await Promise.all([
-                fetch(`${lexiconApiUrl}/api/playlists/user/${user.id}`, { credentials: 'include' }),
-                fetch(`${lexiconApiUrl}/api/playlists/public`, { credentials: 'include' })
-            ]);
-
-            if (userResp.status === 401 || publicResp.status === 401) {
-                navigate('/login');
+            const resp = mode === 'create'
+                ? await api(`/api/playlists?userId=${user.id}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ...values, name: values.name.trim() }),
+                })
+                : await api(`/api/playlists/${selected.id}?userId=${user.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ...values, name: values.name.trim() }),
+                });
+            if (!resp.ok) {
+                showToast(await responseError(resp, mode === 'create' ? "Couldn't create the playlist." : "Couldn't save the playlist."), 'error');
                 return;
             }
-
-            const userPlaylists = userResp.ok ? await userResp.json() : [];
-            const publicPlaylistsData = publicResp.ok ? await publicResp.json() : [];
-
-            setPlaylists(userPlaylists);
-            setPublicPlaylists(publicPlaylistsData);
+            const saved = await resp.json().catch(() => null);
+            setForm(null);
+            await loadPlaylists();
+            if (mode === 'create' && saved?.id) {
+                setTab('mine');
+                openPlaylist(saved);
+                showToast(`Created "${saved.name}".`);
+            } else if (mode === 'edit') {
+                setSelected((current) => ({ ...current, ...values, name: values.name.trim() }));
+                showToast('Playlist saved.');
+            }
         } catch (err) {
-            devLog('Failed to fetch playlists:', err);
-            setError("Couldn't load your playlists.");
+            if (err.message !== 'signed out') showToast(NETWORK_ERROR, 'error');
         } finally {
-            setLoading(false);
+            setSaving(false);
         }
     };
 
-    const fetchAvailableMedia = async () => {
+    // ── delete ──────────────────────────────────────────────────────────────────────
+    const deletePlaylist = async (deleteMediaFiles) => {
+        const target = deleteTarget;
+        setDeleteTarget(null);
         try {
-            const [userResp, publicResp] = await Promise.all([
-                fetch(`${lexiconApiUrl}/api/media/user/${user.id}`, { credentials: 'include' }),
-                fetch(`${lexiconApiUrl}/api/media/public`, { credentials: 'include' })
-            ]);
-
-            if (!userResp.ok && !publicResp.ok) {
-                setError('Failed to fetch media files');
+            const params = new URLSearchParams({ userId: user.id, deleteMediaFiles });
+            const resp = await api(`/api/playlists/${target.id}?${params}`, { method: 'DELETE' });
+            if (!resp.ok) {
+                showToast(await responseError(resp, "Couldn't delete the playlist."), 'error');
                 return;
             }
-
-            const userMedia = userResp.ok ? await userResp.json() : [];
-            const publicMedia = publicResp.ok ? await publicResp.json() : [];
-
-            const combined = [...userMedia, ...publicMedia];
-            const map = new Map();
-            combined.forEach(item => map.set(item.id, item));
-            const allMedia = Array.from(map.values());
-
-            setAvailableMedia(allMedia);
+            if (selected?.id === target.id) {
+                setSelected(null);
+                setItems([]);
+            }
+            showToast(deleteMediaFiles ? 'Playlist and its media deleted.' : 'Playlist deleted.');
+            loadPlaylists();
         } catch (err) {
-            devLog('Failed to fetch media:', err);
-            setError("Couldn't load your media.");
+            if (err.message !== 'signed out') showToast(NETWORK_ERROR, 'error');
         }
     };
 
-    const fetchPlaylistItems = async (playlistId) => {
+    // ── items ───────────────────────────────────────────────────────────────────────
+    const removeItem = async (mediaFileId) => {
+        setBusyItem(mediaFileId);
         try {
-            const resp = await fetch(`${lexiconApiUrl}/api/playlists/${playlistId}`, { 
-                credentials: 'include' 
-            });
-
-            if (resp.status === 401) {
-                navigate('/login');
-                return;
-            }
-
+            const resp = await api(`/api/playlists/${selected.id}/items/${mediaFileId}?userId=${user.id}`, { method: 'DELETE' });
             if (resp.ok) {
-                const playlist = await resp.json();
-                setPlaylistItems(playlist.items || []);
-            }
-        } catch (err) {
-            devLog('Failed to fetch playlist items:', err);
-            setError("Couldn't load that playlist.");
-        }
-    };
-
-    const handleCreatePlaylist = async (e) => {
-        e.preventDefault();
-        setError('');
-        setSuccess('');
-
-        try {
-            const resp = await fetch(`${lexiconApiUrl}/api/playlists?userId=${user.id}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify(formData)
-            });
-
-            if (resp.status === 401) {
-                navigate('/login');
-                return;
-            }
-
-            if (resp.ok) {
-                setSuccess('Playlist created successfully!');
-                setShowCreateForm(false);
-                setFormData({ name: '', description: '', isPublic: false, mediaType: 'MUSIC' });
-                fetchPlaylists();
+                setItems((list) => list.filter((it) => it.mediaFile.id !== mediaFileId));
+                loadPlaylists();
             } else {
-                setError(await responseError(resp, "Couldn't create the playlist."));
+                showToast(await responseError(resp, "Couldn't remove that."), 'error');
             }
         } catch (err) {
-            devLog('Error creating playlist:', err);
-            setError(NETWORK_ERROR);
+            if (err.message !== 'signed out') showToast(NETWORK_ERROR, 'error');
+        } finally {
+            setBusyItem(null);
         }
     };
 
-    const handleUpdatePlaylist = async (e) => {
-        e.preventDefault();
-        setError('');
-        setSuccess('');
-
-
+    const moveItem = async (index, step) => {
+        const target = index + step;
+        if (target < 0 || target >= items.length) return;
+        const next = [...items];
+        [next[index], next[target]] = [next[target], next[index]];
+        const before = items;
+        setItems(next); // move at once; put it back if the server says no
         try {
-            const resp = await fetch(`${lexiconApiUrl}/api/playlists/${selectedPlaylist.id}?userId=${user.id}`, {
+            const resp = await api(`/api/playlists/${selected.id}/reorder?userId=${user.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify(formData)
+                body: JSON.stringify({ mediaFileIds: next.map((it) => it.mediaFile.id) }),
             });
-
-            if (resp.status === 401) {
-                navigate('/login');
-                return;
+            if (!resp.ok) {
+                setItems(before);
+                showToast(await responseError(resp, "Couldn't reorder the playlist."), 'error');
             }
+        } catch (err) {
+            setItems(before);
+            if (err.message !== 'signed out') showToast(NETWORK_ERROR, 'error');
+        }
+    };
 
-            if (resp.ok) {
-                setSuccess('Playlist updated successfully!');
-                setShowEditForm(false);
-                await fetchPlaylists();
-                // Refresh the selected playlist with updated data
-                if (selectedPlaylist) {
-                    const refreshResp = await fetch(`${lexiconApiUrl}/api/playlists/${selectedPlaylist.id}`, {
-                        credentials: 'include'
-                    });
-                    if (refreshResp.ok) {
-                        const refreshedPlaylist = await refreshResp.json();
-                        setSelectedPlaylist(refreshedPlaylist);
-                    }
+    /** Adds the files in order. Returns how many were added; the add window stays open. */
+    const addToPlaylist = async (mediaFiles) => {
+        let added = 0;
+        for (const media of mediaFiles) {
+            try {
+                const resp = await api(`/api/playlists/${selected.id}/items?userId=${user.id}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mediaFileId: media.id }),
+                });
+                if (!resp.ok) {
+                    showToast(await responseError(resp, `Couldn't add "${mediaTitle(media)}".`), 'error');
+                    break;
                 }
-            } else {
-                setError(await responseError(resp, "Couldn't save the playlist."));
+                added++;
+                setItems((list) => [...list, { mediaFile: media, mediaFileId: media.id }]);
+            } catch (err) {
+                if (err.message !== 'signed out') showToast(NETWORK_ERROR, 'error');
+                break;
             }
-        } catch (err) {
-            devLog('Error updating playlist:', err);
-            setError(NETWORK_ERROR);
         }
-    };
-
-    // Asks what to do with the playlist's media. Resolves false (keep files), true (delete
-    // them too) or null (cancel). It used to be a hand-built white innerHTML box outside React.
-    const [deletePrompt, setDeletePrompt] = useState(null);
-    const showDeletePlaylistDialog = () => new Promise((resolve) => setDeletePrompt({ resolve }));
-    const settleDeletePrompt = (answer) => {
-        deletePrompt?.resolve(answer);
-        setDeletePrompt(null);
-    };
-
-    const handleDeletePlaylist = async (playlistId) => {
-        setError('');
-        setSuccess('');
-
-        // Custom dialog to ask user about deleting media files
-        const result = await showDeletePlaylistDialog();
-        if (result === null) return; // User cancelled
-        
-        const deleteMediaFiles = result;
-
-        try {
-            const params = new URLSearchParams({
-                userId: user.id,
-                deleteMediaFiles: deleteMediaFiles
-            });
-            
-            const resp = await fetch(`${lexiconApiUrl}/api/playlists/${playlistId}?${params}`, {
-                method: 'DELETE',
-                credentials: 'include'
-            });
-
-            if (resp.status === 401) {
-                navigate('/login');
-                return;
-            }
-
-            if (resp.ok) {
-                setSuccess(deleteMediaFiles ? 'Playlist and its media files deleted.' : 'Playlist deleted.');
-                if (selectedPlaylist?.id === playlistId) {
-                    setSelectedPlaylist(null);
-                    setPlaylistItems([]);
-                }
-                fetchPlaylists();
-            } else {
-                setError(await responseError(resp, "Couldn't delete the playlist."));
-            }
-        } catch (err) {
-            devLog('Error deleting playlist:', err);
-            setError(NETWORK_ERROR);
+        if (added > 0) {
+            showToast(added === 1 ? `Added "${mediaTitle(mediaFiles[0])}".` : `Added ${added} items.`);
+            loadPlaylists();
         }
+        return added;
     };
 
-    const handleAddMediaToPlaylist = async (mediaFileId) => {
-        if (!selectedPlaylist) return;
-
-        setError('');
-        setSuccess('');
-
-        try {
-            const resp = await fetch(`${lexiconApiUrl}/api/playlists/${selectedPlaylist.id}/items?userId=${user.id}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ mediaFileId })
-            });
-
-            if (resp.status === 401) {
-                navigate('/login');
-                return;
-            }
-
-            if (resp.ok) {
-                setSuccess('Media added to playlist!');
-                fetchPlaylistItems(selectedPlaylist.id);
-                setShowAddMediaModal(false);
-            } else {
-                setError(await responseError(resp, "Couldn't add that to the playlist."));
-            }
-        } catch (err) {
-            devLog('Error adding media:', err);
-            setError(NETWORK_ERROR);
-        }
+    const closeAddWindow = () => {
+        setAdding(false);
+        if (selected) loadItems(selected.id); // pick up the server's order and details
     };
 
-    const handleRemoveMediaFromPlaylist = async (mediaFileId) => {
-        if (!selectedPlaylist) return;
-
-        setError('');
-        setSuccess('');
-
-        try {
-            const resp = await fetch(`${lexiconApiUrl}/api/playlists/${selectedPlaylist.id}/items/${mediaFileId}?userId=${user.id}`, {
-                method: 'DELETE',
-                credentials: 'include'
-            });
-
-            if (resp.status === 401) {
-                navigate('/login');
-                return;
-            }
-
-            if (resp.ok) {
-                setSuccess('Media removed from playlist!');
-                fetchPlaylistItems(selectedPlaylist.id);
-            } else {
-                setError(await responseError(resp, "Couldn't remove that from the playlist."));
-            }
-        } catch (err) {
-            devLog('Error removing media:', err);
-            setError(NETWORK_ERROR);
-        }
-    };
-
-    const handleMoveItem = async (index, direction) => {
-        const newItems = [...playlistItems];
-        const targetIndex = direction === 'up' ? index - 1 : index + 1;
-
-        if (targetIndex < 0 || targetIndex >= newItems.length) return;
-
-        // Swap items
-        [newItems[index], newItems[targetIndex]] = [newItems[targetIndex], newItems[index]];
-
-        // Update positions
-        const mediaFileIds = newItems.map(item => item.mediaFile.id);
-
-        try {
-            const resp = await fetch(`${lexiconApiUrl}/api/playlists/${selectedPlaylist.id}/reorder?userId=${user.id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ mediaFileIds })
-            });
-
-            if (resp.status === 401) {
-                navigate('/login');
-                return;
-            }
-
-            if (resp.ok) {
-                fetchPlaylistItems(selectedPlaylist.id);
-            } else {
-                setError(await responseError(resp, "Couldn't reorder the playlist."));
-            }
-        } catch (err) {
-            devLog('Error reordering:', err);
-            setError(NETWORK_ERROR);
-        }
-    };
-
-    const selectPlaylist = (playlist) => {
-        setSelectedPlaylist(playlist);
-        fetchPlaylistItems(playlist.id);
-        setError('');
-        setSuccess('');
-    };
-
-    const openEditForm = (playlist) => {
-        setSelectedPlaylist(playlist);
-        setFormData({
-            name: playlist.name,
-            description: playlist.description || '',
-            isPublic: playlist.isPublic,
-            mediaType: playlist.mediaType
-        });
-        setShowEditForm(true);
-    };
-
-    const filteredMedia = useMemo(() => {
-        if (!selectedPlaylist) return [];
-        
-        const playlistMediaType = selectedPlaylist.mediaType;
-        const mediaInPlaylist = new Set(playlistItems.map(item => item.mediaFile.id));
-
-        let filtered = availableMedia.filter(media => {
-            const mediaTypeValue = media.mediaType || media.type || '';
-            const matchesType = 
-                (playlistMediaType === 'MUSIC' && (mediaTypeValue === 'MUSIC' || mediaTypeValue === 'AUDIO')) ||
-                (playlistMediaType === 'VIDEO' && mediaTypeValue === 'VIDEO') ||
-                (playlistMediaType === 'AUDIOBOOK' && mediaTypeValue === 'AUDIOBOOK');
-            
-            return matchesType && !mediaInPlaylist.has(media.id);
-        });
-
-        // Apply search filter
-        if (mediaSearchQuery.trim()) {
-            const query = mediaSearchQuery.toLowerCase();
-            filtered = filtered.filter(media => 
-                media.title?.toLowerCase().includes(query) ||
-                media.description?.toLowerCase().includes(query)
-            );
-        }
-
-        return filtered;
-    }, [selectedPlaylist, playlistItems, availableMedia, mediaSearchQuery]);
-
-    const getFilteredPlaylists = (playlistList) => {
-        let result = playlistList;
-        
-        // Type filter
-        if (playlistTypeFilter !== 'ALL') {
-            result = result.filter(p => p.mediaType === playlistTypeFilter);
-        }
-        
-        // Search filter
-        if (searchQuery.trim()) {
-            const query = searchQuery.toLowerCase();
-            result = result.filter(playlist =>
-                playlist.name?.toLowerCase().includes(query) ||
-                playlist.description?.toLowerCase().includes(query)
-            );
-        }
-        
-        return result;
-    };
-
-    const formatDate = (dateString) => {
-        if (!dateString) return 'N/A';
-        return new Date(dateString).toLocaleDateString();
-    };
-
+    // ── render ──────────────────────────────────────────────────────────────────────
     return (
-        <div className="playlist-manager-container">
-            <div className="playlist-header">
-                <h1>Playlist Manager</h1>
-                <button onClick={() => navigate('/lexicon-dashboard')} className="back-button">
-                    Back to Dashboard
+        <div className="pl-page">
+            <header className="pl-header">
+                <button type="button" className="lx-btn lx-btn--secondary" onClick={() => navigate('/lexicon-dashboard')}>
+                    <span aria-hidden="true">←</span> Lexicon
                 </button>
-            </div>
+                <h1>Playlists</h1>
+                <button type="button" className="lx-btn lx-btn--primary" onClick={() => setForm({ mode: 'create', values: { ...EMPTY_FORM } })}>
+                    New playlist
+                </button>
+            </header>
 
-            {error && <div className="error-message">{error}</div>}
-            {success && <div className="success-message">{success}</div>}
-
-            <div className="playlist-layout">
-                {/* Left Panel - Playlists List */}
-                <div className="playlists-panel">
-                    <div className="panel-header">
-                        <h2>My Playlists</h2>
-                        <button 
-                            onClick={() => setShowCreateForm(true)} 
-                            className="create-button"
-                        >
-                            + Create New
+            <div className={`pl-layout ${selected ? 'pl-layout--detail' : ''}`}>
+                <aside className="pl-sidebar" aria-label="Playlists">
+                    <div className="pl-tabs" role="tablist" aria-label="Whose playlists">
+                        <button type="button" role="tab" aria-selected={tab === 'mine'} className={`pl-tab ${tab === 'mine' ? 'is-active' : ''}`} onClick={() => setTab('mine')}>
+                            Mine <span className="pl-count">{mine.length}</span>
+                        </button>
+                        <button type="button" role="tab" aria-selected={tab === 'public'} className={`pl-tab ${tab === 'public' ? 'is-active' : ''}`} onClick={() => setTab('public')}>
+                            Public <span className="pl-count">{shared.filter((p) => !user || p.createdBy !== user.id).length}</span>
                         </button>
                     </div>
 
-                    {/* Search Box & Filters */}
-                    <div className="search-filter-section">
-                        <input
-                            type="text"
-                            placeholder="🔍 Search playlists..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="search-input"
-                        />
-                        <div className="playlist-filter-pills">
-                            {['ALL', 'MUSIC', 'VIDEO', 'AUDIOBOOK'].map(type => (
-                                <button
-                                    key={type}
-                                    className={`playlist-filter-pill ${playlistTypeFilter === type ? 'active' : ''}`}
-                                    onClick={() => setPlaylistTypeFilter(type)}
-                                >
-                                    {type === 'ALL' && '🎯 All'}
-                                    {type === 'MUSIC' && '🎵 Music'}
-                                    {type === 'VIDEO' && '🎬 Video'}
-                                    {type === 'AUDIOBOOK' && '📚 Books'}
-                                </button>
-                            ))}
-                        </div>
+                    <label className="pl-sr-only" htmlFor="pl-search">Search playlists</label>
+                    <input id="pl-search" className="pl-search" type="search" placeholder="Search playlists" value={search} onChange={(e) => setSearch(e.target.value)} />
+
+                    <div className="pl-chips" role="group" aria-label="Filter by type">
+                        {TYPES.map((t) => (
+                            <button key={t.value} type="button" aria-pressed={typeFilter === t.value} className={`pl-chip ${typeFilter === t.value ? 'is-active' : ''}`} onClick={() => setTypeFilter(t.value)}>
+                                {t.label}
+                            </button>
+                        ))}
                     </div>
 
-                    <div className="playlists-list">
-                        {loading && playlists.length === 0 ? (
-                            <div className="lx-state" aria-busy="true" style={{ minHeight: 160 }}><div className="lx-spinner" aria-hidden="true" /></div>
-                        ) : getFilteredPlaylists(playlists).length === 0 ? (
-                            <p className="no-data">
-                                {searchQuery ? 'No playlists match your search' : 'No playlists yet. Create one!'}
-                            </p>
-                        ) : (
-                            getFilteredPlaylists(playlists).map(playlist => (
-                                <div
-                                    key={playlist.id}
-                                    className={`playlist-card ${selectedPlaylist?.id === playlist.id ? 'active' : ''}`} {...pressable(() => selectPlaylist(playlist))}
-                                >
-                                    <div className="playlist-card-header">
-                                        <h3>{playlist.name}</h3>
-                                        <span className="playlist-type">{playlist.mediaType}</span>
-                                    </div>
-                                    <p className="playlist-description">{playlist.description}</p>
-                                    <div className="playlist-meta">
-                                        <span>{playlist.isPublic ? '🌐 Public' : '🔒 Private'}</span>
-                                        <span>Created: {formatDate(playlist.createdDate)}</span>
-                                    </div>
-                                    <div className="playlist-actions">
-                                        <button 
-                                            onClick={(e) => { e.stopPropagation(); openEditForm(playlist); }}
-                                            className="edit-btn"
-                                        >
-                                            Edit
-                                        </button>
-                                        <button 
-                                            onClick={(e) => { e.stopPropagation(); handleDeletePlaylist(playlist.id); }}
-                                            className="delete-btn"
-                                        >
-                                            Delete
-                                        </button>
-                                    </div>
-                                </div>
-                            ))
-                        )}
-                    </div>
+                    {loadError && <div className="lx-alert lx-alert--error">{loadError}</div>}
 
-                    {publicPlaylists.length > 0 && (
-                        <>
-                            <div className="panel-header">
-                                <h2>Public Playlists</h2>
-                            </div>
-                            <div className="playlists-list">
-                                {getFilteredPlaylists(publicPlaylists).length === 0 ? (
-                                    <p className="no-data">No public playlists match your search</p>
-                                ) : (
-                                    getFilteredPlaylists(publicPlaylists).map(playlist => (
-                                    <div
-                                        key={playlist.id}
-                                        className={`playlist-card ${selectedPlaylist?.id === playlist.id ? 'active' : ''}`} {...pressable(() => selectPlaylist(playlist))}
-                                    >
-                                        <div className="playlist-card-header">
-                                            <h3>{playlist.name}</h3>
-                                            <span className="playlist-type">{playlist.mediaType}</span>
-                                        </div>
-                                        <p className="playlist-description">{playlist.description}</p>
-                                        <div className="playlist-meta">
-                                            <span>🌐 Public</span>
-                                            <span>Created: {formatDate(playlist.createdDate)}</span>
-                                        </div>
-                                    </div>
-                                ))
-                                )}
-                            </div>
-                        </>
-                    )}
-                </div>
-
-                {/* Right Panel - Playlist Items */}
-                <div className="playlist-items-panel">
-                    {selectedPlaylist ? (
-                        <>
-                            <div className="panel-header">
-                                <h2>{selectedPlaylist.name}</h2>
-                                {selectedPlaylist.createdBy === user?.id && (
-                                    <button 
-                                        onClick={() => {
-                                            setShowAddMediaModal(true);
-                                            if (availableMedia.length === 0) fetchAvailableMedia();
-                                        }}
-                                        className="add-media-button"
-                                    >
-                                        + Add Media
-                                    </button>
-                                )}
-                            </div>
-
-                            <div className="playlist-items-list">
-                                {playlistItems.length === 0 ? (
-                                    <p className="no-data">No items in this playlist yet.</p>
-                                ) : (
-                                    playlistItems.map((item, index) => (
-                                        <div key={item.mediaFile.id} className="playlist-item">
-                                            <div className="item-position">{index + 1}</div>
-                                            <div className="item-info">
-                                                <h4>{item.mediaFile.title}</h4>
-                                                <p>{item.mediaFile.description}</p>
-                                            </div>
-                                            {selectedPlaylist.createdBy === user?.id && (
-                                                <div className="item-actions">
-                                                    <button
-                                                        onClick={() => handleMoveItem(index, 'up')}
-                                                        disabled={index === 0}
-                                                        className="move-btn"
-                                                    >
-                                                        ▲
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleMoveItem(index, 'down')}
-                                                        disabled={index === playlistItems.length - 1}
-                                                        className="move-btn"
-                                                    >
-                                                        ▼
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleRemoveMediaFromPlaylist(item.mediaFile.id)}
-                                                        className="remove-btn"
-                                                    >
-                                                        ✕
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        </>
+                    {loading && mine.length === 0 && shared.length === 0 ? (
+                        <div className="lx-state" aria-busy="true"><div className="lx-spinner" aria-hidden="true" /></div>
+                    ) : visible.length === 0 ? (
+                        <p className="pl-empty">
+                            {search || typeFilter !== 'ALL' ? 'Nothing matches.'
+                                : tab === 'mine' ? 'No playlists yet. Make one with New playlist.' : 'No public playlists from others yet.'}
+                        </p>
                     ) : (
-                        <div className="no-selection">
-                            <p>Select a playlist to view its contents</p>
-                        </div>
+                        <ul className="pl-list">
+                            {visible.map((p) => (
+                                <li key={p.id}>
+                                    <button type="button" className={`pl-row ${selected?.id === p.id ? 'is-active' : ''}`} aria-current={selected?.id === p.id ? 'true' : undefined} onClick={() => openPlaylist(p)}>
+                                        <span className="pl-row__name" title={p.name}>{p.name}</span>
+                                        <span className="pl-row__meta">
+                                            {TYPE_LABEL[p.mediaType] || p.mediaType}
+                                            {typeof p.itemCount === 'number' && <> · {plural(p.itemCount, 'item')}</>}
+                                            {' · '}{p.isPublic ? 'Public' : 'Private'}
+                                        </span>
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
                     )}
-                </div>
+                </aside>
+
+                <section className="pl-detail" aria-label={selected ? selected.name : 'Playlist'}>
+                    {!selected ? (
+                        <div className="pl-placeholder">
+                            <p>Choose a playlist to see what is in it.</p>
+                        </div>
+                    ) : (
+                        <>
+                            <button type="button" className="pl-back lx-btn lx-btn--secondary" onClick={() => setSelected(null)}>
+                                <span aria-hidden="true">←</span> All playlists
+                            </button>
+                            <div className="pl-detail__head">
+                                <div className="pl-detail__titles">
+                                    <h2 title={selected.name}>{selected.name}</h2>
+                                    <p className="pl-detail__meta">
+                                        <span className="pl-badge">{TYPE_LABEL[selected.mediaType] || selected.mediaType}</span>
+                                        <span>{selected.isPublic ? 'Public' : 'Private'}</span>
+                                        <span>{plural(items.length, 'item')}</span>
+                                        {formatDate(selected.createdDate) && <span>Created {formatDate(selected.createdDate)}</span>}
+                                    </p>
+                                    {selected.description && <p className="pl-detail__desc">{selected.description}</p>}
+                                </div>
+                                {isOwner && (
+                                    <div className="pl-detail__actions">
+                                        <button type="button" className="lx-btn lx-btn--primary" onClick={() => setAdding(true)}>Add media</button>
+                                        <button type="button" className="lx-btn lx-btn--secondary" onClick={() => setForm({ mode: 'edit', values: { name: selected.name, description: selected.description || '', isPublic: !!selected.isPublic, mediaType: selected.mediaType } })}>Edit</button>
+                                        <button type="button" className="lx-btn lx-btn--danger" onClick={() => setDeleteTarget(selected)}>Delete</button>
+                                    </div>
+                                )}
+                            </div>
+
+                            {itemsLoading && items.length === 0 ? (
+                                <div className="lx-state" aria-busy="true"><div className="lx-spinner" aria-hidden="true" /></div>
+                            ) : items.length === 0 ? (
+                                <div className="pl-placeholder">
+                                    <p>This playlist is empty.</p>
+                                    {isOwner && <button type="button" className="lx-btn lx-btn--primary" onClick={() => setAdding(true)}>Add media</button>}
+                                </div>
+                            ) : (
+                                <ol className="pl-items">
+                                    {items.map((it, index) => {
+                                        const name = mediaTitle(it.mediaFile);
+                                        return (
+                                            <li key={it.mediaFile.id} className="pl-item">
+                                                <span className="pl-item__pos" aria-hidden="true">{index + 1}</span>
+                                                <span className="pl-item__text">
+                                                    <span className="pl-item__title" title={name}>{name}</span>
+                                                    {it.mediaFile.description && <span className="pl-item__sub">{it.mediaFile.description}</span>}
+                                                </span>
+                                                {isOwner && (
+                                                    <span className="pl-item__actions">
+                                                        <button type="button" className="pl-icon" aria-label={`Move ${name} up`} disabled={index === 0} onClick={() => moveItem(index, -1)}>↑</button>
+                                                        <button type="button" className="pl-icon" aria-label={`Move ${name} down`} disabled={index === items.length - 1} onClick={() => moveItem(index, 1)}>↓</button>
+                                                        <button type="button" className="pl-icon pl-icon--danger" aria-label={`Remove ${name}`} disabled={busyItem === it.mediaFile.id} onClick={() => removeItem(it.mediaFile.id)}>✕</button>
+                                                    </span>
+                                                )}
+                                            </li>
+                                        );
+                                    })}
+                                </ol>
+                            )}
+                        </>
+                    )}
+                </section>
             </div>
 
-            {/* Create Playlist Modal */}
-            {showCreateForm && (
-                <ModalFrame onClose={() => setShowCreateForm(false)} overlayClassName="modal-overlay" className="modal-content">
-                        <h2>Create New Playlist</h2>
-                        <form onSubmit={handleCreatePlaylist}>
-                            <div className="form-group">
-                                <label>Name:</label>
-                                <input
-                                    type="text"
-                                    value={formData.name || ''}
-                                    onChange={(e) => setFormData({...formData, name: e.target.value})}
-                                    required
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label>Description:</label>
-                                <textarea
-                                    value={formData.description || ''}
-                                    onChange={(e) => setFormData({...formData, description: e.target.value})}
-                                    rows="3"
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label>Media Type:</label>
-                                <select
-                                    value={formData.mediaType}
-                                    onChange={(e) => setFormData({...formData, mediaType: e.target.value})}
-                                >
-                                    <option value="MUSIC">Music</option>
-                                    <option value="VIDEO">Video</option>
-                                    <option value="AUDIOBOOK">Audiobook</option>
-                                </select>
-                            </div>
-                            <div className="form-group checkbox">
-                                <label>
-                                    <input
-                                        type="checkbox"
-                                        checked={formData.isPublic || false}
-                                        onChange={(e) => setFormData({...formData, isPublic: e.target.checked})}
-                                    />
-                                    Make Public
+            {form && (
+                <Dialog
+                    title={form.mode === 'create' ? 'New playlist' : 'Edit playlist'}
+                    onClose={() => setForm(null)}
+                >
+                    <form className="pl-form" onSubmit={savePlaylist}>
+                        <div className="lx-field">
+                            <label htmlFor="pl-name">Name</label>
+                            <input id="pl-name" data-autofocus value={form.values.name} required maxLength={120}
+                                onChange={(e) => setForm({ ...form, values: { ...form.values, name: e.target.value } })} />
+                        </div>
+                        <div className="lx-field">
+                            <label htmlFor="pl-desc">Description</label>
+                            <textarea id="pl-desc" rows={3} value={form.values.description}
+                                onChange={(e) => setForm({ ...form, values: { ...form.values, description: e.target.value } })} />
+                        </div>
+                        <fieldset className="pl-types">
+                            <legend>Type</legend>
+                            {TYPES.filter((t) => t.value !== 'ALL').map((t) => (
+                                <label key={t.value} className={`pl-chip ${form.values.mediaType === t.value ? 'is-active' : ''}`}>
+                                    <input type="radio" name="pl-type" value={t.value} checked={form.values.mediaType === t.value}
+                                        onChange={() => setForm({ ...form, values: { ...form.values, mediaType: t.value } })} />
+                                    {t.label}
                                 </label>
-                            </div>
-                            <div className="form-actions">
-                                <button type="submit" className="submit-btn">Create</button>
-                                <button type="button" onClick={() => setShowCreateForm(false)} className="cancel-btn">
-                                    Cancel
-                                </button>
-                            </div>
-                        </form>
-                    </ModalFrame>
-            )}
-
-            {/* Edit Playlist Modal */}
-            {showEditForm && (
-                <ModalFrame onClose={() => setShowEditForm(false)} overlayClassName="modal-overlay" className="modal-content">
-                        <h2>Edit Playlist</h2>
-                        <form onSubmit={handleUpdatePlaylist}>
-                            <div className="form-group">
-                                <label>Name:</label>
-                                <input
-                                    type="text"
-                                    value={formData.name || ''}
-                                    onChange={(e) => setFormData({...formData, name: e.target.value})}
-                                    required
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label>Description:</label>
-                                <textarea
-                                    value={formData.description || ''}
-                                    onChange={(e) => setFormData({...formData, description: e.target.value})}
-                                    rows="3"
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label>Media Type:</label>
-                                <select
-                                    value={formData.mediaType}
-                                    onChange={(e) => setFormData({...formData, mediaType: e.target.value})}
-                                >
-                                    <option value="MUSIC">Music</option>
-                                    <option value="VIDEO">Video</option>
-                                    <option value="AUDIOBOOK">Audiobook</option>
-                                </select>
-                            </div>
-                            <div className="form-group checkbox">
-                                <label>
-                                    <input
-                                        type="checkbox"
-                                        checked={formData.isPublic || false}
-                                        onChange={(e) => setFormData({...formData, isPublic: e.target.checked})}
-                                    />
-                                    Make Public
-                                </label>
-                            </div>
-                            <div className="form-actions">
-                                <button type="submit" className="submit-btn">Update</button>
-                                <button type="button" onClick={() => setShowEditForm(false)} className="cancel-btn">
-                                    Cancel
-                                </button>
-                            </div>
-                        </form>
-                    </ModalFrame>
-            )}
-
-            {/* Add Media Modal */}
-            {showAddMediaModal && (
-                <ModalFrame onClose={() => setShowAddMediaModal(false)} overlayClassName="modal-overlay" className="modal-content add-media-modal">
-                        <div className="modal-top-bar">
-                            <h2>Add Media to Playlist</h2>
-                            <button 
-                                className="modal-x-btn"
-                                onClick={() => { setShowAddMediaModal(false); setMediaSearchQuery(''); }}
-                            >
-                                ✕
+                            ))}
+                        </fieldset>
+                        <label className="pl-check">
+                            <input type="checkbox" checked={form.values.isPublic}
+                                onChange={(e) => setForm({ ...form, values: { ...form.values, isPublic: e.target.checked } })} />
+                            Public: everyone signed in can see and play it
+                        </label>
+                        <div className="lx-dialog__actions">
+                            <button type="button" className="lx-btn lx-btn--secondary" onClick={() => setForm(null)}>Cancel</button>
+                            <button type="submit" className="lx-btn lx-btn--primary" disabled={saving || !form.values.name.trim()}>
+                                {saving ? 'Saving…' : form.mode === 'create' ? 'Create' : 'Save'}
                             </button>
                         </div>
-                        
-                        {/* Media Search */}
-                        <div className="modal-search-area">
-                            <input
-                                type="text"
-                                placeholder="🔍 Search media files..."
-                                value={mediaSearchQuery}
-                                onChange={(e) => setMediaSearchQuery(e.target.value)}
-                                className="search-input"
-                                autoFocus
-                            />
-                            <span className="modal-result-count">
-                                {filteredMedia.length} available
-                            </span>
-                        </div>
-
-                        <div className="media-list-scrollable">
-                            {filteredMedia.length === 0 ? (
-                                <p className="no-data">
-                                    {mediaSearchQuery ? 'No media matches your search' : 'No available media to add'}
-                                </p>
-                            ) : (
-                                filteredMedia.map(media => (
-                                    <div key={media.id} className="media-add-row">
-                                        <div className="media-add-icon">
-                                            {media.mediaType === 'VIDEO' ? '🎬' : media.mediaType === 'AUDIOBOOK' ? '📚' : '🎵'}
-                                        </div>
-                                        <div className="media-add-info">
-                                            <span className="media-add-title">{media.title || media.originalFilename}</span>
-                                            {media.description && (
-                                                <span className="media-add-desc">{media.description}</span>
-                                            )}
-                                        </div>
-                                        <button
-                                            onClick={() => handleAddMediaToPlaylist(media.id)}
-                                            className="add-btn"
-                                        >
-                                            + Add
-                                        </button>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </ModalFrame>
+                    </form>
+                </Dialog>
             )}
 
-            {deletePrompt && (
+            {adding && selected && (
+                <AddMediaWindow
+                    api={api}
+                    user={user}
+                    playlist={selected}
+                    inPlaylist={new Set(items.map((it) => it.mediaFile.id))}
+                    onAdd={addToPlaylist}
+                    onClose={closeAddWindow}
+                />
+            )}
+
+            {deleteTarget && (
                 <Dialog
-                    title="Delete playlist?"
+                    title={`Delete "${deleteTarget.name}"?`}
                     size="sm"
-                    onClose={() => settleDeletePrompt(null)}
+                    onClose={() => setDeleteTarget(null)}
                     actions={(
                         <>
-                            <button type="button" className="lx-btn lx-btn--secondary" onClick={() => settleDeletePrompt(null)}>Cancel</button>
-                            <button type="button" className="lx-btn lx-btn--secondary" data-autofocus onClick={() => settleDeletePrompt(false)}>Keep media files</button>
-                            <button type="button" className="lx-btn lx-btn--danger" onClick={() => settleDeletePrompt(true)}>Delete media files too</button>
+                            <button type="button" className="lx-btn lx-btn--secondary" onClick={() => setDeleteTarget(null)}>Cancel</button>
+                            <button type="button" className="lx-btn lx-btn--secondary" data-autofocus onClick={() => deletePlaylist(false)}>Keep media files</button>
+                            <button type="button" className="lx-btn lx-btn--danger" onClick={() => deletePlaylist(true)}>Delete media files too</button>
                         </>
                     )}
                 >
-                    <p>What would you like to do with the media files in this playlist?</p>
+                    <p>The playlist goes either way. Should its media files be deleted as well?</p>
                 </Dialog>
             )}
+
+            <Toast toast={toast} onDismiss={dismissToast} />
         </div>
+    );
+}
+
+/**
+ * Pick media to add. Stays open: tick several and add them together, or add one at a time;
+ * whatever is added shows as "In playlist" and the window waits for Done. It used to close
+ * after every single item.
+ */
+function AddMediaWindow({ api, user, playlist, inPlaylist, onAdd, onClose }) {
+    const [media, setMedia] = useState(null); // null while loading
+    const [error, setError] = useState('');
+    const [query, setQuery] = useState('');
+    const [source, setSource] = useState('all');
+    const [picked, setPicked] = useState(() => new Set());
+    const [working, setWorking] = useState(false);
+
+    useEffect(() => {
+        let alive = true;
+        (async () => {
+            try {
+                const [own, pub] = await Promise.all([api(`/api/media/user/${user.id}`), api('/api/media/public')]);
+                const all = new Map();
+                if (own.ok) (await own.json()).forEach((m) => all.set(m.id, { ...m, mine: true }));
+                if (pub.ok) (await pub.json()).forEach((m) => { if (!all.has(m.id)) all.set(m.id, m); });
+                if (alive) {
+                    setMedia([...all.values()]);
+                    if (!own.ok && !pub.ok) setError("Couldn't load your media.");
+                }
+            } catch (err) {
+                if (alive && err.message !== 'signed out') {
+                    setError(NETWORK_ERROR);
+                    setMedia([]);
+                }
+            }
+        })();
+        return () => { alive = false; };
+    }, [api, user]);
+
+    const candidates = useMemo(() => {
+        if (!media) return [];
+        const q = query.trim().toLowerCase();
+        return media
+            .filter((m) => matchesPlaylistType(playlist.mediaType, m))
+            .filter((m) => source === 'all' || (source === 'mine' ? m.mine : !m.mine))
+            .filter((m) => !q || mediaTitle(m).toLowerCase().includes(q) || m.description?.toLowerCase().includes(q))
+            .sort((a, b) => mediaTitle(a).localeCompare(mediaTitle(b), undefined, { numeric: true }));
+    }, [media, query, source, playlist.mediaType]);
+
+    const addable = candidates.filter((m) => !inPlaylist.has(m.id));
+    const pickedList = addable.filter((m) => picked.has(m.id));
+
+    const toggle = (id) => setPicked((set) => {
+        const next = new Set(set);
+        if (next.has(id)) next.delete(id); else next.add(id);
+        return next;
+    });
+
+    const add = async (list) => {
+        setWorking(true);
+        const added = await onAdd(list);
+        setWorking(false);
+        if (added > 0) {
+            setPicked((set) => {
+                const next = new Set(set);
+                list.slice(0, added).forEach((m) => next.delete(m.id));
+                return next;
+            });
+        }
+    };
+
+    const allPicked = addable.length > 0 && addable.every((m) => picked.has(m.id));
+
+    return (
+        <ModalFrame onClose={onClose} overlayClassName="lx-dialog-backdrop" className="pl-add" label={`Add media to ${playlist.name}`}>
+            <div className="pl-add__head">
+                <div>
+                    <h2>Add to “{playlist.name}”</h2>
+                    <p className="pl-add__hint">{TYPE_LABEL[playlist.mediaType] || ''} you can add. Tick several, or add them one by one.</p>
+                </div>
+                <button type="button" className="pl-icon" aria-label="Close" onClick={onClose}>✕</button>
+            </div>
+
+            <div className="pl-add__tools">
+                <label className="pl-sr-only" htmlFor="pl-add-search">Search media</label>
+                <input id="pl-add-search" data-autofocus className="pl-search" type="search" placeholder="Search media" value={query} onChange={(e) => setQuery(e.target.value)} />
+                <div className="pl-chips" role="group" aria-label="Whose media">
+                    {[['all', 'All'], ['mine', 'Mine'], ['public', 'Public']].map(([value, label]) => (
+                        <button key={value} type="button" aria-pressed={source === value} className={`pl-chip ${source === value ? 'is-active' : ''}`} onClick={() => setSource(value)}>{label}</button>
+                    ))}
+                </div>
+            </div>
+
+            {error && <div className="lx-alert lx-alert--error">{error}</div>}
+
+            <div className="pl-add__list">
+                {media === null ? (
+                    <div className="lx-state" aria-busy="true"><div className="lx-spinner" aria-hidden="true" /></div>
+                ) : candidates.length === 0 ? (
+                    <p className="pl-empty">{query ? 'Nothing matches.' : 'No media of this type yet.'}</p>
+                ) : (
+                    <>
+                        {addable.length > 1 && (
+                            <label className="pl-pick pl-pick--all">
+                                <input type="checkbox" checked={allPicked} disabled={working}
+                                    onChange={() => setPicked(allPicked ? new Set() : new Set(addable.map((m) => m.id)))} />
+                                <span>Select all {addable.length} shown</span>
+                            </label>
+                        )}
+                        <ul>
+                            {candidates.map((m) => {
+                                const name = mediaTitle(m);
+                                const already = inPlaylist.has(m.id);
+                                return (
+                                    <li key={m.id} className={`pl-pick ${already ? 'is-added' : ''}`}>
+                                        <label className="pl-pick__label">
+                                            <input type="checkbox" checked={already || picked.has(m.id)} disabled={already || working} onChange={() => toggle(m.id)} />
+                                            <span className="pl-pick__text">
+                                                <span className="pl-pick__title" title={name}>{name}</span>
+                                                {m.description && <span className="pl-pick__sub">{m.description}</span>}
+                                            </span>
+                                        </label>
+                                        {already ? (
+                                            <span className="pl-pick__state">In playlist</span>
+                                        ) : (
+                                            <button type="button" className="lx-btn lx-btn--secondary pl-pick__add" disabled={working} onClick={() => add([m])} aria-label={`Add ${name}`}>Add</button>
+                                        )}
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    </>
+                )}
+            </div>
+
+            <div className="pl-add__foot">
+                <span className="pl-add__count" aria-live="polite">{pickedList.length > 0 ? `${pickedList.length} selected` : ''}</span>
+                <button type="button" className="lx-btn lx-btn--primary" disabled={working || pickedList.length === 0} onClick={() => add(pickedList)}>
+                    {working ? 'Adding…' : pickedList.length > 1 ? `Add ${pickedList.length}` : 'Add selected'}
+                </button>
+                <button type="button" className="lx-btn lx-btn--secondary" onClick={onClose}>Done</button>
+            </div>
+        </ModalFrame>
     );
 }
 
